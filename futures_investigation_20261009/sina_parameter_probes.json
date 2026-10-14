@@ -1,0 +1,23 @@
+[
+  {
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5&datalen=5000",
+    "status": 200,
+    "rows": 1023,
+    "first": "2026-09-09 21:25:00",
+    "last": "2026-10-09 15:00:00"
+  },
+  {
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5&count=5000&page=2",
+    "status": 200,
+    "rows": 1023,
+    "first": "2026-09-09 21:25:00",
+    "last": "2026-10-09 15:00:00"
+  },
+  {
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5&start=20250101&end=20250901",
+    "status": 200,
+    "rows": 1023,
+    "first": "2026-09-09 21:25:00",
+    "last": "2026-10-09 15:00:00"
+  }
+]

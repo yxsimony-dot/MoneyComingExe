@@ -1,0 +1,71 @@
+{
+  "name": "moneycoming",
+  "version": "1.0.0",
+  "private": true,
+  "description": "豆粕离线历史看盘",
+  "author": "MoneyComing",
+  "type": "module",
+  "main": "build/main.cjs",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
+    "start": "electron .",
+    "package": "npm run build && electron-builder --win --dir",
+    "test:app": "node tests/app-smoke.mjs"
+  },
+  "build": {
+    "appId": "local.moneycoming.viewer",
+    "productName": "MoneyComing",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "build/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "futures_investigation_20261009",
+        "to": "data",
+        "filter": [
+          "edb_*_5m.csv",
+          "edb_*_60m.csv",
+          "summary.json",
+          "cross_source_audit.json"
+        ]
+      },
+      {
+        "from": "futures_investigation_20261009/entry-rules.md",
+        "to": "data/entry-rules.md"
+      },
+      {
+        "from": "docs/使用说明.md",
+        "to": "使用说明.md"
+      },
+      {
+        "from": "docs/THIRD-PARTY-NOTICES.txt",
+        "to": "THIRD-PARTY-NOTICES.txt"
+      }
+    ],
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false
+    },
+    "asar": true
+  },
+  "dependencies": {
+    "lightweight-charts": "5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "playwright": "1.64.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  }
+}

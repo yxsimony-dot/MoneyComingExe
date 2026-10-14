@@ -1,0 +1,68 @@
+[
+  {
+    "file": "edb_main_continuous_1m_raw.csv",
+    "url": "https://edb.shinnytech.com/md/kline?period=60&symbol=KQ.m%40DCE.m&start_time=2025-10-09+21%3A00%3A00&end_time=2026-10-09+23%3A59%3A59&col=open%2Chigh%2Clow%2Cclose%2Cvolume%2Copen_oi%2Cclose_oi",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:22.765084+08:00",
+    "bytes": 5109265,
+    "sha256": "6c2b8229ce9c484d4226914485691df708dc5d0c7d18e029c7a4ba61f77e8806"
+  },
+  {
+    "file": "edb_m2701_1m_raw.csv",
+    "url": "https://edb.shinnytech.com/md/kline?period=60&symbol=DCE.m2701&start_time=2025-10-09+21%3A00%3A00&end_time=2026-10-09+23%3A59%3A59&col=open%2Chigh%2Clow%2Cclose%2Cvolume%2Copen_oi%2Cclose_oi",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:26.469086+08:00",
+    "bytes": 3482543,
+    "sha256": "8e0145732069800f674f9185adfa1c855f46288b803c319346ccbc9782af2d0d"
+  },
+  {
+    "file": "sina_M0_5m_raw.jsonp",
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:27.987083+08:00",
+    "bytes": 116349,
+    "sha256": "d54ddd054a1ec9ad3672a5c515a5d8c8f02c81c50840e7aa93e4b4b6bc3f8985"
+  },
+  {
+    "file": "sina_M0_60m_raw.jsonp",
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=60",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:28.254086+08:00",
+    "bytes": 116609,
+    "sha256": "d646a564159a745b6d82399b240c7141befa7dc8f75753424456f7670424049f"
+  },
+  {
+    "file": "sina_M2701_5m_raw.jsonp",
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M2701&type=5",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:28.509584+08:00",
+    "bytes": 116173,
+    "sha256": "ed3aa9eeedb4ddfb222837cde48e93468cb884ea365efd85aa842f677f54ee88"
+  },
+  {
+    "file": "sina_M2701_60m_raw.jsonp",
+    "url": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine?symbol=M2701&type=60",
+    "status": 200,
+    "fetched_at": "2026-10-09T16:35:28.768085+08:00",
+    "bytes": 114845,
+    "sha256": "b1e2bf3cc32c7cf08960fc734fda1127244b8cb465bfb41dd250aec809eb2347"
+  },
+  {
+    "test": "unsupported_period",
+    "url": "https://edb.shinnytech.com/md/kline?period=300&symbol=KQ.m%40DCE.m&start_time=2026-10-08+09%3A00%3A00&end_time=2026-10-08+15%3A00%3A00",
+    "status": 400,
+    "body": "400,invalid period"
+  },
+  {
+    "test": "unsupported_period",
+    "url": "https://edb.shinnytech.com/md/kline?period=3600&symbol=KQ.m%40DCE.m&start_time=2026-10-08+09%3A00%3A00&end_time=2026-10-08+15%3A00%3A00",
+    "status": 400,
+    "body": "400,invalid period"
+  },
+  {
+    "test": "free_history_boundary",
+    "url": "https://edb.shinnytech.com/md/kline?period=60&symbol=KQ.m%40DCE.m&start_time=2025-10-09+00%3A00%3A00&end_time=2025-10-09+15%3A00%3A00",
+    "status": 403,
+    "body": "403,免费用户仅可以访问日线数据和近一年的分钟线数据, 请前往https://www.shinnytech.com/ 用户中心购买高级数据服务"
+  }
+]
