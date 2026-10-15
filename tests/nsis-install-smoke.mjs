@@ -155,7 +155,16 @@ try {
     await run(uninstaller, ['/S'], { timeout: 60_000 }).catch(() => undefined);
   }
   if (process.env.MONEYCOMING_KEEP_INSTALLER_SMOKE !== '1') {
-    await removeTreeWithRetry(sandbox);
+    try {
+      await removeTreeWithRetry(sandbox);
+    } catch (error) {
+      console.warn(JSON.stringify({
+        warning: 'installer-smoke-cleanup-failed',
+        sandbox,
+        code: error?.code,
+        message: error?.message,
+      }));
+    }
   } else {
     console.log(`保留安装冒烟目录：${sandbox}`);
   }
