@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { _electron as electron } from 'playwright';
+import semver from 'semver';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
+const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const currentVersion = manifest.version;
+const targetVersion = semver.inc(currentVersion, 'patch');
+assert.ok(targetVersion, `Invalid package version: ${currentVersion}`);
 
 async function launch(mode) {
   const env = {
@@ -13,7 +18,7 @@ async function launch(mode) {
     MONEYCOMING_TEST_MODE: '1',
     MONEYCOMING_TEST_UPDATER: '1',
     MONEYCOMING_TEST_UPDATE_MODE: mode,
-    MONEYCOMING_TEST_UPDATE_VERSION: '1.0.1',
+    MONEYCOMING_TEST_UPDATE_VERSION: targetVersion,
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ args: ['.'], env, timeout: 30000 });
@@ -36,8 +41,8 @@ const offscreenScenarios = [];
   try {
     await page.locator('html[data-update-phase="available"]').waitFor();
     assert.equal(await page.getByTestId('update-dialog').isVisible(), true);
-    assert.equal(await page.locator('#update-current').innerText(), 'v1.0.0');
-    assert.equal(await page.locator('#update-target').innerText(), 'v1.0.1');
+    assert.equal(await page.locator('#update-current').innerText(), `v${currentVersion}`);
+    assert.equal(await page.locator('#update-target').innerText(), `v${targetVersion}`);
     assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
 
     await page.locator('#update-later').click();

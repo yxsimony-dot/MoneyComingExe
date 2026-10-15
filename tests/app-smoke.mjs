@@ -10,6 +10,7 @@ import {
 
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
+const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 const started = performance.now();
@@ -56,7 +57,7 @@ try {
   assert.match(await page.locator('.monday-legend').first().innerText(), /● 周一前8根/);
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'disabled');
-  assert.equal(await page.locator('#app-version').innerText(), 'v1.0.0');
+  assert.equal(await page.locator('#app-version').innerText(), `v${manifest.version}`);
   assert.equal(await page.evaluate(async () => {
     try {
       await fetch('https://example.com/');
