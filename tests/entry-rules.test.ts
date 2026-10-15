@@ -2,11 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ENTRY_RULES } from '../src/shared/entry-rules';
 
-const externalRules = readFileSync('futures_investigation_20261009/entry-rules.md', 'utf8').trim();
+const normalizeNewlines = (value: string) => value.replace(/\r\n?/g, '\n').trim();
+const externalRules = normalizeNewlines(
+  readFileSync('futures_investigation_20261009/entry-rules.md', 'utf8'),
+);
 
 describe('entry rules', () => {
   it('keeps the editable file and built-in fallback aligned', () => {
-    expect(DEFAULT_ENTRY_RULES.trim()).toBe(externalRules);
+    expect(normalizeNewlines(DEFAULT_ENTRY_RULES)).toBe(externalRules);
   });
 
   it('documents the quarter line and first true-entry touch consistently', () => {
