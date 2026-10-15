@@ -36,6 +36,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             throw "Release $env:GITHUB_REF_NAME already exists and will not be overwritten."
           }
+          $global:LASTEXITCODE = 0
 
       - name: Quality gate
         run: |
@@ -68,7 +69,11 @@ jobs:
             "Unsigned build: Windows may show an unknown publisher warning." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             exit 0
           }
-          $installer = Get-ChildItem -LiteralPath release -File -Filter 'MoneyComing-Setup-*.exe' | Select-Object -Single
+          $installers = @(Get-ChildItem -LiteralPath release -File -Filter 'MoneyComing-Setup-*.exe')
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
+          }
+          $installer = $installers[0]
           $targets = @($installer.FullName, (Resolve-Path 'release/win-unpacked/MoneyComing.exe').Path)
           foreach ($target in $targets) {
             $signature = Get-AuthenticodeSignature -LiteralPath $target
@@ -111,4 +116,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release delete $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --yes
-

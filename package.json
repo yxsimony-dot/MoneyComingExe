@@ -1,6 +1,6 @@
 {
   "name": "moneycoming",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "豆粕离线历史看盘",
   "author": "MoneyComing",
@@ -16,6 +16,7 @@
     "verify:release": "node scripts/verify-release.mjs",
     "verify:security": "node scripts/verify-credentials.mjs",
     "verify:public-release": "node scripts/verify-public-release.mjs",
+    "verify:signing-path": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signing-path.ps1",
     "test:app": "node tests/app-smoke.mjs",
     "test:market-update": "node tests/market-update-smoke.mjs",
     "test:market-update-live": "node tests/market-update-live.mjs",
