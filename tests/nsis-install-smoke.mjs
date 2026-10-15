@@ -65,6 +65,28 @@ async function run(file, args, options = {}) {
   });
 }
 
+async function runPhase(name, operation) {
+  const startedAt = Date.now();
+  console.log(JSON.stringify({ phase: name, status: 'started' }));
+  try {
+    const result = await operation();
+    console.log(JSON.stringify({
+      phase: name,
+      status: 'completed',
+      durationMs: Date.now() - startedAt,
+    }));
+    return result;
+  } catch (error) {
+    console.error(JSON.stringify({
+      phase: name,
+      status: 'failed',
+      durationMs: Date.now() - startedAt,
+      message: error?.message,
+    }));
+    throw error;
+  }
+}
+
 async function waitForMissing(path, timeout = 30_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -94,7 +116,7 @@ async function removeTreeWithRetry(path, timeout = 30_000) {
 
 let uninstaller;
 try {
-  await run(installer, ['/S', `/D=${installDirectory}`]);
+  await runPhase('install', () => run(installer, ['/S', `/D=${installDirectory}`]));
   assert.equal((await stat(executable)).isFile(), true);
   for (const name of [
     'edb_main_continuous_5m.csv',
@@ -109,19 +131,19 @@ try {
 
   const environment = {
     ...process.env,
-    APPDATA: appData,
-    LOCALAPPDATA: localAppData,
     MONEYCOMING_EXE: executable,
     MONEYCOMING_TEST_MODE: '1',
+    MONEYCOMING_TEST_APPDATA: appData,
+    MONEYCOMING_TEST_LOCALAPPDATA: localAppData,
     MONEYCOMING_TEST_USER_DATA: join(appData, 'MoneyComing'),
   };
   delete environment.ELECTRON_RUN_AS_NODE;
-  await run(process.execPath, [join(root, 'tests', 'app-smoke.mjs')], {
+  await runPhase('app-smoke', () => run(process.execPath, [join(root, 'tests', 'app-smoke.mjs')], {
     cwd: root,
     env: environment,
     timeout: 180_000,
-  });
-  await run(process.execPath, [join(root, 'tests', 'market-update-smoke.mjs')], {
+  }));
+  await runPhase('market-update-smoke', () => run(process.execPath, [join(root, 'tests', 'market-update-smoke.mjs')], {
     cwd: sandbox,
     env: {
       ...environment,
@@ -129,7 +151,7 @@ try {
       MONEYCOMING_TEST_UPDATE_MODE: 'up-to-date',
     },
     timeout: 240_000,
-  });
+  }));
   const installedDataAfter = await dataFingerprint();
   assert.deepEqual(installedDataAfter, installedDataBefore, '行情更新不应修改安装目录 data');
   const pointer = JSON.parse(await readFile(join(appData, 'MoneyComing', 'market-data', 'current.json'), 'utf8'));
@@ -138,7 +160,7 @@ try {
   const uninstallName = (await readdir(installDirectory)).find(name => /^Uninstall .*\.exe$/i.test(name));
   assert.ok(uninstallName, '安装目录缺少 NSIS 卸载程序');
   uninstaller = join(installDirectory, uninstallName);
-  await run(uninstaller, ['/S'], { timeout: 180_000 });
+  await runPhase('uninstall', () => run(uninstaller, ['/S'], { timeout: 180_000 }));
   await waitForMissing(executable);
 
   console.log(JSON.stringify({

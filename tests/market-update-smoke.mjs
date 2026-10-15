@@ -47,6 +47,12 @@ async function launch(mode) {
     MONEYCOMING_TEST_EDB_MODE: mode,
     MONEYCOMING_TEST_EDB_FIXTURE: fixturePath,
   };
+  if (process.env.MONEYCOMING_TEST_APPDATA) {
+    env.APPDATA = process.env.MONEYCOMING_TEST_APPDATA;
+  }
+  if (process.env.MONEYCOMING_TEST_LOCALAPPDATA) {
+    env.LOCALAPPDATA = process.env.MONEYCOMING_TEST_LOCALAPPDATA;
+  }
   delete env.ELECTRON_RUN_AS_NODE;
   const options = {
     args: executable ? [] : [root],

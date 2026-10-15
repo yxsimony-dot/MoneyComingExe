@@ -12,6 +12,12 @@ const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' };
+if (process.env.MONEYCOMING_TEST_APPDATA) {
+  env.APPDATA = process.env.MONEYCOMING_TEST_APPDATA;
+}
+if (process.env.MONEYCOMING_TEST_LOCALAPPDATA) {
+  env.LOCALAPPDATA = process.env.MONEYCOMING_TEST_LOCALAPPDATA;
+}
 delete env.ELECTRON_RUN_AS_NODE;
 const started = performance.now();
 const executablePath = process.env.MONEYCOMING_EXE;
