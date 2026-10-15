@@ -27,39 +27,8 @@
         "complete": 1438,
         "incomplete": 0,
         "duration_counts": {
-          "60": 1196,
-          "45": 242
-        }
-      },
-      "reconciliation_5m_to_60m": "passed OHLC and volume for every bar"
-    },
-    "m2701": {
-      "symbol": "DCE.m2701",
-      "one_minute_rows": 58965,
-      "first": "2026-01-16 21:00:00+08:00",
-      "last": "2026-10-09 14:59:00+08:00",
-      "duplicate_timestamps": 0,
-      "invalid_ohlc": 0,
-      "natural_dates": 174,
-      "5m": {
-        "rows": 11793,
-        "first_start": "2026-01-16 21:00:00",
-        "last_end": "2026-10-09 15:00:00",
-        "complete": 11793,
-        "incomplete": 0,
-        "duration_counts": {
-          "5": 11793
-        }
-      },
-      "60m": {
-        "rows": 1026,
-        "first_start": "2026-01-16 21:00:00",
-        "last_end": "2026-10-09 15:00:00",
-        "complete": 1026,
-        "incomplete": 0,
-        "duration_counts": {
-          "60": 853,
-          "45": 173
+          "45": 242,
+          "60": 1196
         }
       },
       "reconciliation_5m_to_60m": "passed OHLC and volume for every bar"
@@ -73,18 +42,6 @@
       "duplicates": 0
     },
     "M0_60m": {
-      "rows": 1023,
-      "first": "2026-01-19 11:15:00",
-      "last": "2026-10-09 15:00:00",
-      "duplicates": 0
-    },
-    "M2701_5m": {
-      "rows": 1023,
-      "first": "2026-09-09 21:20:00",
-      "last": "2026-10-09 15:00:00",
-      "duplicates": 0
-    },
-    "M2701_60m": {
       "rows": 1023,
       "first": "2026-01-19 11:15:00",
       "last": "2026-10-09 15:00:00",

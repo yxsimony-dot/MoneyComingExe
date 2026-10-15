@@ -84,8 +84,8 @@ describe('weekly first-eight running range', () => {
     } finally { if (oldTz === undefined) delete process.env.TZ; else process.env.TZ = oldTz; }
   });
 
-  it.each(['main_continuous', 'm2701'])('matches an independent all-prior-extremes check for real %s data and never repaints a prefix', instrument => {
-    const bars = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_60m.csv`, 'utf8'), '60m.csv');
+  it('matches an independent all-prior-extremes check for real main-continuous data and never repaints a prefix', () => {
+    const bars = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8'), '60m.csv');
     const expected: { bar: Bar; direction: 'up' | 'down'; previousBoundary: number; value: number; weekStart: string; ordinal: number }[] = [];
     const expectedSeed: Bar[] = [];
     // Enumerate calendar weeks and compare each bar against all previous bars, not a running-state implementation.

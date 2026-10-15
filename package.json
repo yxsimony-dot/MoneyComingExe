@@ -11,8 +11,17 @@
     "test": "vitest run",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
     "start": "electron .",
-    "package": "npm run build && electron-builder --win --dir",
-    "test:app": "node tests/app-smoke.mjs"
+    "package": "npm run build && electron-builder --win nsis --publish never",
+    "verify:tag": "node scripts/verify-tag-version.mjs",
+    "verify:release": "node scripts/verify-release.mjs",
+    "verify:security": "node scripts/verify-credentials.mjs",
+    "verify:public-release": "node scripts/verify-public-release.mjs",
+    "test:app": "node tests/app-smoke.mjs",
+    "test:market-update": "node tests/market-update-smoke.mjs",
+    "test:market-update-live": "node tests/market-update-live.mjs",
+    "test:update": "node tests/update-smoke.mjs",
+    "test:installer": "node tests/nsis-install-smoke.mjs",
+    "test:upgrade-installer": "node tests/nsis-upgrade-smoke.mjs"
   },
   "build": {
     "appId": "local.moneycoming.viewer",
@@ -50,22 +59,48 @@
       }
     ],
     "win": {
-      "target": "dir",
-      "signAndEditExecutable": false
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "MoneyComing-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "MoneyComing",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "yxsimony-dot",
+      "repo": "MoneyComingExe",
+      "releaseType": "release"
     },
     "asar": true
   },
   "dependencies": {
-    "lightweight-charts": "5.2.1"
+    "electron-updater": "6.8.9",
+    "lightweight-charts": "5.2.1",
+    "semver": "7.8.5"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
+    "@types/semver": "7.8.0",
     "electron": "44.7.0",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.2",
     "playwright": "1.64.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vitest": "5.0.3"
+    "vitest": "5.0.3",
+    "yaml": "2.9.1"
   }
 }

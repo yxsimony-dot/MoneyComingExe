@@ -53,8 +53,8 @@ describe('exponential moving average', () => {
     expect(history).toEqual(snapshot);
   });
 
-  it.each(['main_continuous', 'm2701'])('matches an independent expanded-weight formula for real %s history', instrument => {
-    const history = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_60m.csv`, 'utf8'), '60m.csv');
+  it('matches an independent expanded-weight formula for real main-continuous history', () => {
+    const history = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8'), '60m.csv');
     const result = exponentialMovingAverage(history);
     expect(result).toHaveLength(history.length);
     // Expand the entire weighted sum independently, rather than copy the production recurrence.

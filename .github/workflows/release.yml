@@ -1,0 +1,114 @@
+name: Publish Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate tag and reject duplicate release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          npm run verify:tag -- --tag $env:GITHUB_REF_NAME
+          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $env:GITHUB_REF_NAME already exists and will not be overwritten."
+          }
+
+      - name: Quality gate
+        run: |
+          npm run typecheck
+          npm test
+          npm run test:app
+          npm run test:update
+
+      - name: Build NSIS release
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath release -Recurse -Force -ErrorAction SilentlyContinue
+          npm run package
+
+      - name: Verify release artifacts and credentials
+        run: |
+          npm run verify:release
+          npm run verify:security -- --require-artifacts
+          npm run test:installer
+
+      - name: Verify optional code signature
+        shell: pwsh
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            "Unsigned build: Windows may show an unknown publisher warning." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            exit 0
+          }
+          $installer = Get-ChildItem -LiteralPath release -File -Filter 'MoneyComing-Setup-*.exe' | Select-Object -Single
+          $targets = @($installer.FullName, (Resolve-Path 'release/win-unpacked/MoneyComing.exe').Path)
+          foreach ($target in $targets) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $target
+            if ($signature.Status -ne 'Valid') {
+              throw "Invalid Authenticode signature for $target: $($signature.Status)"
+            }
+          }
+
+      - name: Create complete draft release
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem -LiteralPath release -File |
+            Where-Object { $_.Name -eq 'latest.yml' -or $_.Name -like 'MoneyComing-Setup-*.exe' -or $_.Name -like '*.exe.blockmap' } |
+            Sort-Object Name
+          if ($assets.Count -lt 3) {
+            throw "Expected installer, blockmap, and latest.yml before publishing."
+          }
+          if ($assets.Name -match '\.zip$') {
+            throw "ZIP assets are forbidden."
+          }
+          gh release create $env:GITHUB_REF_NAME @($assets.FullName) --repo $env:GITHUB_REPOSITORY --draft --verify-tag --title $env:GITHUB_REF_NAME --generate-notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "### Release assets" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          $assets.Name | ForEach-Object { "- ``$_``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append }
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false --latest
+
+      - name: Verify anonymous public downloads
+        run: npm run verify:public-release -- --tag $env:GITHUB_REF_NAME
+
+      - name: Remove incomplete release after failure
+        if: failure() && steps.draft.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --yes
+

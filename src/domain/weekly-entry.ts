@@ -1,4 +1,5 @@
 import type { Bar } from '../shared/types';
+import { MARKET_PRICE_TICK } from '../shared/market';
 import type { EmaPoint } from './ema';
 
 export interface WeeklyEntry {
@@ -29,6 +30,18 @@ export interface EntryReactionRange {
   extremeBar: Bar;
   high: number;
   low: number;
+}
+
+export interface EntryQuarterSignal {
+  direction: WeeklyEntry['direction'];
+  price: number;
+  tick: number;
+  rangeTicks: number;
+  quarterTicks: number;
+  lineStartBar: Bar;
+  reactionBar: Bar;
+  searchStartBar?: Bar;
+  entryBar?: Bar;
 }
 
 export function weeklyEntryMarkerId(entry: WeeklyEntry): string {
@@ -67,6 +80,37 @@ export function entryReactionRange(
   return direction === 'long'
     ? { direction, reactionBar, extremeBar, high: reactionBar.high, low: extremeBar.low }
     : { direction, reactionBar, extremeBar, high: extremeBar.high, low: reactionBar.low };
+}
+
+/** Quarter-range entry price plus the first later touch inside the original observation window. */
+export function entryQuarterSignal(
+  range: EntryReactionRange,
+  bars: readonly Bar[],
+  tick = MARKET_PRICE_TICK,
+): EntryQuarterSignal {
+  if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Entry price tick must be positive.');
+  if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
+    throw new RangeError('Entry reaction range must have finite prices with high >= low.');
+  }
+
+  const rangeTicks = Math.round((range.high - range.low) / tick);
+  const quarterTicks = Math.ceil(rangeTicks / 4);
+  const distance = quarterTicks * tick;
+  const price = range.direction === 'long' ? range.low + distance : range.high - distance;
+  const reactionIndex = bars.findIndex(bar => bar.startMs === range.reactionBar.startMs);
+  const candidates = reactionIndex < 0 ? [] : bars.slice(reactionIndex + 1);
+
+  return {
+    direction: range.direction,
+    price,
+    tick,
+    rangeTicks,
+    quarterTicks,
+    lineStartBar: range.extremeBar,
+    reactionBar: range.reactionBar,
+    searchStartBar: candidates[0],
+    entryBar: candidates.find(bar => bar.low <= price && price <= bar.high),
+  };
 }
 
 /** Per-bar 5-minute guide: lower of pullback/EMA20 for long, higher for short. */

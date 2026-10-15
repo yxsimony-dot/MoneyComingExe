@@ -14,17 +14,19 @@ describe('portable data service', () => {
     expect(resolveDataDirectory('C:\\中文 空格\\MoneyComing\\MoneyComing.exe', true, 'D:\\development')).toBe('C:\\中文 空格\\MoneyComing\\data');
     expect(resolveDataDirectory('irrelevant', false, process.cwd())).toBe(source);
   });
-  it('loads all four datasets without altering source files', async () => {
+  it('loads both main-continuous periods without altering source files', async () => {
     const file=join(source,'edb_main_continuous_5m.csv');
     const before=createHash('sha256').update(await readFile(file)).digest('hex');
     const service=createDataService(source);
-    const a=await service.load('main_continuous'); const b=await service.load('m2701');
-    expect(a.ok).toBe(true); expect(b.ok).toBe(true);
-    if (a.ok && b.ok) {
-      expect([a.data.bars5.length,a.data.bars60.length,b.data.bars5.length,b.data.bars60.length]).toEqual([16530,1438,11793,1026]);
-      expect(a.data.bars5.at(-1)?.end).toBe('2026-10-09 15:00:00');
-      expect(b.data.anomalies).toHaveLength(1);
-      expect(a.data.auditAvailable).toBe(true);
+    const result=await service.load('main_continuous');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([result.data.bars5.length,result.data.bars60.length]).toEqual([16530,1438]);
+      expect(result.data.bars5.at(-1)?.end).toBe('2026-10-09 15:00:00');
+      expect(result.data.anomalies).toEqual([]);
+      expect(result.data.auditAvailable).toBe(true);
+      expect(result.data.snapshotSource).toBe('builtin');
+      expect(result.data.sourceLatestAt).toBe('2026-10-09 15:00:00');
     }
     expect(createHash('sha256').update(await readFile(file)).digest('hex')).toBe(before);
   });

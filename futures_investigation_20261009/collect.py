@@ -78,7 +78,7 @@ def aggregate(rows, period):
     return sorted(result,key=lambda x:x['bar_start'])
 
 summary={'date':'2026-10-09','timezone':'Asia/Shanghai','edb':{},'sina':{}}
-for symbol,label in [('KQ.m@DCE.m','main_continuous'),('DCE.m2701','m2701')]:
+for symbol,label in [('KQ.m@DCE.m','main_continuous')]:
     raw=fetch(f'edb_{label}_1m_raw.csv','https://edb.shinnytech.com/md/kline',dict(
         period=60,symbol=symbol,start_time='2025-10-09 21:00:00',
         end_time='2026-10-09 23:59:59',col='open,high,low,close,volume,open_oi,close_oi'))
@@ -107,7 +107,7 @@ for symbol,label in [('KQ.m@DCE.m','main_continuous'),('DCE.m2701','m2701')]:
     entry['reconciliation_5m_to_60m']='passed OHLC and volume for every bar'
     summary['edb'][label]=entry
 
-for symbol in ['M0','M2701']:
+for symbol in ['M0']:
     for period in [5,60]:
         raw=fetch(f'sina_{symbol}_{period}m_raw.jsonp','https://stock2.finance.sina.com.cn/futures/api/jsonp.php/=/InnerFuturesNewService.getFewMinLine',
                   dict(symbol=symbol,type=period),{'Referer':'https://finance.sina.com.cn/'})

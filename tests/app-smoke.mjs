@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
+import {
+  assertElectronWindowOffscreen,
+  negativeCoordinateGeometryFixture,
+} from './electron-offscreen.mjs';
 
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
@@ -14,14 +18,36 @@ const app = await electron.launch({ ...(executablePath ? { executablePath, args:
 const errors = [];
 try {
   const page = await app.firstWindow();
+  const offscreenBeforeShow = await assertElectronWindowOffscreen(app, 'app-smoke-before-show');
   await app.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0];
     window.webContents.setBackgroundThrottling(false);
     window.showInactive();
   });
+  const offscreenAfterShow = await assertElectronWindowOffscreen(app, 'app-smoke-after-show');
   page.on('pageerror', error => errors.push(error.message));
   await page.locator('html[data-ready="true"]').waitFor();
   const startupMs = performance.now() - started;
+  await page.setViewportSize({ width: 1100, height: 720 });
+  const compactLayout = await page.evaluate(() => {
+    const rect = selector => {
+      const box = document.querySelector(selector)?.getBoundingClientRect();
+      return box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : undefined;
+    };
+    const update = document.querySelector('#update-entry');
+    return {
+      brand: rect('.brand'),
+      controls: rect('.topbar-right'),
+      update: rect('#update-entry'),
+      source: rect('#source-info'),
+      updateTextFits: update ? update.scrollWidth <= update.clientWidth : false,
+    };
+  });
+  assert.ok(compactLayout.brand && compactLayout.controls && compactLayout.update && compactLayout.source);
+  assert.ok(compactLayout.brand.right <= compactLayout.controls.left);
+  assert.ok(compactLayout.update.right <= compactLayout.source.left);
+  assert.ok(compactLayout.source.right <= 1100);
+  assert.equal(compactLayout.updateTextFits, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: resolve(output, 'default-1440.png') });
   assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
@@ -29,8 +55,19 @@ try {
   assert.equal(await page.locator('#card-5').getAttribute('data-monday-count'), '0');
   assert.match(await page.locator('.monday-legend').first().innerText(), /● 周一前8根/);
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'disabled');
+  assert.equal(await page.locator('#app-version').innerText(), 'v1.0.0');
+  assert.equal(await page.evaluate(async () => {
+    try {
+      await fetch('https://example.com/');
+      return false;
+    } catch {
+      return true;
+    }
+  }), true);
   assert.equal((await page.evaluate(() => window.market.load('../../secret'))).ok, false);
   const linkedOverlay = page.getByTestId('linked-hover-range');
+  const reactionOverlay = page.getByTestId('entry-reaction-range');
   assert.equal(await linkedOverlay.count(), 1);
   assert.equal(await linkedOverlay.isHidden(), true);
   assert.deepEqual(await linkedOverlay.evaluate(element => ({
@@ -38,6 +75,14 @@ try {
     position: getComputedStyle(element).position,
     parentClass: element.parentElement?.className,
   })), { pointerEvents: 'none', position: 'absolute', parentClass: 'chart-container' });
+  assert.equal(await reactionOverlay.count(), 1);
+  assert.equal(await reactionOverlay.isHidden(), true);
+  assert.deepEqual(await reactionOverlay.evaluate(element => ({
+    pointerEvents: getComputedStyle(element).pointerEvents,
+    position: getComputedStyle(element).position,
+    parentClass: element.parentElement?.className,
+    borderStyle: getComputedStyle(element).borderStyle,
+  })), { pointerEvents: 'none', position: 'absolute', parentClass: 'chart-container', borderStyle: 'solid' });
   const frame = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const jump = async date => {
     await page.getByTestId('date-input').fill(date);
@@ -46,28 +91,13 @@ try {
   };
   await jump('2020-01-01');
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2025-10-09T21:00:00+08:00')));
-  await page.getByTestId('instrument').selectOption('m2701');
-  await page.locator('html[data-instrument="m2701"]').waitFor();
-  assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2026-01-16T21:00:00+08:00')));
-  assert.match(await page.locator('#counts').innerText(), /11,793.*1,026/);
+  assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+  assert.deepEqual(await page.getByTestId('instrument').locator('option').allTextContents(), ['豆粕主连']);
   await page.getByTestId('source-info').click();
-  await page.locator('[data-anomaly-index="0"]').click();
-  await page.mouse.move(10, 10);
-  await frame();
-  assert.equal(await page.locator('#card-5 [data-value="low"]').innerText(), '2,720');
-  assert.equal(await page.locator('#card-60 [data-value="low"]').innerText(), '2,720');
-  assert.equal(await page.locator('html').getAttribute('data-child-count'), '12');
-  await page.mouse.move(10, 10);
-  await page.screenshot({ path: resolve(output, 'anomaly-1440.png') });
-  await page.locator('#selected-anomaly').click();
-  await page.screenshot({ path: resolve(output, 'anomaly-details.png') });
+  assert.equal(await page.locator('[data-anomaly-index]').count(), 0);
+  await page.screenshot({ path: resolve(output, 'source-details.png') });
   await page.locator('#dialog-done').click();
   const focused = await page.locator('html').getAttribute('data-selected-start');
-  for (const instrument of ['main_continuous', 'm2701']) {
-    await page.getByTestId('instrument').selectOption(instrument);
-    await page.locator(`html[data-instrument="${instrument}"]`).waitFor();
-    assert.equal(await page.locator('html').getAttribute('data-selected-start'), focused);
-  }
   for (const mode of ['5', '60', 'dual']) {
     await page.getByTestId(`mode-${mode}`).click();
     await frame();
@@ -88,7 +118,7 @@ try {
   // Locate real candles through the visible crosshair, not a test-only chart API.
   await page.setViewportSize({ width: 1440, height: 900 });
   await jump('2026-02-05');
-  const sourceRows = readFileSync('futures_investigation_20261009/edb_m2701_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
+  const sourceRows = readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
   const chartRange = async period => ({
     from: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-from')),
     to: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-to')),
@@ -114,7 +144,18 @@ try {
     assert.equal(await page.locator('html').getAttribute('data-child-count'), String(children));
     assert.equal(await linkedOverlay.getAttribute('data-visible'), 'true');
     assert.equal(await page.locator('#card-60').getAttribute('data-selected-count'), '1');
-    assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), String(children));
+    assert.equal(
+      await page.locator('#card-5').getAttribute('data-selected-count'),
+      await page.locator('html').getAttribute('data-child-count'),
+    );
+    if (await page.locator('html').getAttribute('data-selection-kind') === 'linked') {
+      assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), String(children));
+    } else {
+      assert.equal(
+        await page.locator('#card-5').getAttribute('data-selected-count'),
+        await page.locator('html').getAttribute('data-observation-count'),
+      );
+    }
     await page.mouse.move(10, 10);
     await frame();
     assert.equal(await linkedOverlay.isHidden(), true);
@@ -153,7 +194,18 @@ try {
   assert.ok(overlayRect.height <= volumeTop);
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), selectedBeforeHover);
   assert.equal(await page.locator('#card-60').getAttribute('data-selected-count'), '1');
-  assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
+  assert.equal(
+    await page.locator('#card-5').getAttribute('data-selected-count'),
+    await page.locator('html').getAttribute('data-child-count'),
+  );
+  if (await page.locator('html').getAttribute('data-selection-kind') === 'entry') {
+    assert.equal(
+      await page.locator('#card-5').getAttribute('data-selected-count'),
+      await page.locator('html').getAttribute('data-observation-count'),
+    );
+  } else {
+    assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
+  }
   assert.deepEqual(await chartRange(60), leftBeforeHover);
   assert.deepEqual(await chartRange(5), rightBeforeHover);
   await page.waitForTimeout(150);
@@ -211,7 +263,7 @@ try {
   };
 
   await jump('2026-02-05');
-  const zoomed = await zoomLeftTo('2026-02-05 09:00:00', 34);
+  const zoomed = await zoomLeftTo('2026-02-05 10:00:00', 34);
   assert.ok(zoomed.span >= 16 && zoomed.span <= 45, `Expected roughly 30 visible 60m bars, got ${zoomed.span}`);
   await page.mouse.click(zoomed.point.x, zoomed.point.y);
   await frame();
@@ -225,7 +277,18 @@ try {
     JSON.stringify({ linkedRange, firstIndex, lastIndex }),
   );
   assert.equal(await linkedOverlay.getAttribute('data-visible'), 'true');
-  assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
+  assert.equal(
+    await page.locator('#card-5').getAttribute('data-selected-count'),
+    await page.locator('html').getAttribute('data-child-count'),
+  );
+  if (await page.locator('html').getAttribute('data-selection-kind') === 'entry') {
+    assert.equal(
+      await page.locator('#card-5').getAttribute('data-selected-count'),
+      await page.locator('html').getAttribute('data-observation-count'),
+    );
+  } else {
+    assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
+  }
   await page.waitForTimeout(150);
   await page.screenshot({ path: resolve(output, 'linked-click-zoom-1440.png') });
 
@@ -245,7 +308,7 @@ try {
   assert.deepEqual(await chartRange(5), rangeBeforeHoverScan);
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), zoomed.point.target);
 
-  const tightlyZoomed = await zoomLeftTo('2026-02-05 09:00:00', 9);
+  const tightlyZoomed = await zoomLeftTo('2026-02-05 10:00:00', 9);
   assert.ok(tightlyZoomed.span < 12);
   await page.mouse.click(tightlyZoomed.point.x, tightlyZoomed.point.y);
   await frame();
@@ -267,22 +330,19 @@ try {
   const lastPoint = await hoverParent(lastStart);
   await page.mouse.click(lastPoint.x, lastPoint.y);
   await frame();
-  assert.ok(Math.abs((await chartRange(5)).to - 11793) < .05);
+  assert.ok(Math.abs((await chartRange(5)).to - 16530) < .05);
 
   await jump('2026-02-05');
-  for (const [time, count] of [['09:00:00', 12], ['10:00:00', 12], ['11:15:00', 12], ['14:15:00', 9]]) {
+  for (const [time, count] of [['10:00:00', 12], ['11:15:00', 12], ['14:15:00', 9]]) {
     await clickParent('2026-02-05 ' + time, count);
   }
-  const selectedBeforeSwitch = await page.locator('html').getAttribute('data-selected-start');
+  const selectedBeforeLeave = await page.locator('html').getAttribute('data-selected-start');
   await hoverParent('2026-02-05 09:00:00');
-  await page.getByTestId('instrument').selectOption('main_continuous');
-  await page.locator('html[data-instrument="main_continuous"]').waitFor();
+  await page.mouse.move(5, 5);
   await frame();
   assert.equal(await linkedOverlay.isHidden(), true);
   assert.equal(await linkedOverlay.getAttribute('data-first-start'), null);
-  assert.equal(await page.locator('html').getAttribute('data-selected-start'), selectedBeforeSwitch);
-  await page.getByTestId('instrument').selectOption('m2701');
-  await page.locator('html[data-instrument="m2701"]').waitFor();
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), selectedBeforeLeave);
   await page.getByTestId('latest').click();
   await page.setViewportSize({ width: 1100, height: 720 });
   await frame();
@@ -296,6 +356,22 @@ try {
   await page.mouse.up();
   await page.screenshot({ path: resolve(output, 'crosshair-1100.png') });
   assert.deepEqual(errors, []);
-  await writeFile(resolve(output, 'smoke.json'), JSON.stringify({ packaged: !!executablePath, startupMs, errors, passed: true }, null, 2));
+  const offscreen = {
+    beforeShow: offscreenBeforeShow,
+    afterShow: offscreenAfterShow,
+    negativeCoordinateSimulation: negativeCoordinateGeometryFixture(),
+  };
+  await writeFile(resolve(output, 'smoke.json'), JSON.stringify({
+    packaged: !!executablePath,
+    startupMs,
+    errors,
+    offscreen,
+    passed: true,
+  }, null, 2));
+  await writeFile(resolve(output, 'offscreen-window.json'), JSON.stringify({
+    packaged: !!executablePath,
+    ...offscreen,
+    passed: true,
+  }, null, 2));
   console.log(JSON.stringify({ packaged: !!executablePath, startupMs, passed: true }));
 } finally { await app.close(); }

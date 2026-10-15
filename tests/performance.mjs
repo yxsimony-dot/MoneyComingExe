@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
 const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -13,26 +14,23 @@ for (let run = 0; run < 3; run++) {
   const app = await electron.launch({ executablePath, args: [], env, cwd: os.tmpdir() });
   try {
     const page = await app.firstWindow();
+    const offscreenBeforeShow = await assertElectronWindowOffscreen(app, `performance-run-${run + 1}-before-show`);
     await app.evaluate(({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
       win.webContents.setBackgroundThrottling(false);
       win.setSize(1440, 900);
       win.show();
     });
+    const offscreenAfterShow = await assertElectronWindowOffscreen(app, `performance-run-${run + 1}-after-show`);
     await page.locator('html[data-ready="true"]').waitFor();
     const painted = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await painted();
     const startupMs = performance.now() - start;
-    const switchTo = async instrument => {
-      await page.getByTestId('instrument').selectOption(instrument);
-      await page.locator(`html[data-instrument="${instrument}"]`).waitFor();
-      await painted();
-    };
-    await switchTo('m2701');
-    await switchTo('main_continuous');
-    const cachedStart = performance.now();
-    await switchTo('m2701');
-    const cachedSwitchMs = performance.now() - cachedStart;
+    const reloadStart = performance.now();
+    await page.reload();
+    await page.locator('html[data-ready="true"][data-instrument="main_continuous"]').waitFor();
+    await painted();
+    const reloadMs = performance.now() - reloadStart;
     await page.evaluate(() => {
       window.measuredLongTasks = [];
       window.longTaskObserver = new PerformanceObserver(list => window.measuredLongTasks.push(...list.getEntries().map(e => e.duration)));
@@ -49,12 +47,19 @@ for (let run = 0; run < 3; run++) {
     await painted();
     const dragLongTasksMs = await page.evaluate(() => { window.longTaskObserver.disconnect(); return window.measuredLongTasks; });
     const maxDragLongTaskMs = Math.max(0, ...dragLongTasksMs);
-    const metrics = { run: run + 1, startupMs, cachedSwitchMs, maxDragLongTaskMs, dragLongTasksMs };
+    const metrics = {
+      run: run + 1,
+      startupMs,
+      reloadMs,
+      maxDragLongTaskMs,
+      dragLongTasksMs,
+      offscreen: { beforeShow: offscreenBeforeShow, afterShow: offscreenAfterShow },
+    };
     runs.push(metrics);
     console.log(JSON.stringify(metrics));
   } finally { await app.close(); }
 }
 await mkdir('artifacts', { recursive: true });
-const result = { executablePath, os: `${os.type()} ${os.release()} ${os.arch()}`, cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, totalMemoryGiB: os.totalmem() / 2 ** 30, runs, notes: 'Process launch to ready plus two animation frames; cached switch includes Playwright control overhead. Long Tasks API records tasks >=50ms; 0 means none observed. Same-machine repeated starts, not OS cold boot.' };
+const result = { executablePath, os: `${os.type()} ${os.release()} ${os.arch()}`, cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, totalMemoryGiB: os.totalmem() / 2 ** 30, runs, notes: 'Process launch or renderer reload to ready plus two animation frames. Long Tasks API records tasks >=50ms; 0 means none observed. Same-machine repeated starts, not OS cold boot.' };
 await writeFile('artifacts/performance.json', JSON.stringify(result, null, 2));
-assert.ok(runs.every(r => r.startupMs <= 5000 && r.cachedSwitchMs <= 1000 && r.maxDragLongTaskMs <= 200), JSON.stringify(result));
+assert.ok(runs.every(r => r.startupMs <= 5000 && r.reloadMs <= 5000 && r.maxDragLongTaskMs <= 200), JSON.stringify(result));

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { analyzeWeeklyEntries, entryObservationLine, entryObservationWindow, entryReactionRange, selectWeeklyEntry, weeklyEntryMarkerId, type WeeklyEntry } from '../src/domain/weekly-entry';
+import { analyzeWeeklyEntries, entryObservationLine, entryObservationWindow, entryQuarterSignal, entryReactionRange, selectWeeklyEntry, weeklyEntryMarkerId, type EntryReactionRange, type WeeklyEntry } from '../src/domain/weekly-entry';
 import { exponentialMovingAverage } from '../src/domain/ema';
 import { parseBars } from '../src/domain/data';
+import { MARKET_PRICE_TICK } from '../src/shared/market';
 import type { Bar } from '../src/shared/types';
 import type { EmaPoint } from '../src/domain/ema';
 
@@ -141,6 +142,135 @@ describe('5-minute first reaction range', () => {
   });
 });
 
+describe('5-minute quarter-range true entry', () => {
+  const range = (
+    direction: WeeklyEntry['direction'],
+    bars: Bar[],
+    low: number,
+    high: number,
+    reactionIndex = 1,
+    extremeIndex = 0,
+  ): EntryReactionRange => ({
+    direction,
+    reactionBar: bars[reactionIndex],
+    extremeBar: bars[extremeIndex],
+    high,
+    low,
+  });
+
+  it('uses one shared market tick and mirrors the non-divisible 3020-3031 example', () => {
+    const bars = [candle(0, 3022, 3024, 3020, 3021), candle(1, 3021, 3031, 3021, 3030)];
+    const long = entryQuarterSignal(range('long', bars, 3020, 3031), bars);
+    const short = entryQuarterSignal(range('short', bars, 3020, 3031), bars);
+
+    expect(MARKET_PRICE_TICK).toBe(1);
+    expect(long).toMatchObject({ direction: 'long', tick: 1, rangeTicks: 11, quarterTicks: 3, price: 3023 });
+    expect(short).toMatchObject({ direction: 'short', tick: 1, rangeTicks: 11, quarterTicks: 3, price: 3028 });
+    expect(long.price / long.tick).toBe(Math.round(long.price / long.tick));
+    expect(short.price / short.tick).toBe(Math.round(short.price / short.tick));
+  });
+
+  it('does not add a tick when the range is divisible by four', () => {
+    const bars = [candle(0, 100, 100, 88, 90), candle(1, 90, 100, 88, 99)];
+    expect(entryQuarterSignal(range('long', bars, 88, 100), bars)).toMatchObject({
+      rangeTicks: 12, quarterTicks: 3, price: 91,
+    });
+    expect(entryQuarterSignal(range('short', bars, 88, 100), bars)).toMatchObject({
+      rangeTicks: 12, quarterTicks: 3, price: 97,
+    });
+  });
+
+  it('supports a non-unit tick while keeping the result on its tick grid', () => {
+    const bars = [candle(0, 100, 100, 97.25, 98), candle(1, 98, 100, 97.25, 99)];
+    const signal = entryQuarterSignal(range('long', bars, 97.25, 100), bars, 0.25);
+    expect(signal).toMatchObject({ tick: 0.25, rangeTicks: 11, quarterTicks: 3, price: 98 });
+    expect(signal.price / signal.tick).toBe(Math.round(signal.price / signal.tick));
+  });
+
+  it('excludes the reaction candle even when it covers the line and accepts the first later wick touch', () => {
+    const bars = [
+      candle(0, 100, 101, 96, 98),
+      candle(1, 98, 108, 96, 107),
+      candle(2, 107, 109, 100, 108),
+      candle(3, 108, 110, 98, 109),
+      candle(4, 109, 111, 98, 110),
+    ];
+    const signal = entryQuarterSignal(range('long', bars, 96, 108), bars);
+    expect(signal.price).toBe(99);
+    expect(signal.searchStartBar).toBe(bars[2]);
+    expect(signal.entryBar).toBe(bars[3]);
+  });
+
+  it('counts equality and upper-wick touches and chooses only the first repeated touch', () => {
+    const bars = [
+      candle(0, 100, 110, 98, 99),
+      candle(1, 99, 108, 96, 97),
+      candle(2, 96, 105, 95, 97),
+      candle(3, 97, 105, 94, 96),
+    ];
+    const signal = entryQuarterSignal(range('short', bars, 96, 108), bars);
+    expect(signal.price).toBe(105);
+    expect(signal.entryBar).toBe(bars[2]);
+    expect(bars[2].high).toBe(signal.price);
+  });
+
+  it('returns no entry when the reaction is last, absent from the window, or no later candle touches', () => {
+    const noTouchBars = [
+      candle(0, 100, 104, 96, 98),
+      candle(1, 98, 108, 96, 107),
+      candle(2, 107, 110, 101, 109),
+    ];
+    const noTouch = entryQuarterSignal(range('long', noTouchBars, 96, 108), noTouchBars);
+    expect(noTouch.searchStartBar).toBe(noTouchBars[2]);
+    expect(noTouch.entryBar).toBeUndefined();
+
+    const lastReaction = range('long', noTouchBars, 96, 108, 2);
+    expect(entryQuarterSignal(lastReaction, noTouchBars)).toMatchObject({
+      searchStartBar: undefined, entryBar: undefined,
+    });
+
+    const outsideReaction = { ...lastReaction, reactionBar: candle(99, 100, 108, 96, 107) };
+    expect(entryQuarterSignal(outsideReaction, noTouchBars)).toMatchObject({
+      searchStartBar: undefined, entryBar: undefined,
+    });
+  });
+
+  it('does not inspect bars outside the supplied window or mutate its inputs and existing analysis', () => {
+    const bars = [
+      candle(0, 100, 104, 96, 98),
+      candle(1, 98, 108, 96, 107),
+      candle(2, 107, 110, 101, 109),
+    ];
+    const outsideTouch = candle(3, 109, 110, 98, 109);
+    const reaction = range('long', bars, 96, 108);
+    const barsBefore = structuredClone(bars);
+    const rangeBefore = structuredClone(reaction);
+    const fixture = build(Array(9).fill(0), { '8:0': [101, 96], '8:1': [100, 95] });
+    const analysisBefore = analyzeWeeklyEntries(fixture.h60, fixture.m5, fixture.ema);
+    const observationBefore = entryObservationWindow(analysisBefore.entries[0].triggerBar, fixture.m5);
+    const emaByStart = new Map(fixture.m5.map((item, index) => [item.startMs, 94 + index / 100]));
+    const lineBefore = entryObservationLine(analysisBefore.entries[0], observationBefore, emaByStart);
+
+    const result = entryQuarterSignal(reaction, bars);
+
+    expect(result.entryBar).toBeUndefined();
+    expect(outsideTouch.low).toBeLessThanOrEqual(result.price);
+    expect(result.price).toBeLessThanOrEqual(outsideTouch.high);
+    expect(bars).toEqual(barsBefore);
+    expect(reaction).toEqual(rangeBefore);
+    expect(entryObservationWindow(analysisBefore.entries[0].triggerBar, fixture.m5)).toEqual(observationBefore);
+    expect(entryObservationLine(analysisBefore.entries[0], observationBefore, emaByStart)).toEqual(lineBefore);
+    expect(analyzeWeeklyEntries(fixture.h60, fixture.m5, fixture.ema)).toEqual(analysisBefore);
+  });
+
+  it('rejects invalid tick and reaction range inputs', () => {
+    const bars = [candle(0, 100, 101, 99, 100), candle(1, 100, 102, 99, 101)];
+    const valid = range('long', bars, 99, 102);
+    expect(() => entryQuarterSignal(valid, bars, 0)).toThrow(RangeError);
+    expect(() => entryQuarterSignal({ ...valid, high: 98 }, bars)).toThrow(RangeError);
+  });
+});
+
 describe('weekly entry selection', () => {
   const entry = (direction: WeeklyEntry['direction'], parentStart: number, triggerStart: number): WeeklyEntry => {
     const parent = bar(parentStart, 100, 90);
@@ -200,9 +330,9 @@ describe('weekly pullback entry state', () => {
     expect(analyzeWeeklyEntries(short.h60, short.m5, short.ema).entries[0]).toMatchObject({ direction: 'short', midpoint: 94.5, ema20: 96, pullbackLine: 96 });
   });
 
-  it.each(['main_continuous', 'm2701'])('is causal on real %s data', instrument => {
-    const bars60 = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_60m.csv`, 'utf8'), '60m.csv');
-    const bars5 = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_5m.csv`, 'utf8'), '5m.csv');
+  it('is causal on real main-continuous data', () => {
+    const bars60 = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8'), '60m.csv');
+    const bars5 = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_5m.csv', 'utf8'), '5m.csv');
     const ema = exponentialMovingAverage(bars60);
     const full = analyzeWeeklyEntries(bars60, bars5, ema);
     expect(full.entries.length).toBeGreaterThan(0);
@@ -213,17 +343,14 @@ describe('weekly pullback entry state', () => {
     }
   });
 
-  it.each([
-    ['main_continuous', 39, 25, 14, '8478a8c2fb9ca4cb400f948eb8ffa124c99b599f29ee40463d3754876d6bdbc5'],
-    ['m2701', 30, 17, 13, '61df92453df1d1fd53f2e49ffdb64976ddf3acb141a0ae6c6841e042acac4031'],
-  ] as const)('preserves the real %s entry event fingerprint', (instrument, count, longCount, shortCount, digest) => {
-    const bars60 = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_60m.csv`, 'utf8'), '60m.csv');
-    const bars5 = parseBars(readFileSync(`futures_investigation_20261009/edb_${instrument}_5m.csv`, 'utf8'), '5m.csv');
+  it('preserves the real main-continuous entry event fingerprint', () => {
+    const bars60 = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8'), '60m.csv');
+    const bars5 = parseBars(readFileSync('futures_investigation_20261009/edb_main_continuous_5m.csv', 'utf8'), '5m.csv');
     const entries = analyzeWeeklyEntries(bars60, bars5, exponentialMovingAverage(bars60)).entries;
     const fingerprint = entries.map(entry => [entry.direction, entry.bar.startMs, entry.triggerBar.startMs]);
-    expect(entries).toHaveLength(count);
-    expect(entries.filter(entry => entry.direction === 'long')).toHaveLength(longCount);
-    expect(entries.filter(entry => entry.direction === 'short')).toHaveLength(shortCount);
-    expect(createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex')).toBe(digest);
+    expect(entries).toHaveLength(39);
+    expect(entries.filter(entry => entry.direction === 'long')).toHaveLength(25);
+    expect(entries.filter(entry => entry.direction === 'short')).toHaveLength(14);
+    expect(createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex')).toBe('8478a8c2fb9ca4cb400f948eb8ffa124c99b599f29ee40463d3754876d6bdbc5');
   });
 });

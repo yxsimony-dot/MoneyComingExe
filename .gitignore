@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 release/
+release-*/
 test-results/
 artifacts/
 .codex-app-schema-temp/

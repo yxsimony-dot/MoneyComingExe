@@ -1,4 +1,4 @@
-import type { Anomaly, Bar, Instrument } from '../shared/types';
+import type { Anomaly, Bar } from '../shared/types';
 import { parseBeijing } from './time';
 
 const COLUMNS = ['bar_start', 'bar_end', 'session', 'open', 'high', 'low', 'close', 'volume', 'open_oi', 'close_oi', 'observed_minutes', 'expected_minutes', 'complete'] as const;
@@ -81,25 +81,14 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function parseAudit(text: string, instrument: Instrument): Anomaly[] {
+export function parseAudit(text: string): Anomaly[] {
   const root = object(JSON.parse(text.replace(/^\uFEFF/, '')));
-  const observation = object(root.suspicious_source_observation);
-  const raw = object(observation.raw_edb_1m);
-  if (typeof observation.local_time !== 'string' || typeof observation.edb_60m_bar_end !== 'string') throw new Error('审计文件缺少异常时间');
-  const timeMs = parseBeijing(observation.local_time);
-  const endMs = parseBeijing(observation.edb_60m_bar_end);
-  if (endMs <= timeMs) throw new Error('审计文件60分钟结束时间无效');
-  const numeric = (value: unknown): number => {
-    if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '' || !Number.isFinite(Number(value))) throw new Error('审计文件价格无效');
-    return Number(value);
-  };
-  const rawLow = numeric(raw.low);
-  const edbLow = numeric(observation.edb_60m_low);
-  const sinaLow = numeric(observation.sina_60m_low);
-  if (instrument === 'main_continuous') return [];
-  return [{
-    timeMs,
-    title: '源价格差异 · 待核实',
-    detail: `EDB 原始1分钟 ${observation.local_time} 最低价 ${rawLow}；所属60分钟（结束于 ${observation.edb_60m_bar_end}）EDB 最低价 ${edbLow}，所属60分钟的新浪对照低价 ${sinaLow}。这不是同一根5分钟的新浪对照值。差异已存在于原始分钟数据，尚未确认哪一来源有误，未修改原值。完整性标记仅检查组成分钟，不保证价格准确。`,
-  }];
+  if (!Array.isArray(root.anomalies)) throw new Error('审计文件缺少异常列表');
+  return root.anomalies.map((value, index) => {
+    const anomaly = object(value);
+    if (typeof anomaly.local_time !== 'string' || typeof anomaly.title !== 'string' || typeof anomaly.detail !== 'string') {
+      throw new Error(`审计文件第${index + 1}条异常结构无效`);
+    }
+    return { timeMs: parseBeijing(anomaly.local_time), title: anomaly.title, detail: anomaly.detail };
+  });
 }

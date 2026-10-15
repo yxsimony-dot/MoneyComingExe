@@ -64,8 +64,8 @@ describe('Beijing time and navigation', () => {
     expect(mondayFirstBars([])).toEqual([]);
   });
 
-  it.each(['main_continuous', 'm2701'])('highlights six Monday bars and two Tuesday bars in real %s data', instrument => {
-    const bars = parseBars(source(`edb_${instrument}_60m.csv`), '60m.csv');
+  it('highlights six Monday bars and two Tuesday bars in real main-continuous data', () => {
+    const bars = parseBars(source('edb_main_continuous_60m.csv'), '60m.csv');
     const highlighted = mondayFirstBars(bars);
     const week = highlighted.filter(bar => bar.start >= '2026-02-02' && bar.start < '2026-02-09');
     expect(week).toHaveLength(8);
@@ -101,14 +101,11 @@ describe('CSV contract', () => {
   });
 });
 describe('full delivered dataset and linkage', () => {
-  it.each([
-    ['main_continuous', 16530, 1438, '2025-10-09 21:00:00'],
-    ['m2701', 11793, 1026, '2026-01-16 21:00:00'],
-  ] as const)('preserves all rows and OHLCV composition: %s', (instrument, n5, n60, first) => {
-    const bars5 = parseBars(source(`edb_${instrument}_5m.csv`), `${instrument}_5m.csv`);
-    const bars60 = parseBars(source(`edb_${instrument}_60m.csv`), `${instrument}_60m.csv`);
-    expect(bars5).toHaveLength(n5); expect(bars60).toHaveLength(n60);
-    expect(bars5[0].start).toBe(first); expect(bars60[0].start).toBe(first);
+  it('preserves all main-continuous rows and OHLCV composition', () => {
+    const bars5 = parseBars(source('edb_main_continuous_5m.csv'), 'main_continuous_5m.csv');
+    const bars60 = parseBars(source('edb_main_continuous_60m.csv'), 'main_continuous_60m.csv');
+    expect(bars5).toHaveLength(16530); expect(bars60).toHaveLength(1438);
+    expect(bars5[0].start).toBe('2025-10-09 21:00:00'); expect(bars60[0].start).toBe('2025-10-09 21:00:00');
     expect(bars5.at(-1)?.end).toBe('2026-10-09 15:00:00'); expect(bars60.at(-1)?.end).toBe('2026-10-09 15:00:00');
     for (const parent of bars60) {
       const children = childrenFor(parent, bars5);
@@ -160,24 +157,11 @@ describe('linked chart logical range', () => {
     expect(linkedLogicalRange(Number.NaN, 1, 2, 100)).toBeUndefined();
   });
 });
-describe('source anomaly mapping', () => {
-  it('maps the raw suspicious minute to both bars without replacing low=2720', () => {
-    const anomalies = parseAudit(source('cross_source_audit.json'), 'm2701');
-    expect(anomalies).toHaveLength(1);
-    expect(formatBeijing(anomalies[0].timeMs)).toBe('2026-02-05 09:24:00');
-    expect(anomalies[0].title).toContain('待核实');
-    expect(anomalies[0].detail).toContain('所属60分钟');
-    expect(anomalies[0].detail).toContain('2901');
-    for (const period of [5, 60]) {
-      const bars = parseBars(source(`edb_m2701_${period}m.csv`), 'source.csv');
-      const bar = bars[locateTime(bars, anomalies[0].timeMs)];
-      expect(bar.low).toBe(2720);
-      expect(bar.start).toBe(`2026-02-05 09:${period === 5 ? '20' : '00'}:00`);
-    }
-    expect(parseAudit(source('cross_source_audit.json'), 'main_continuous')).toEqual([]);
+describe('source audit metadata', () => {
+  it('loads the main-continuous audit with no recorded anomalies', () => {
+    expect(parseAudit(source('cross_source_audit.json'))).toEqual([]);
   });
-  it.each(['{', '{}', 'null', '{"suspicious_source_observation":{}}'])('rejects unavailable audit schema for either instrument', text => {
-    expect(() => parseAudit(text, 'm2701')).toThrow();
-    expect(() => parseAudit(text, 'main_continuous')).toThrow();
+  it.each(['{', '{}', 'null', '{"anomalies":{}}', '{"anomalies":[{}]}', '{"suspicious_source_observation":{}}'])('rejects unavailable audit schema', text => {
+    expect(() => parseAudit(text)).toThrow();
   });
 });

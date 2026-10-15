@@ -1,12 +1,25 @@
 import './style.css';
 import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, TickMarkType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type Logical, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
-import type { Anomaly, Bar, Dataset, Instrument, Period } from '../shared/types';
+import type { Anomaly, Bar, Dataset, Instrument, MarketUpdateState, Period, ReactionTestScenario, UpdateState } from '../shared/types';
 import { DEFAULT_ENTRY_RULES } from '../shared/entry-rules';
+import { MARKET_PRICE_TICK } from '../shared/market';
 import { formatBeijing, locateDate, locateTime } from '../domain/time';
 import { analyzeWeeklyRange, type WeeklyBreakout } from '../domain/weekly-range';
 import { exponentialMovingAverage } from '../domain/ema';
-import { analyzeWeeklyEntries, entryObservationLine, entryObservationWindow, selectWeeklyEntry, weeklyEntryMarkerId, type WeeklyEntry } from '../domain/weekly-entry';
+import {
+  analyzeWeeklyEntries,
+  entryObservationLine,
+  entryObservationWindow,
+  entryQuarterSignal,
+  entryReactionRange,
+  selectWeeklyEntry,
+  weeklyEntryMarkerId,
+  type EntryQuarterSignal,
+  type EntryReactionRange,
+  type WeeklyEntry,
+} from '../domain/weekly-entry';
 import { childrenFor, linkedLogicalRange, parentFor } from '../domain/link';
+import { marketUpdateView } from './market-update-view';
 
 const icons = {
   mark: '<svg viewBox="0 0 32 32" fill="none"><path d="M5 24V13l7 6 7-11 8 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 8h5v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>',
@@ -16,12 +29,13 @@ const icons = {
   info: '<svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5"/><path d="M9 8v5m0-8v1"/></svg>',
   link: '<svg viewBox="0 0 18 18" fill="none"><path d="m7 11 4-4M6 12l-1 1a3 3 0 0 1-4-4l3-3a3 3 0 0 1 4 0m2 0 1-1a3 3 0 0 1 4 4l-3 3a3 3 0 0 1-4 0" transform="translate(1)"/></svg>',
   resetScale: '<svg viewBox="0 0 18 18" fill="none"><path d="M4 6V3m0 0h3M4 3l2.2 2.2a5 5 0 1 1-1.1 5.4"/><path d="M9 7v4m-2-2h4"/></svg>',
+  update: '<svg viewBox="0 0 18 18" fill="none"><path d="M14.5 7A6 6 0 0 0 4 4.5L2.5 6"/><path d="M2.5 2.5V6H6M3.5 11A6 6 0 0 0 14 13.5l1.5-1.5"/><path d="M15.5 15.5V12H12"/></svg>',
 };
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <header class="topbar">
     <div class="brand"><span class="brand-icon">${icons.mark}</span><span>MONEY<span class="brand-light">COMING</span><small>期货历史研究台</small></span></div>
-    <div class="topbar-right"><span class="offline"><i></i> 离线工作区</span><button class="icon-button" id="source-info" data-testid="source-info" title="数据来源与使用说明" aria-label="数据来源与使用说明">${icons.info}</button></div>
+    <div class="topbar-right"><span class="offline"><i></i> 离线工作区</span><button class="update-entry" id="update-entry" data-testid="update-entry" title="检查 MoneyComing 更新">${icons.update}<span id="app-version">v—</span><span id="update-entry-label">检查更新</span></button><button class="icon-button" id="source-info" data-testid="source-info" title="数据来源与使用说明" aria-label="数据来源与使用说明">${icons.info}</button></div>
   </header>
   <main>
     <section class="market-heading">
@@ -29,8 +43,12 @@ app.innerHTML = `
       <div class="quote"><div class="quote-caption">样本末根收盘 <span>元 / 吨</span></div><div class="quote-line"><strong id="last-close">—</strong><span id="last-change">—</span></div><div class="quote-time" id="last-time">正在读取本地数据</div></div>
     </section>
     <section class="toolbar" aria-label="行情工具栏">
-      <div class="toolbar-left"><label class="instrument-select"><span>品种</span><select id="instrument" data-testid="instrument" aria-label="选择标的"><option value="main_continuous">豆粕主连</option><option value="m2701">豆粕 2701</option></select></label><span class="divider"></span><div class="segmented" aria-label="图表布局"><button data-mode="dual" data-testid="mode-dual" aria-pressed="true" class="active">${icons.grid}双周期</button><button data-mode="5" data-testid="mode-5" aria-pressed="false">5 分钟</button><button data-mode="60" data-testid="mode-60" aria-pressed="false">60 分钟</button></div></div>
+      <div class="toolbar-left"><label class="instrument-select"><span>品种</span><select id="instrument" data-testid="instrument" aria-label="选择标的"><option value="main_continuous">豆粕主连</option></select></label><span class="divider"></span><div class="segmented" aria-label="图表布局"><button data-mode="dual" data-testid="mode-dual" aria-pressed="true" class="active">${icons.grid}双周期</button><button data-mode="5" data-testid="mode-5" aria-pressed="false">5 分钟</button><button data-mode="60" data-testid="mode-60" aria-pressed="false">60 分钟</button></div></div>
       <div class="toolbar-right"><button id="toggle-monday" data-testid="toggle-monday" class="button" aria-pressed="false" title="显示或隐藏周一前8根范围及第9根起的逐次新高、新低突破标记">周一8根标记</button><button id="toggle-subcharts" data-testid="toggle-subcharts" class="button" aria-pressed="false" title="隐藏或显示成交量与持仓量副图">只看K线</button><form id="date-form" novalidate><label class="date-field">${icons.calendar}<input id="date-input" data-testid="date-input" type="date" aria-label="定位日期（北京时间）" required /></label><button type="submit" data-testid="date-jump" class="button jump-button">定位</button></form><button id="latest" data-testid="latest" class="button">${icons.latest}最新</button></div>
+      <div class="market-update-row" id="market-update-row" data-tone="neutral">
+        <div class="market-update-copy"><span id="market-update-status" role="status" aria-live="polite">按需更新 EDB 豆粕主连历史数据</span><small id="market-update-meta">正在读取本地快照信息</small></div>
+        <button id="market-update" data-testid="market-update" class="button market-update-button" type="button">${icons.update}<span id="market-update-label">更新行情</span></button>
+      </div>
     </section>
     <div id="error" class="error-banner" role="alert" hidden><span id="error-text"></span><button class="button" data-testid="retry" id="retry">重新加载</button><button id="dismiss-error" aria-label="关闭错误提示">×</button></div>
     <div class="workspace-meta"><span><i class="status-dot"></i><span id="coverage">正在加载完整历史数据…</span></span><span id="counts"></span></div>
@@ -40,6 +58,17 @@ app.innerHTML = `
   <footer><div><span class="footer-brand">EDB</span><span>信易历史数据</span><span class="footer-separator">/</span><span id="quality-status">源价格 · 未自行复权</span></div><div><button id="attribution">Charts by TradingView</button><span class="footer-separator">/</span><span>北京时间 UTC+8</span></div></footer>
   <div class="loading-overlay" id="loading"><div class="loading-pulse">${icons.mark}</div><strong>正在载入行情</strong><span>读取本地完整历史数据</span></div>
   <dialog id="details-dialog"><div class="dialog-heading"><div><span class="eyebrow">DATA & PROVENANCE</span><h2>数据来源与质量</h2></div><button id="close-dialog" class="close-button" aria-label="关闭详情">×</button></div><div id="dialog-body"></div><div class="dialog-bottom"><span>仅浏览本地历史快照，无实时行情连接</span><button class="button primary" id="dialog-done">知道了</button></div></dialog>
+  <dialog id="update-dialog" class="update-dialog" data-testid="update-dialog" aria-labelledby="update-title">
+    <div class="dialog-heading"><div><span class="eyebrow">APPLICATION UPDATE</span><h2 id="update-title">检查更新</h2></div><button id="close-update" class="close-button" aria-label="关闭更新窗口">×</button></div>
+    <div class="update-body">
+      <div class="update-versions"><span><small>当前版本</small><strong id="update-current">v—</strong></span><i>→</i><span><small>可用版本</small><strong id="update-target">—</strong></span></div>
+      <p id="update-message">正在读取版本信息…</p>
+      <div class="update-progress" id="update-progress" hidden><div><span id="update-progress-label">0%</span><span id="update-speed"></span></div><div class="update-progress-track"><i id="update-progress-bar"></i></div></div>
+      <div class="update-notes" id="update-notes" hidden></div>
+      <div class="update-error" id="update-error" role="alert" hidden></div>
+    </div>
+    <div class="dialog-bottom update-actions"><button class="button" id="update-later">稍后</button><div><button class="button" id="update-retry" hidden>重试</button><button class="button primary" id="update-download" data-testid="update-download" hidden>立即下载</button><button class="button primary" id="update-install" data-testid="update-install" hidden>重启安装</button><button class="button primary" id="update-ok" hidden>知道了</button></div></div>
+  </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
 `;
 
@@ -61,6 +90,7 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&'
 const shortTime = (ms: number) => formatBeijing(ms).slice(0, 16);
 const sameDate = (bar: Bar) => formatBeijing(bar.startMs).slice(0, 10) === formatBeijing(bar.endMs).slice(0, 10);
 const interval = (bar: Bar) => `${shortTime(bar.startMs)} — ${sameDate(bar) ? formatBeijing(bar.endMs).slice(11, 16) : shortTime(bar.endMs)}`;
+const updateDialog = $('#update-dialog') as HTMLDialogElement;
 
 let dataset: Dataset | undefined;
 let mode: 'dual' | '5' | '60' = 'dual';
@@ -71,10 +101,24 @@ let requestId = 0;
 let selected: { period: Period; bar: Bar } | undefined;
 let crosshairSyncing = false;
 let toastTimer: ReturnType<typeof setTimeout>;
+let updateState: UpdateState | undefined;
+let updateInteraction = false;
+let updateActionRunning = false;
+let marketUpdateState: MarketUpdateState = { phase: 'idle' };
+let marketUpdateRequestRunning = false;
+let reloadedMarketUpdateCompletion: string | undefined;
 
 type ChartSelection =
   | { kind: 'linked'; bars: Bar[] }
-  | { kind: 'entry'; bars: Bar[]; triggerStart: number; direction: WeeklyEntry['direction']; pullbackLine: number };
+  | {
+      kind: 'entry';
+      bars: Bar[];
+      triggerStart: number;
+      direction: WeeklyEntry['direction'];
+      pullbackLine: number;
+      reactionRange?: EntryReactionRange;
+      quarterSignal?: EntryQuarterSignal;
+    };
 
 function toast(message: string) {
   const element = $('#toast'); element.textContent = message; element.hidden = false;
@@ -82,6 +126,142 @@ function toast(message: string) {
 }
 
 function clearToast() { clearTimeout(toastTimer); $('#toast').hidden = true; }
+
+function renderMarketUpdateState(state = marketUpdateState): void {
+  marketUpdateState = state;
+  const view = marketUpdateView(state, dataset);
+  const button = $('#market-update') as HTMLButtonElement;
+  button.disabled = view.busy || marketUpdateRequestRunning;
+  button.setAttribute('aria-busy', String(view.busy || marketUpdateRequestRunning));
+  $('#market-update-label').textContent = view.buttonLabel;
+  $('#market-update-status').textContent = view.statusText;
+  $('#market-update-meta').textContent = view.metadataText;
+  $('#market-update-row').dataset.tone = view.tone;
+  document.documentElement.dataset.marketUpdatePhase = state.phase;
+}
+
+async function acceptMarketUpdateState(state: MarketUpdateState): Promise<void> {
+  const shouldReload = state.phase === 'succeeded'
+    && !!state.completedAt
+    && state.completedAt !== reloadedMarketUpdateCompletion;
+  if (shouldReload) reloadedMarketUpdateCompletion = state.completedAt;
+  renderMarketUpdateState(state);
+  if (!shouldReload) return;
+  await loadInstrument(requestedInstrument, true);
+  renderMarketUpdateState(state);
+}
+
+const updatePhaseLabels: Record<UpdateState['phase'], string> = {
+  disabled: '更新不可用',
+  idle: '检查更新',
+  checking: '正在检查更新',
+  'up-to-date': '已是最新版本',
+  available: '发现新版本',
+  downloading: '正在下载更新',
+  downloaded: '更新已准备好',
+  installing: '正在启动安装',
+  failed: '更新未完成',
+};
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const amount = value / 1024 ** index;
+  return `${amount >= 100 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
+}
+
+function setUpdateDialogOpen(open: boolean): void {
+  if (open && !updateDialog.open) updateDialog.showModal();
+  if (!open && updateDialog.open) updateDialog.close();
+}
+
+function updateMessage(state: UpdateState): string {
+  switch (state.phase) {
+    case 'disabled': return '开发模式和普通自动化测试不会连接生产更新源。';
+    case 'idle': return '手动检查 GitHub Releases 上的最新稳定版本。';
+    case 'checking': return '正在检查最新稳定版本，行情浏览可以继续使用。';
+    case 'up-to-date': return `当前 ${state.currentVersionLabel} 已是最新版本。`;
+    case 'available': return `新版本 v${state.availableVersion} 已发布。下载只会在你确认后开始。`;
+    case 'downloading': return `正在下载 v${state.availableVersion}。下载失败不会影响当前版本。`;
+    case 'downloaded': return `v${state.availableVersion} 已下载并通过完整性校验，可在你确认后重启安装。`;
+    case 'installing': return '正在退出当前版本并启动安装程序…';
+    case 'failed': return '当前版本仍可正常使用。你可以稍后重试更新操作。';
+  }
+}
+
+function renderUpdateState(state: UpdateState): void {
+  updateState = state;
+  $('#app-version').textContent = state.currentVersionLabel;
+  $('#update-entry').dataset.phase = state.phase;
+  $('#update-entry-label').textContent = state.phase === 'available'
+    ? `可更新 v${state.availableVersion}`
+    : state.phase === 'downloading'
+      ? `${Math.round(state.progress?.percent || 0)}%`
+      : state.phase === 'downloaded'
+        ? '等待安装'
+        : state.phase === 'checking'
+          ? '检查中'
+          : '检查更新';
+  $('#update-title').textContent = updatePhaseLabels[state.phase];
+  $('#update-current').textContent = state.currentVersionLabel;
+  $('#update-target').textContent = state.availableVersion ? `v${state.availableVersion}` : '—';
+  $('#update-message').textContent = updateMessage(state);
+
+  const progress = state.progress;
+  $('#update-progress').hidden = !progress || !['downloading', 'downloaded'].includes(state.phase);
+  if (progress) {
+    const percent = Math.max(0, Math.min(100, progress.percent));
+    $('#update-progress-label').textContent = `${Math.round(percent)}% · ${formatBytes(progress.transferred)} / ${formatBytes(progress.total)}`;
+    $('#update-speed').textContent = state.phase === 'downloading' && progress.bytesPerSecond > 0 ? `${formatBytes(progress.bytesPerSecond)}/s` : '';
+    ($('#update-progress-bar') as HTMLElement).style.width = `${percent}%`;
+  }
+
+  const notes = state.releaseNotes?.trim();
+  $('#update-notes').hidden = !notes;
+  $('#update-notes').textContent = notes || '';
+  $('#update-error').hidden = !state.error || state.error.code === 'disabled';
+  $('#update-error').textContent = state.error?.code === 'disabled' ? '' : state.error?.message || '';
+
+  $('#update-retry').hidden = state.phase !== 'failed';
+  $('#update-download').hidden = state.phase !== 'available';
+  $('#update-install').hidden = state.phase !== 'downloaded';
+  $('#update-ok').hidden = state.phase !== 'up-to-date' && state.phase !== 'disabled';
+  $('#update-later').hidden = state.phase === 'checking' || state.phase === 'installing' || state.phase === 'up-to-date' || state.phase === 'disabled';
+  document.querySelectorAll<HTMLButtonElement>('#update-dialog button').forEach(button => {
+    button.disabled = updateActionRunning && !['close-update', 'update-later'].includes(button.id);
+  });
+
+  const important = state.phase === 'available' || state.phase === 'downloaded';
+  const activeFlow = updateInteraction || updateDialog.open;
+  if (important || (activeFlow && state.phase !== 'idle')) setUpdateDialogOpen(true);
+  if (!activeFlow && state.requestedBy === 'startup' && ['up-to-date', 'failed'].includes(state.phase)) setUpdateDialogOpen(false);
+  document.documentElement.dataset.updatePhase = state.phase;
+}
+
+async function runUpdateAction(action: 'check' | 'download' | 'install'): Promise<void> {
+  if (updateActionRunning) return;
+  updateInteraction = true;
+  updateActionRunning = true;
+  if (updateState) renderUpdateState(updateState);
+  try {
+    const state = action === 'check'
+      ? await window.updates.check()
+      : action === 'download'
+        ? await window.updates.download()
+        : await window.updates.restartAndInstall();
+    renderUpdateState(state);
+  } catch (error) {
+    $('#update-title').textContent = '更新请求失败';
+    $('#update-message').textContent = '当前版本仍可正常使用。';
+    $('#update-error').textContent = error instanceof Error ? error.message : String(error);
+    $('#update-error').hidden = false;
+    setUpdateDialogOpen(true);
+  } finally {
+    updateActionRunning = false;
+    if (updateState) renderUpdateState(updateState);
+  }
+}
 
 class MarketChart {
   readonly element: HTMLElement;
@@ -91,6 +271,7 @@ class MarketChart {
   private oi?: ISeriesApi<'Line'>;
   private ema20?: ISeriesApi<'Line'>;
   private entryPullback?: ISeriesApi<'Line'>;
+  private entryQuarter?: ISeriesApi<'Line'>;
   private emaByStart = new Map<number, number>();
   readonly markers: ISeriesMarkersPluginApi<Time>;
   bars: Bar[] = [];
@@ -110,6 +291,8 @@ class MarketChart {
   private hoverRange?: { first: Bar; last: Bar };
   private hoverOverlay?: HTMLElement;
   private hoverRenderFrame?: number;
+  private reactionOverlay?: HTMLElement;
+  private reactionRenderFrame?: number;
   private focusedLogicalRange?: { from: number; to: number };
 
   constructor(readonly period: Period) {
@@ -128,11 +311,36 @@ class MarketChart {
       this.hoverOverlay.setAttribute('aria-hidden', 'true');
       this.hoverOverlay.hidden = true;
       this.chartHost.after(this.hoverOverlay);
+      this.reactionOverlay = document.createElement('div');
+      this.reactionOverlay.className = 'entry-reaction-range';
+      this.reactionOverlay.dataset.testid = 'entry-reaction-range';
+      this.reactionOverlay.dataset.present = 'false';
+      this.reactionOverlay.dataset.visible = 'false';
+      this.reactionOverlay.setAttribute('aria-hidden', 'true');
+      this.reactionOverlay.hidden = true;
+      this.chartHost.after(this.reactionOverlay);
     }
     this.chartHost.addEventListener('mouseenter', () => { this.pointerInside = true; });
-    this.chartHost.addEventListener('wheel', () => { this.focusedLogicalRange = undefined; }, { passive: true });
-    this.chartHost.addEventListener('pointerdown', () => { this.focusedLogicalRange = undefined; });
+    this.chartHost.addEventListener('wheel', () => {
+      this.focusedLogicalRange = undefined;
+      this.scheduleReactionRangeRender();
+    }, { passive: true });
+    this.chartHost.addEventListener('pointerdown', () => {
+      this.focusedLogicalRange = undefined;
+      this.scheduleReactionRangeRender();
+    });
+    this.chartHost.addEventListener('pointerup', () => {
+      this.scheduleScaleDiagnostics();
+      this.scheduleReactionRangeRender();
+      requestAnimationFrame(() => this.scheduleReactionRangeRender());
+    });
+    this.chartHost.addEventListener('dblclick', () => {
+      this.scheduleScaleDiagnostics();
+      this.scheduleReactionRangeRender();
+      requestAnimationFrame(() => this.scheduleReactionRangeRender());
+    });
     this.chartHost.addEventListener('pointermove', (event) => {
+      this.scheduleReactionRangeRender();
       if (this.period !== 60) return;
       if (!dataset) { charts[5].clearHoverRange(); return; }
       const x = event.clientX - this.chartHost.getBoundingClientRect().left;
@@ -165,7 +373,7 @@ class MarketChart {
         axisDoubleClickReset: { time: true, price: true },
       },
     });
-    this.candle = this.chart.addSeries(CandlestickSeries, { upColor: '#ef646e', downColor: '#28b59c', borderUpColor: '#ef646e', borderDownColor: '#28b59c', wickUpColor: '#ef646e', wickDownColor: '#28b59c', priceFormat: { type: 'price', precision: 0, minMove: 1 }, priceLineColor: '#697689', priceLineStyle: 2 });
+    this.candle = this.chart.addSeries(CandlestickSeries, { upColor: '#ef646e', downColor: '#28b59c', borderUpColor: '#ef646e', borderDownColor: '#28b59c', wickUpColor: '#ef646e', wickDownColor: '#28b59c', priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK }, priceLineColor: '#697689', priceLineStyle: 2 });
     if (period === 60) {
       this.ema20 = this.chart.addSeries(LineSeries, {
         color: '#e8edf5', lineWidth: 2, priceScaleId: 'right',
@@ -180,7 +388,17 @@ class MarketChart {
         priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
         pointMarkersVisible: false, title: '回调',
       }, 0);
+      this.entryQuarter = this.chart.addSeries(LineSeries, {
+        color: '#ffffff', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
+        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        pointMarkersVisible: false, title: '',
+        autoscaleInfoProvider: () => null,
+      }, 0);
       this.element.dataset.pullbackLineStyle = 'solid';
+      this.element.dataset.quarterLineStyle = 'solid';
+      this.element.dataset.quarterLineColor = '#ffffff';
+      this.element.dataset.quarterLineAutoScale = 'false';
     }
     this.setSubchartsVisible(true);
     this.markers = createSeriesMarkers(this.candle, [], { zOrder: 'top', autoScale: false });
@@ -233,6 +451,7 @@ class MarketChart {
         delete this.element.dataset.visibleSpan;
       }
       this.scheduleHoverRangeRender();
+      this.scheduleReactionRangeRender();
     });
     new ResizeObserver(() => {
       this.layoutPanes();
@@ -276,6 +495,7 @@ class MarketChart {
       (this.element.querySelector('.volume-label') as HTMLElement).style.top = `${priceHeight + 7}px`;
       (this.element.querySelector('.oi-label') as HTMLElement).style.top = `${priceHeight + volumeHeight + 8}px`;
       this.scheduleHoverRangeRender();
+      this.scheduleReactionRangeRender();
     });
   }
 
@@ -396,6 +616,8 @@ class MarketChart {
   resetPriceScale() {
     this.chart.priceScale('right').setAutoScale(true);
     this.scheduleScaleDiagnostics();
+    this.scheduleReactionRangeRender();
+    this.refreshReactionRangeForFrames();
   }
   private scheduleScaleDiagnostics() {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -427,6 +649,8 @@ class MarketChart {
     if (range) {
       this.focusedLogicalRange = range;
       this.chart.timeScale().setVisibleLogicalRange(range);
+      this.scheduleReactionRangeRender();
+      this.refreshReactionRangeForFrames();
     }
   }
   setHoverRange(bars: Bar[]) {
@@ -520,6 +744,123 @@ class MarketChart {
     delete this.hoverOverlay.dataset.firstIndex;
     delete this.hoverOverlay.dataset.lastIndex;
   }
+  private scheduleReactionRangeRender() {
+    if (!this.reactionOverlay || this.selection?.kind !== 'entry' || !this.selection.reactionRange || this.reactionRenderFrame !== undefined) return;
+    this.reactionRenderFrame = requestAnimationFrame(() => {
+      this.reactionRenderFrame = undefined;
+      this.renderReactionRange();
+    });
+  }
+  private refreshReactionRangeForFrames(remaining = 4) {
+    if (remaining <= 0) return;
+    requestAnimationFrame(() => {
+      this.renderReactionRange();
+      this.refreshReactionRangeForFrames(remaining - 1);
+    });
+  }
+  private renderReactionRange() {
+    const range = this.selection?.kind === 'entry' ? this.selection.reactionRange : undefined;
+    if (!this.reactionOverlay || !range) {
+      this.hideReactionOverlay();
+      return;
+    }
+    const firstIndex = this.indexByStart.get(range.extremeBar.startMs);
+    const lastIndex = this.indexByStart.get(range.reactionBar.startMs);
+    const timeScale = this.chart.timeScale();
+    const chartWidth = timeScale.width();
+    const priceHeight = this.chart.panes()[0]?.getHeight() || 0;
+    if (firstIndex === undefined || lastIndex === undefined || chartWidth <= 0 || priceHeight <= 0) {
+      this.hideReactionOverlay();
+      return;
+    }
+    const firstCoordinate = timeScale.logicalToCoordinate(firstIndex as Logical);
+    const lastCoordinate = timeScale.logicalToCoordinate(lastIndex as Logical);
+    const highCoordinate = this.candle.priceToCoordinate(range.high);
+    const lowCoordinate = this.candle.priceToCoordinate(range.low);
+    if (firstCoordinate === null || lastCoordinate === null || highCoordinate === null || lowCoordinate === null) {
+      this.hideReactionOverlay();
+      return;
+    }
+    const adjacentCoordinate = timeScale.logicalToCoordinate((lastIndex + 1) as Logical)
+      ?? timeScale.logicalToCoordinate((firstIndex - 1) as Logical);
+    const spacing = lastIndex > firstIndex
+      ? Math.abs(lastCoordinate - firstCoordinate) / (lastIndex - firstIndex)
+      : adjacentCoordinate === null ? 0 : Math.abs(adjacentCoordinate - firstCoordinate);
+    if (!(spacing > 0)) {
+      this.hideReactionOverlay();
+      return;
+    }
+    const rawLeft = Math.min(firstCoordinate, lastCoordinate) - spacing / 2;
+    const rawRight = Math.max(firstCoordinate, lastCoordinate) + spacing / 2;
+    const rawTop = Math.min(highCoordinate, lowCoordinate);
+    const rawBottom = Math.max(highCoordinate, lowCoordinate);
+    if (rawRight <= 0 || rawLeft >= chartWidth || rawBottom <= 0 || rawTop >= priceHeight) {
+      this.hideReactionOverlay();
+      return;
+    }
+    const left = Math.max(0, rawLeft);
+    const right = Math.min(chartWidth, rawRight);
+    const top = Math.max(0, rawTop);
+    const bottom = Math.min(priceHeight, rawBottom);
+    if (right <= left || bottom <= top) {
+      this.hideReactionOverlay();
+      return;
+    }
+    this.reactionOverlay.style.transform = `translate(${left}px, ${top}px)`;
+    this.reactionOverlay.style.width = `${right - left}px`;
+    this.reactionOverlay.style.height = `${bottom - top}px`;
+    this.reactionOverlay.hidden = false;
+    this.reactionOverlay.dataset.visible = 'true';
+    this.reactionOverlay.dataset.left = String(left);
+    this.reactionOverlay.dataset.top = String(top);
+    this.reactionOverlay.dataset.width = String(right - left);
+    this.reactionOverlay.dataset.height = String(bottom - top);
+    this.reactionOverlay.dataset.chartWidth = String(chartWidth);
+    this.reactionOverlay.dataset.priceHeight = String(priceHeight);
+    this.reactionOverlay.dataset.clippedX = String(rawLeft < 0 || rawRight > chartWidth);
+    this.reactionOverlay.dataset.clippedY = String(rawTop < 0 || rawBottom > priceHeight);
+    this.reactionOverlay.dataset.clipped = String(rawLeft < 0 || rawRight > chartWidth || rawTop < 0 || rawBottom > priceHeight);
+  }
+  private hideReactionOverlay() {
+    if (!this.reactionOverlay) return;
+    this.reactionOverlay.hidden = true;
+    this.reactionOverlay.dataset.visible = 'false';
+    for (const key of ['left', 'top', 'width', 'height', 'chartWidth', 'priceHeight', 'clippedX', 'clippedY', 'clipped']) {
+      delete this.reactionOverlay.dataset[key];
+    }
+  }
+  private clearReactionOverlay() {
+    if (this.reactionRenderFrame !== undefined) {
+      cancelAnimationFrame(this.reactionRenderFrame);
+      this.reactionRenderFrame = undefined;
+    }
+    this.hideReactionOverlay();
+    if (!this.reactionOverlay) return;
+    this.reactionOverlay.dataset.present = 'false';
+    for (const key of ['direction', 'firstStart', 'lastStart', 'extremeStart', 'reactionStart', 'firstIndex', 'lastIndex', 'high', 'low']) {
+      delete this.reactionOverlay.dataset[key];
+    }
+  }
+  private updateReactionRangeDiagnostics() {
+    const range = this.selection?.kind === 'entry' ? this.selection.reactionRange : undefined;
+    if (!this.reactionOverlay || !range) {
+      this.clearReactionOverlay();
+      return;
+    }
+    const firstIndex = this.indexByStart.get(range.extremeBar.startMs);
+    const lastIndex = this.indexByStart.get(range.reactionBar.startMs);
+    this.reactionOverlay.dataset.present = 'true';
+    this.reactionOverlay.dataset.direction = range.direction;
+    this.reactionOverlay.dataset.firstStart = String(range.extremeBar.startMs);
+    this.reactionOverlay.dataset.lastStart = String(range.reactionBar.startMs);
+    this.reactionOverlay.dataset.extremeStart = String(range.extremeBar.startMs);
+    this.reactionOverlay.dataset.reactionStart = String(range.reactionBar.startMs);
+    this.reactionOverlay.dataset.firstIndex = String(firstIndex ?? -1);
+    this.reactionOverlay.dataset.lastIndex = String(lastIndex ?? -1);
+    this.reactionOverlay.dataset.high = String(range.high);
+    this.reactionOverlay.dataset.low = String(range.low);
+    this.scheduleReactionRangeRender();
+  }
   highlight(bars: Bar[], focused?: Bar) {
     this.selection = bars.length ? { kind: 'linked', bars } : undefined;
     if (!bars.length) this.focusedLogicalRange = undefined;
@@ -530,9 +871,12 @@ class MarketChart {
     this.details(this.selectionOrLast());
   }
   highlightEntry(bars: Bar[], entry: WeeklyEntry) {
+    const reactionRange = bars.length ? entryReactionRange(entry.direction, bars) : undefined;
     this.selection = bars.length ? {
       kind: 'entry', bars, triggerStart: entry.triggerBar.startMs,
       direction: entry.direction, pullbackLine: entry.pullbackLine,
+      reactionRange,
+      quarterSignal: reactionRange ? entryQuarterSignal(reactionRange, bars, MARKET_PRICE_TICK) : undefined,
     } : undefined;
     if (!bars.length) this.focusedLogicalRange = undefined;
     this.selectedDetail = bars[0];
@@ -551,13 +895,102 @@ class MarketChart {
       this.element.dataset.selectionPullbackLine = String(selection.pullbackLine);
       this.element.dataset.selectionFirstIndex = String(this.indexByStart.get(selection.bars[0].startMs) ?? -1);
       this.element.dataset.selectionLastIndex = String(this.indexByStart.get(selection.bars.at(-1)!.startMs) ?? -1);
+      this.element.dataset.reactionRangePresent = String(!!selection.reactionRange);
+      this.element.dataset.quarterSignalPresent = String(!!selection.quarterSignal);
+      if (selection.reactionRange) {
+        this.element.dataset.reactionRangeDirection = selection.reactionRange.direction;
+        this.element.dataset.reactionRangeFirstStart = String(selection.reactionRange.extremeBar.startMs);
+        this.element.dataset.reactionRangeLastStart = String(selection.reactionRange.reactionBar.startMs);
+        this.element.dataset.reactionRangeExtremeStart = String(selection.reactionRange.extremeBar.startMs);
+        this.element.dataset.reactionRangeReactionStart = String(selection.reactionRange.reactionBar.startMs);
+        this.element.dataset.reactionRangeFirstIndex = String(this.indexByStart.get(selection.reactionRange.extremeBar.startMs) ?? -1);
+        this.element.dataset.reactionRangeLastIndex = String(this.indexByStart.get(selection.reactionRange.reactionBar.startMs) ?? -1);
+        this.element.dataset.reactionRangeHigh = String(selection.reactionRange.high);
+        this.element.dataset.reactionRangeLow = String(selection.reactionRange.low);
+      } else {
+        for (const key of ['reactionRangeDirection', 'reactionRangeFirstStart', 'reactionRangeLastStart', 'reactionRangeExtremeStart',
+          'reactionRangeReactionStart', 'reactionRangeFirstIndex', 'reactionRangeLastIndex', 'reactionRangeHigh', 'reactionRangeLow']) {
+          delete this.element.dataset[key];
+        }
+      }
+      if (selection.quarterSignal) {
+        const signal = selection.quarterSignal;
+        this.element.dataset.quarterSignalDirection = signal.direction;
+        this.element.dataset.quarterSignalPrice = String(signal.price);
+        this.element.dataset.quarterSignalTick = String(signal.tick);
+        this.element.dataset.quarterSignalRangeTicks = String(signal.rangeTicks);
+        this.element.dataset.quarterSignalQuarterTicks = String(signal.quarterTicks);
+        this.element.dataset.quarterSignalLineStart = String(signal.lineStartBar.startMs);
+        this.element.dataset.quarterSignalReactionStart = String(signal.reactionBar.startMs);
+        this.element.dataset.quarterSignalSearchStart = signal.searchStartBar ? String(signal.searchStartBar.startMs) : '';
+        this.element.dataset.quarterSignalEntryStart = signal.entryBar ? String(signal.entryBar.startMs) : '';
+        this.element.dataset.quarterSignalLineStartIndex = String(this.indexByStart.get(signal.lineStartBar.startMs) ?? -1);
+        this.element.dataset.quarterSignalReactionIndex = String(this.indexByStart.get(signal.reactionBar.startMs) ?? -1);
+        this.element.dataset.quarterSignalSearchStartIndex = String(signal.searchStartBar
+          ? this.indexByStart.get(signal.searchStartBar.startMs) ?? -1
+          : -1);
+        this.element.dataset.quarterSignalEntryIndex = String(signal.entryBar
+          ? this.indexByStart.get(signal.entryBar.startMs) ?? -1
+          : -1);
+      } else {
+        for (const key of ['quarterSignalDirection', 'quarterSignalPrice', 'quarterSignalTick', 'quarterSignalRangeTicks',
+          'quarterSignalQuarterTicks', 'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
+          'quarterSignalEntryStart', 'quarterSignalLineStartIndex', 'quarterSignalReactionIndex',
+          'quarterSignalSearchStartIndex', 'quarterSignalEntryIndex']) {
+          delete this.element.dataset[key];
+        }
+      }
     } else {
       delete this.element.dataset.selectionDirection;
       delete this.element.dataset.selectionTriggerStart;
       delete this.element.dataset.selectionPullbackLine;
       delete this.element.dataset.selectionFirstIndex;
       delete this.element.dataset.selectionLastIndex;
+      delete this.element.dataset.reactionRangePresent;
+      delete this.element.dataset.quarterSignalPresent;
+      for (const key of ['reactionRangeDirection', 'reactionRangeFirstStart', 'reactionRangeLastStart', 'reactionRangeExtremeStart',
+        'reactionRangeReactionStart', 'reactionRangeFirstIndex', 'reactionRangeLastIndex', 'reactionRangeHigh', 'reactionRangeLow']) {
+        delete this.element.dataset[key];
+      }
+      for (const key of ['quarterSignalDirection', 'quarterSignalPrice', 'quarterSignalTick', 'quarterSignalRangeTicks',
+        'quarterSignalQuarterTicks', 'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
+        'quarterSignalEntryStart', 'quarterSignalLineStartIndex', 'quarterSignalReactionIndex',
+        'quarterSignalSearchStartIndex', 'quarterSignalEntryIndex']) {
+        delete this.element.dataset[key];
+      }
     }
+    this.updateReactionRangeDiagnostics();
+  }
+  private drawEntryQuarter() {
+    if (!this.entryQuarter) return;
+    const selection = this.selection;
+    const signal = selection?.kind === 'entry' ? selection.quarterSignal : undefined;
+    const lineStartIndex = selection?.kind === 'entry' && signal
+      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+      : -1;
+    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
+      ? selection.bars.slice(lineStartIndex)
+      : [];
+    if (!signal || !lineBars.length) {
+      this.entryQuarter.setData([]);
+      this.element.dataset.quarterLineVisible = 'false';
+      for (const key of ['quarterLinePrice', 'quarterLineTick', 'quarterLineQuarterTicks', 'quarterLinePointCount',
+        'quarterLineFirstStart', 'quarterLineLastStart', 'quarterLineFirstIndex', 'quarterLineLastIndex']) {
+        delete this.element.dataset[key];
+      }
+      return;
+    }
+
+    this.entryQuarter.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
+    this.element.dataset.quarterLineVisible = 'true';
+    this.element.dataset.quarterLinePrice = String(signal.price);
+    this.element.dataset.quarterLineTick = String(signal.tick);
+    this.element.dataset.quarterLineQuarterTicks = String(signal.quarterTicks);
+    this.element.dataset.quarterLinePointCount = String(lineBars.length);
+    this.element.dataset.quarterLineFirstStart = String(lineBars[0].startMs);
+    this.element.dataset.quarterLineLastStart = String(lineBars.at(-1)!.startMs);
+    this.element.dataset.quarterLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+    this.element.dataset.quarterLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
   }
   private drawEntryPullback() {
     if (!this.entryPullback) return;
@@ -570,6 +1003,8 @@ class MarketChart {
       delete this.element.dataset.pullbackLineValues;
       delete this.element.dataset.pullbackLineFirstValue;
       delete this.element.dataset.pullbackLineLastValue;
+      this.drawEntryQuarter();
+      this.scheduleReactionRangeRender();
       return;
     }
     const points = entryObservationLine(selection, selection.bars, this.emaByStart);
@@ -588,6 +1023,87 @@ class MarketChart {
       delete this.element.dataset.pullbackLineFirstValue;
       delete this.element.dataset.pullbackLineLastValue;
     }
+    this.drawEntryQuarter();
+    this.scheduleReactionRangeRender();
+  }
+  showReactionTestScenario(scenario: ReactionTestScenario, direction: WeeklyEntry['direction'], startMs: number) {
+    if (!window.market.testMode || this.period !== 5) return;
+    const firstIndex = this.indexByStart.get(startMs);
+    if (firstIndex === undefined) return;
+    const source = this.bars.slice(firstIndex, firstIndex + 16);
+    if (!source.length) return;
+    const directional = (bar: Bar, target: 'reaction' | 'opposite' | 'doji'): Bar => {
+      const midpoint = (bar.high + bar.low) / 2;
+      const rising = target === 'reaction' ? direction === 'long' : direction === 'short';
+      return {
+        ...bar,
+        open: target === 'doji' ? midpoint : rising ? bar.low : bar.high,
+        close: target === 'doji' ? midpoint : rising ? bar.high : bar.low,
+      };
+    };
+    const controlledQuarterScenario = scenario.startsWith('quarter-');
+    const rangeTicks = scenario === 'quarter-divisible' ? 12 : 11;
+    const base = Math.round(source[0].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
+    const quarterPrice = direction === 'long'
+      ? base + Math.ceil(rangeTicks / 4)
+      : base + rangeTicks - Math.ceil(rangeTicks / 4);
+    const controlled = (bar: Bar, index: number): Bar => {
+      if (direction === 'long') {
+        if (index === 0) return { ...bar, open: base + 3, high: base + 4, low: base, close: base + 1 };
+        if (index === 1) return { ...bar, open: base + 2, high: base + rangeTicks, low: base + 1, close: base + rangeTicks - 1 };
+        const touch = scenario === 'quarter-wick-touch'
+          ? index === 2
+          : scenario === 'quarter-repeated-touch'
+            ? index === 2 || index === 4
+            : scenario === 'quarter-no-touch'
+              ? false
+              : index === 3;
+        return {
+          ...bar,
+          open: base + 6,
+          high: base + 8,
+          low: touch ? quarterPrice : base + 5,
+          close: base + 7,
+        };
+      }
+      if (index === 0) return { ...bar, open: base + rangeTicks - 3, high: base + rangeTicks, low: base + rangeTicks - 4, close: base + rangeTicks - 1 };
+      if (index === 1) return { ...bar, open: base + rangeTicks - 2, high: base + rangeTicks - 1, low: base, close: base + 1 };
+      const touch = scenario === 'quarter-wick-touch'
+        ? index === 2
+        : scenario === 'quarter-repeated-touch'
+          ? index === 2 || index === 4
+          : scenario === 'quarter-no-touch'
+            ? false
+            : index === 3;
+      return {
+        ...bar,
+        open: base + rangeTicks - 6,
+        high: touch ? quarterPrice : base + rangeTicks - 5,
+        low: base + rangeTicks - 8,
+        close: base + rangeTicks - 7,
+      };
+    };
+    const bars = source.map((bar, index) => {
+      if (controlledQuarterScenario) return controlled(bar, index);
+      if (scenario === 'immediate') return directional(bar, index === 0 ? 'reaction' : 'opposite');
+      if (scenario === 'doji-then-reaction') {
+        return directional(bar, index === 0 ? 'doji' : index === 1 ? 'opposite' : index === 2 ? 'reaction' : 'opposite');
+      }
+      return directional(bar, index % 2 ? 'opposite' : 'doji');
+    });
+    const triggerBar = bars[0];
+    this.focusBars(source, 20);
+    this.highlightEntry(bars, {
+      bar: triggerBar,
+      triggerBar,
+      direction,
+      boundaryHigh: triggerBar.high,
+      boundaryLow: triggerBar.low,
+      midpoint: (triggerBar.high + triggerBar.low) / 2,
+      ema20: this.emaByStart.get(triggerBar.startMs) ?? triggerBar.close,
+      pullbackLine: triggerBar.close,
+      weekStart: formatBeijing(triggerBar.startMs).slice(0, 10),
+    });
   }
   drawMarkers() {
     const markers: SeriesMarker<Time>[] = [];
@@ -607,6 +1123,15 @@ class MarketChart {
         color: long ? '#74e2a688' : '#ff9d8288', shape: 'square' as const, size: 0.45,
         id: `observation-follow-${selection.direction}-${selection.triggerStart}-${bar.startMs}`,
       })));
+      const trueEntry = selection.quarterSignal?.entryBar;
+      if (trueEntry) {
+        markers.push({
+          time: timeKey(trueEntry), position: long ? 'belowBar' : 'aboveBar',
+          color: '#ffffff', shape: long ? 'arrowUp' : 'arrowDown',
+          text: '入场', size: 1.1,
+          id: `true-entry-${selection.direction}-${selection.triggerStart}-${trueEntry.startMs}`,
+        });
+      }
     }
     if (this.period === 60 && mondayVisible) {
       for (const bar of this.bars) {
@@ -634,13 +1159,35 @@ class MarketChart {
     this.element.dataset.breakoutDownCount = String(markers.filter(marker => marker.id?.startsWith('breakout-down-')).length);
     this.element.dataset.entryLongCount = String(markers.filter(marker => marker.id?.startsWith('entry-long-')).length);
     this.element.dataset.entryShortCount = String(markers.filter(marker => marker.id?.startsWith('entry-short-')).length);
+    this.element.dataset.entryMarkerIds = JSON.stringify(markers
+      .filter(marker => marker.id?.startsWith('entry-'))
+      .map(marker => marker.id));
     this.element.dataset.linkedMarkerCount = String(markers.filter(marker => marker.id?.startsWith('selected-')).length);
     this.element.dataset.observationTriggerCount = String(markers.filter(marker => marker.id?.startsWith('observation-trigger-')).length);
     this.element.dataset.observationFollowCount = String(markers.filter(marker => marker.id?.startsWith('observation-follow-')).length);
+    const trueEntryMarkers = markers.filter(marker => marker.id?.startsWith('true-entry-'));
+    this.element.dataset.trueEntryMarkerCount = String(trueEntryMarkers.length);
+    if (trueEntryMarkers.length) {
+      this.element.dataset.trueEntryMarkerId = String(trueEntryMarkers[0].id);
+      this.element.dataset.trueEntryMarkerStart = String(selection?.kind === 'entry' ? selection.quarterSignal?.entryBar?.startMs : '');
+      this.element.dataset.trueEntryMarkerDirection = String(selection?.kind === 'entry' ? selection.direction : '');
+      this.element.dataset.trueEntryMarkerPosition = String(trueEntryMarkers[0].position);
+    } else {
+      delete this.element.dataset.trueEntryMarkerId;
+      delete this.element.dataset.trueEntryMarkerStart;
+      delete this.element.dataset.trueEntryMarkerDirection;
+      delete this.element.dataset.trueEntryMarkerPosition;
+    }
   }
 }
 
 const charts = { 60: new MarketChart(60), 5: new MarketChart(5) };
+if (window.market.testMode) {
+  window.moneyComingTest = {
+    showReactionScenario: (scenario, direction, startMs) => charts[5].showReactionTestScenario(scenario, direction, startMs),
+    clearReactionScenario: () => charts[5].highlight([]),
+  };
+}
 
 function clearCrosshairs() {
   crosshairSyncing = true;
@@ -713,11 +1260,11 @@ function renderDataset(next: Dataset, focusTime?: number) {
   dataset = next; selected = undefined;
   $('#instrument-name').textContent = next.name;
   $('#instrument-symbol').textContent = next.symbol;
-  $('#subtitle').textContent = next.instrument === 'main_continuous' ? '主力连续合约 · 源价格展示，未自行复权' : '豆粕 2027 年 01 月合约 · 历史价格与成交持仓';
-  $('#quality-status').textContent = !next.auditAvailable ? '异常提示资料未加载' : next.instrument === 'main_continuous' ? '源价格 · 未自行复权' : `${next.anomalies.length} 处已知待核实记录`;
+  $('#subtitle').textContent = '主力连续合约 · 源价格展示，未自行复权';
+  $('#quality-status').textContent = !next.auditAvailable ? '异常提示资料未加载' : next.anomalies.length ? `${next.anomalies.length} 处已知待核实记录` : '源价格 · 未自行复权';
   $('#quality-status').classList.toggle('amber', !next.auditAvailable || next.anomalies.length > 0);
   const first = next.bars5[0], last = next.bars5.at(-1)!;
-  $('#coverage').textContent = `${formatBeijing(first.startMs).slice(0, 10)} — ${formatBeijing(last.endMs).slice(0, 10)}`;
+  $('#coverage').textContent = `${formatBeijing(first.startMs).slice(0, 10)} — ${formatBeijing(last.endMs).slice(0, 10)} · 数据源最新至 ${next.sourceLatestAt.slice(0, 16)}`;
   $('#counts').textContent = `5 分钟 ${number(next.bars5.length)} 根    /    60 分钟 ${number(next.bars60.length)} 根`;
   $('#last-close').textContent = number(last.close);
   $('#last-close').className = last.close >= last.open ? 'up' : 'down';
@@ -741,6 +1288,7 @@ function renderDataset(next: Dataset, focusTime?: number) {
   ($('#date-input') as HTMLInputElement).value = formatBeijing((selected as { bar: Bar } | undefined)?.bar.startMs || last.startMs).slice(0, 10);
   document.documentElement.dataset.instrument = next.instrument;
   document.documentElement.dataset.ready = 'true';
+  renderMarketUpdateState();
 }
 
 async function loadInstrument(instrument: Instrument, reload = false) {
@@ -760,7 +1308,7 @@ async function loadInstrument(instrument: Instrument, reload = false) {
     $('#instrument').querySelector<HTMLOptionElement>(`option[value="${instrument}"]`)!.selected = true;
   } catch (error) {
     if (currentRequest !== requestId) return;
-    $('#error-text').textContent = `${instrument === 'm2701' ? '豆粕 2701' : '豆粕主连'}加载失败：${error instanceof Error ? error.message : String(error)}${dataset ? `。当前仍显示${dataset.name}。` : ''}`;
+    $('#error-text').textContent = `豆粕主连加载失败：${error instanceof Error ? error.message : String(error)}${dataset ? `。当前仍显示${dataset.name}。` : ''}`;
     $('#error').hidden = false;
     if (dataset) $('#instrument').querySelector<HTMLOptionElement>(`option[value="${dataset.instrument}"]`)!.selected = true;
     else $('#coverage').textContent = '行情未加载 · 请检查 EXE 同级 data 文件夹后重试';
@@ -773,8 +1321,11 @@ function showDetails(focused?: Anomaly) {
   const body = $('#dialog-body');
   const anomalies = dataset?.anomalies || [];
   const first = dataset?.bars5[0], last = dataset?.bars5.at(-1);
+  const snapshotUpdatedAt = dataset?.snapshotUpdatedAt
+    ? formatBeijing(new Date(dataset.snapshotUpdatedAt).getTime()).slice(0, 16)
+    : '内置基线';
   body.innerHTML = `<div class="source-card"><span class="source-avatar">E</span><div><strong>信易 EDB · 本地历史快照</strong><p>${escapeHtml(dataset?.name || '豆粕行情')} · CSV 源价格 · 离线读取</p></div><span class="tag">只读</span></div>
-    <dl class="source-grid"><div><dt>数据区间（北京时间）</dt><dd>${first && last ? `${shortTime(first.startMs)} → ${shortTime(last.endMs)}` : '尚未加载'}</dd></div><div><dt>数据规模</dt><dd>5 分钟 ${number(dataset?.bars5.length || 0)} 根 · 60 分钟 ${number(dataset?.bars60.length || 0)} 根</dd></div></dl>
+    <dl class="source-grid"><div><dt>数据区间（北京时间）</dt><dd>${first && last ? `${shortTime(first.startMs)} → ${shortTime(last.endMs)}` : '尚未加载'}</dd></div><div><dt>数据源截止</dt><dd>${dataset?.sourceLatestAt ? `数据源最新至 ${escapeHtml(dataset.sourceLatestAt.slice(0, 16))}` : '尚未读取'}</dd></div><div><dt>本地快照</dt><dd>${snapshotUpdatedAt}</dd></div><div><dt>数据规模</dt><dd>5 分钟 ${number(dataset?.bars5.length || 0)} 根 · 60 分钟 ${number(dataset?.bars60.length || 0)} 根</dd></div></dl>
     <div class="notice"><strong>分钟齐全 ≠ 价格准确</strong><p>“组成分钟”仅说明该区间的分钟数是否齐全，不代表原始价格可靠。展示保留 EDB 原值，未拼接新浪行情，也未自行复权。</p><p>60 分钟按交易分钟累计，跳过盘中休息；日盘末段为 45 分钟。夜盘按实际自然日显示。</p></div>
     <h3 class="anomaly-heading">已知待核实记录 <span>${anomalies.length}</span></h3>
     ${!dataset?.auditAvailable ? '<p class="empty-note amber">异常提示资料未加载。行情可正常浏览，但本次不能提供完整的已知异常提示。</p>' : !anomalies.length ? '<p class="empty-note">当前标的没有已导入的具体异常点。未标记不代表数据已通过价格真实性验证。</p>' : anomalies.map((anomaly, index) => `<div class="anomaly-item ${focused === anomaly ? 'focused' : ''}"><span class="anomaly-dot">!</span><div><strong>${escapeHtml(anomaly.title)}</strong><p>${escapeHtml(anomaly.detail)}</p><button class="text-button" data-anomaly-index="${index}">定位到 ${shortTime(anomaly.timeMs)} ↗</button></div></div>`).join('')}
@@ -849,9 +1400,66 @@ $('#dismiss-error').addEventListener('click', () => { $('#error').hidden = true;
 $('#source-info').addEventListener('click', () => showDetails());
 $('#entry-rules').addEventListener('click', () => void showEntryRules());
 $('#attribution').addEventListener('click', () => void window.market.openAttribution());
+$('#market-update').addEventListener('click', () => {
+  if (marketUpdateRequestRunning || ['fetching', 'validating', 'saving'].includes(marketUpdateState.phase)) return;
+  marketUpdateRequestRunning = true;
+  renderMarketUpdateState();
+  void window.market.update()
+    .then(state => acceptMarketUpdateState(state))
+    .catch(() => acceptMarketUpdateState({
+      ...marketUpdateState,
+      phase: 'failed',
+      completedAt: new Date().toISOString(),
+      error: { code: 'unexpected', message: '更新请求未完成，请稍后重试' },
+    }))
+    .finally(() => {
+      marketUpdateRequestRunning = false;
+      renderMarketUpdateState();
+    });
+});
+$('#update-entry').addEventListener('click', () => {
+  updateInteraction = true;
+  setUpdateDialogOpen(true);
+  if (!updateState || ['idle', 'up-to-date'].includes(updateState.phase)) void runUpdateAction('check');
+  else renderUpdateState(updateState);
+});
+$('#update-download').addEventListener('click', () => void runUpdateAction('download'));
+$('#update-install').addEventListener('click', () => void runUpdateAction('install'));
+$('#update-retry').addEventListener('click', () => {
+  const code = updateState?.error?.code;
+  void runUpdateAction(code === 'download-failed' || code === 'verification-failed' ? 'download' : code === 'install-failed' ? 'install' : 'check');
+});
+for (const selector of ['#close-update', '#update-later', '#update-ok']) $(selector).addEventListener('click', () => {
+  updateInteraction = false;
+  setUpdateDialogOpen(false);
+});
+updateDialog.addEventListener('click', event => {
+  if (event.target === updateDialog) {
+    updateInteraction = false;
+    setUpdateDialogOpen(false);
+  }
+});
 for (const selector of ['#close-dialog', '#dialog-done']) $(selector).addEventListener('click', () => ($('#details-dialog') as HTMLDialogElement).close());
 $('#details-dialog').addEventListener('click', event => { if (event.target === $('#details-dialog')) ($('#details-dialog') as HTMLDialogElement).close(); });
 for (const selector of ['#close-rules', '#rules-done']) $(selector).addEventListener('click', () => ($('#rules-dialog') as HTMLDialogElement).close());
 $('#rules-dialog').addEventListener('click', event => { if (event.target === $('#rules-dialog')) ($('#rules-dialog') as HTMLDialogElement).close(); });
+const unsubscribeUpdates = window.updates.onState(renderUpdateState);
+const unsubscribeMarketUpdates = window.market.onUpdateState(state => {
+  void acceptMarketUpdateState(state);
+});
+window.addEventListener('beforeunload', () => {
+  unsubscribeUpdates();
+  unsubscribeMarketUpdates();
+}, { once: true });
+void window.updates.getState().then(renderUpdateState).catch(() => {
+  $('#app-version').textContent = 'v—';
+  $('#update-entry-label').textContent = '更新不可用';
+});
+void window.market.getUpdateState().then(state => acceptMarketUpdateState(state)).catch(() => {
+  renderMarketUpdateState({
+    phase: 'failed',
+    error: { code: 'unexpected', message: '无法读取行情更新状态' },
+  });
+});
 setMode('dual');
 void loadInstrument('main_continuous');
