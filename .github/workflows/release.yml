@@ -82,7 +82,7 @@ jobs:
           foreach ($target in $targets) {
             $signature = Get-AuthenticodeSignature -LiteralPath $target
             if ($signature.Status -ne 'Valid') {
-              throw "Invalid Authenticode signature for $target: $($signature.Status)"
+              throw "Invalid Authenticode signature for ${target}: $($signature.Status)"
             }
           }
 
