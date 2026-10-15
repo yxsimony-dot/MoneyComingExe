@@ -1,6 +1,6 @@
 {
   "name": "moneycoming",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "豆粕离线历史看盘",
   "author": "MoneyComing",
@@ -22,7 +22,8 @@
     "test:market-update-live": "node tests/market-update-live.mjs",
     "test:update": "node tests/update-smoke.mjs",
     "test:installer": "node tests/nsis-install-smoke.mjs",
-    "test:upgrade-installer": "node tests/nsis-upgrade-smoke.mjs"
+    "test:upgrade-installer": "node tests/nsis-upgrade-smoke.mjs",
+    "test:public-update": "node tests/public-update-e2e.mjs"
   },
   "build": {
     "appId": "local.moneycoming.viewer",
@@ -93,6 +94,7 @@
     "semver": "7.8.5"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@types/node": "26.6.4",
     "@types/semver": "7.8.0",
     "electron": "44.7.0",
