@@ -132,6 +132,7 @@ try {
   const environment = {
     ...process.env,
     MONEYCOMING_EXE: executable,
+    MONEYCOMING_INSTALLER_SMOKE: '1',
     MONEYCOMING_TEST_MODE: '1',
     MONEYCOMING_TEST_APPDATA: appData,
     MONEYCOMING_TEST_LOCALAPPDATA: localAppData,

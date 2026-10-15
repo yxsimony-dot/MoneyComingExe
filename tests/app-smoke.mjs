@@ -21,6 +21,7 @@ if (process.env.MONEYCOMING_TEST_LOCALAPPDATA) {
 delete env.ELECTRON_RUN_AS_NODE;
 const started = performance.now();
 const executablePath = process.env.MONEYCOMING_EXE;
+installerSmokeRun: {
 const app = await electron.launch({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env, timeout: 30000 });
 const errors = [];
 try {
@@ -73,6 +74,18 @@ try {
     }
   }), true);
   assert.equal((await page.evaluate(() => window.market.load('../../secret'))).ok, false);
+  if (process.env.MONEYCOMING_INSTALLER_SMOKE === '1') {
+    assert.equal(executablePath ? true : false, true);
+    assert.deepEqual(errors, []);
+    await writeFile(resolve(output, 'installer-app-smoke.json'), JSON.stringify({
+      packaged: true,
+      startupMs,
+      errors,
+      passed: true,
+    }, null, 2));
+    console.log(JSON.stringify({ packaged: true, installerSmoke: true, startupMs, passed: true }));
+    break installerSmokeRun;
+  }
   const linkedOverlay = page.getByTestId('linked-hover-range');
   const reactionOverlay = page.getByTestId('entry-reaction-range');
   assert.equal(await linkedOverlay.count(), 1);
@@ -382,3 +395,4 @@ try {
   }, null, 2));
   console.log(JSON.stringify({ packaged: !!executablePath, startupMs, passed: true }));
 } finally { await app.close(); }
+}
