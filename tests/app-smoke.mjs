@@ -34,7 +34,11 @@ try {
   });
   const offscreenAfterShow = await assertElectronWindowOffscreen(app, 'app-smoke-after-show');
   page.on('pageerror', error => errors.push(error.message));
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
   await page.locator('html[data-ready="true"]').waitFor();
+  await page.getByTestId('review-done').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), false);
   const frame = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const jump = async date => {
     await page.getByTestId('date-input').fill(date);
@@ -100,6 +104,75 @@ try {
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'disabled');
   assert.equal(await page.locator('#app-version').innerText(), `v${manifest.version}`);
+  const entryRulesButton = page.getByTestId('entry-rules');
+  const reviewButton = page.getByTestId('profit-loss-review');
+  assert.equal(await reviewButton.getAttribute('aria-label'), null);
+  assert.equal(await reviewButton.innerText(), '盈亏情况');
+  const toolbarButtonGeometry = await page.evaluate(() => {
+    const entry = document.querySelector('#entry-rules')?.getBoundingClientRect();
+    const review = document.querySelector('#profit-loss-review')?.getBoundingClientRect();
+    return entry && review
+      ? { entryRight: entry.right, reviewLeft: review.left, entryTop: entry.top, reviewTop: review.top }
+      : undefined;
+  });
+  assert.ok(toolbarButtonGeometry);
+  assert.ok(toolbarButtonGeometry.entryRight <= toolbarButtonGeometry.reviewLeft);
+  assert.ok(Math.abs(toolbarButtonGeometry.entryTop - toolbarButtonGeometry.reviewTop) < 8);
+  await reviewButton.click();
+  await frame();
+  assert.ok(await page.getByTestId('review-final-capital').isVisible());
+  assert.ok((await page.locator('[data-testid="review-trade"], [data-testid="review-no-completed"]').count()) > 0);
+  assert.equal(await page.getByTestId('review-incomplete-section').count(), 1);
+  assert.ok((await page.locator('.review-status').count()) > 0);
+  const reviewDialogGeometry = await page.evaluate(() => {
+    const dialog = document.querySelector('#review-dialog');
+    const content = document.querySelector('#review-content');
+    if (!dialog || !content) return undefined;
+    const rect = dialog.getBoundingClientRect();
+    const style = getComputedStyle(content);
+    return {
+      right: rect.right,
+      bottom: rect.bottom,
+      overflowY: style.overflowY,
+      scrollHeight: content.scrollHeight,
+      clientHeight: content.clientHeight,
+    };
+  });
+  assert.ok(reviewDialogGeometry);
+  assert.ok(reviewDialogGeometry.right <= 1440);
+  assert.ok(reviewDialogGeometry.bottom <= 900);
+  assert.equal(reviewDialogGeometry.overflowY, 'auto');
+  await page.getByTestId('review-done').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), false);
+  await reviewButton.click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  await page.getByTestId('close-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), false);
+  await reviewButton.click();
+  await page.setViewportSize({ width: 1100, height: 720 });
+  await frame();
+  const compactReviewGeometry = await page.evaluate(() => {
+    const dialog = document.querySelector('#review-dialog');
+    const content = document.querySelector('#review-content');
+    if (!dialog || !content) return undefined;
+    const rect = dialog.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      overflowY: getComputedStyle(content).overflowY,
+    };
+  });
+  assert.ok(compactReviewGeometry);
+  assert.ok(compactReviewGeometry.left >= 0);
+  assert.ok(compactReviewGeometry.right <= 1100);
+  assert.ok(compactReviewGeometry.top >= 0);
+  assert.ok(compactReviewGeometry.bottom <= 720);
+  assert.equal(compactReviewGeometry.overflowY, 'auto');
+  await page.getByTestId('review-done').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), false);
+  assert.equal(await entryRulesButton.innerText(), '入场规则');
   assert.equal(await page.evaluate(async () => {
     try {
       await fetch('https://example.com/');
@@ -471,6 +544,10 @@ try {
   await page.mouse.move(box.x + box.width * .8, box.y + box.height * .3, { steps: 30 });
   await page.mouse.up();
   await page.screenshot({ path: resolve(output, 'crosshair-1100.png') });
+  await page.evaluate(() => window.moneyComingTest?.showEmptyProfitLossReview());
+  assert.equal(await page.getByTestId('review-empty').isVisible(), true);
+  await page.getByTestId('review-done').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), false);
   assert.deepEqual(errors, []);
   const offscreen = {
     beforeShow: offscreenBeforeShow,

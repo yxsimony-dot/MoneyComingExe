@@ -214,6 +214,7 @@ export type ReactionTestScenario =
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;
   clearReactionScenario: () => void;
+  showEmptyProfitLossReview: () => void;
 }
 export type WeeklyDirection = 'long' | 'short';
 export interface EntryRulesResult {

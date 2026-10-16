@@ -28,3 +28,67 @@
 .market-update-row[data-tone="danger"] #market-update-status{color:#ef9da6}
 @media(max-width:1200px){.market-update-copy{gap:8px}.market-update-row{gap:10px}#market-update-status{max-width:430px}#market-update-meta{flex:1}.market-update-button{width:110px}}
 @media(max-height:780px){.market-update-row{min-height:36px;padding-top:6px}.toolbar{padding-top:8px;padding-bottom:7px}.workspace-meta{margin-bottom:8px}}
+
+#review-dialog{width:min(920px,calc(100vw - 48px));max-height:88vh;padding:0;overflow:hidden}
+#review-dialog .dialog-heading,#review-dialog .dialog-bottom{flex:none}
+.review-content{max-height:calc(88vh - 154px);overflow:auto;padding:20px 25px 24px}
+.review-summary{border:1px solid #39485a;background:#111a25;border-radius:8px;padding:17px 18px}
+.review-summary-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:20px}
+.review-summary-heading h3{margin:7px 0 5px;font-size:17px;font-weight:550;color:#e6edf5}
+.review-summary-heading p{margin:0;color:#8295aa;font-size:10px;line-height:1.7}
+.review-capital-result{min-width:180px;padding-left:18px;border-left:1px solid #354457;text-align:right}
+.review-capital-result small{display:block;color:#8193a8;font-size:10px}
+.review-capital-result strong{display:block;margin-top:5px;color:#e6c78d;font:21px Consolas,monospace;font-weight:500}
+.review-capital-result em{display:block;margin-top:5px;color:#8cc8ad;font:11px Consolas,monospace;font-style:normal}
+.review-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:8px;margin-top:12px}
+.review-capital-metrics{margin-top:14px}
+.review-metric{min-width:0;padding:11px 12px;border:1px solid #303e4f;border-radius:6px;background:#151f2c}
+.review-metric>span{display:block;overflow:hidden;color:#7e91a8;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.review-metric>strong{display:block;margin-top:7px;overflow:hidden;color:#d9e2ec;font:13px Consolas,monospace;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.review-metric[data-tone="positive"]>strong{color:#79d4aa}
+.review-metric[data-tone="negative"]>strong{color:#eea078}
+.review-metric[data-tone="flat"]>strong{color:#e4c478}
+.review-metric[data-tone="take-profit"]>strong{color:#7fc8e7}
+.review-metric[data-tone="stop-loss"]>strong{color:#e5c56e}
+.review-metric[data-tone="session-close"]>strong{color:#c29bdc}
+.review-section{margin-top:21px}
+.review-section>h3,.review-section-heading h3{margin:0;color:#dce5ef;font-size:13px;font-weight:550}
+.review-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.review-section-heading>span{color:#7f93aa;font:10px Consolas,monospace}
+.review-trades,.review-incomplete-list{display:grid;gap:8px;margin:11px 0 0;padding:0;list-style:none}
+.review-trade,.review-incomplete{border:1px solid #344253;border-radius:7px;background:#151f2b;padding:13px 14px}
+.review-trade-heading,.review-incomplete>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.review-trade-heading strong,.review-incomplete strong{color:#dce5ef;font-size:11px;font-weight:550}
+.review-status{display:inline-flex;align-items:center;justify-content:center;border:1px solid #536275;border-radius:4px;padding:3px 7px;font-size:9px;white-space:nowrap}
+.review-status-win{border-color:#397860;color:#83d9b1;background:#1a332d}
+.review-status-loss{border-color:#805342;color:#f0a17e;background:#36251f}
+.review-status-flat{border-color:#76643a;color:#e3c477;background:#322b20}
+.review-status-incomplete{border-color:#5c587a;color:#b9b2d7;background:#28273a}
+.review-trade[data-exit-type="take-profit"] .review-status{border-color:#3a7085;color:#87d0ec;background:#1b3039}
+.review-trade[data-exit-type="stop-loss"] .review-status{border-color:#806b37;color:#edd27c;background:#352f20}
+.review-trade[data-exit-type="session-close"] .review-status{border-color:#695083;color:#c9a6dc;background:#30263a}
+.review-trade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 18px;margin-top:12px}
+.review-trade-grid span{min-width:0;color:#7d91a7;font-size:10px}
+.review-trade-grid b{margin-left:5px;color:#c9d5e2;font:10px Consolas,monospace;font-weight:400}
+.review-trade-pnl{display:flex;align-items:baseline;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid #293747;color:#7d91a7;font-size:10px}
+.review-trade-pnl strong{font:13px Consolas,monospace;font-weight:500}
+.review-win .review-trade-pnl strong{color:#79d4aa}
+.review-loss .review-trade-pnl strong{color:#eea078}
+.review-flat .review-trade-pnl strong{color:#e4c478}
+.review-trade-pnl small{margin-left:auto;color:#758aa1;font:10px Consolas,monospace}
+.review-incomplete p{margin:8px 0 0;color:#8998aa;font-size:10px;line-height:1.7}
+.review-note{display:flex;gap:10px;margin-top:20px;padding:12px 14px;border-left:2px solid #6d6041;background:#25241f;color:#a99f87;font-size:10px;line-height:1.8}
+.review-note strong{flex:none;color:#dfbf81;font-weight:550}
+.review-empty{margin:11px 0 0;padding:15px;border:1px dashed #465568;border-radius:6px;background:#111923;color:#8da0b5;font-size:11px;line-height:1.8}
+.review-empty strong{display:block;color:#d8e1eb;font-weight:500}
+.review-empty p{margin:5px 0 0}
+.review-empty-inline{color:#8396ac}
+@media(max-width:620px){
+  #review-dialog{width:calc(100vw - 24px)}
+  .review-content{padding:15px 16px 20px}
+  .review-summary-heading{grid-template-columns:1fr}
+  .review-capital-result{min-width:0;padding:12px 0 0;border-top:1px solid #354457;border-left:0;text-align:left}
+  .review-trade-grid{grid-template-columns:1fr}
+  .review-trade-pnl{flex-wrap:wrap}
+  .review-trade-pnl small{width:100%;margin-left:0}
+}

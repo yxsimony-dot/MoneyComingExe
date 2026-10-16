@@ -8,6 +8,10 @@ import { analyzeWeeklyRange, type WeeklyBreakout } from '../domain/weekly-range'
 import { exponentialMovingAverage } from '../domain/ema';
 import { locateRolloverBar } from '../domain/contract-rollover';
 import {
+  reviewProfitLoss,
+  type ProfitLossReviewResult,
+} from '../domain/profit-loss-review';
+import {
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryLifecycle,
@@ -86,10 +90,23 @@ entryButton.id = 'entry-rules'; entryButton.dataset.testid = 'entry-rules'; entr
 entryButton.title = '查看可编辑的突破回调入场规则';
 document.querySelector<HTMLButtonElement>('#toggle-monday')!.title = '显示或隐藏每周前8根、逐次突破和回调入场标记';
 document.querySelector('.toolbar-right')!.insertBefore(entryButton, document.querySelector('#toggle-subcharts'));
+const reviewButton = document.createElement('button');
+reviewButton.id = 'profit-loss-review';
+reviewButton.dataset.testid = 'profit-loss-review';
+reviewButton.className = 'button';
+reviewButton.textContent = '盈亏情况';
+reviewButton.title = '查看当前历史数据的盈亏复盘';
+document.querySelector('.toolbar-right')!.insertBefore(reviewButton, document.querySelector('#toggle-subcharts'));
 const rulesDialog = document.createElement('dialog');
 rulesDialog.id = 'rules-dialog';
 rulesDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">ENTRY RULES</span><h2>突破回调入场规则</h2></div><button id="close-rules" class="close-button" aria-label="关闭入场规则">×</button></div><div class="rules-meta" id="rules-meta"></div><pre class="rules-content" id="rules-content"></pre><div class="dialog-bottom"><span>编辑 EXE 同级 data/entry-rules.md 后重新打开即可刷新文字</span><button class="button primary" id="rules-done">知道了</button></div>';
 document.body.append(rulesDialog);
+const reviewDialog = document.createElement('dialog');
+reviewDialog.id = 'review-dialog';
+reviewDialog.dataset.testid = 'review-dialog';
+reviewDialog.setAttribute('aria-labelledby', 'review-title');
+reviewDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">PROFIT & LOSS REVIEW</span><h2 id="review-title">盈亏情况</h2></div><button id="close-review" data-testid="close-review" class="close-button" aria-label="关闭盈亏情况">×</button></div><div class="review-content" id="review-content"></div><div class="dialog-bottom"><span>固定按 1 手交易，不计算手续费和滑点</span><button class="button primary" id="review-done" data-testid="review-done">知道了</button></div>';
+document.body.append(reviewDialog);
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const number = (value: number) => value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
@@ -575,6 +592,10 @@ class MarketChart {
     this.element.querySelector('.bar-count')!.textContent = `完整载入 ${number(bars.length)} 根`;
     this.details(bars.at(-1)); this.latest();
     requestAnimationFrame(() => this.layoutPanes());
+  }
+
+  getWeeklyEntries(): readonly WeeklyEntry[] {
+    return this.weeklyEntries;
   }
 
   updateMondayVisibility() {
@@ -1679,6 +1700,11 @@ if (window.market.testMode) {
   window.moneyComingTest = {
     showReactionScenario: (scenario, direction, startMs) => charts[5].showReactionTestScenario(scenario, direction, startMs),
     clearReactionScenario: () => charts[5].highlight([]),
+    showEmptyProfitLossReview: () => {
+      dataset = undefined;
+      renderProfitLossReview();
+      if (!reviewDialog.open) reviewDialog.showModal();
+    },
   };
 }
 
@@ -1811,6 +1837,7 @@ function renderDataset(next: Dataset, focusTime?: number) {
   $('#last-change').className = last.close >= last.open ? 'up' : 'down';
   $('#last-time').textContent = `${shortTime(last.endMs)} · 较末根开盘`;
   charts[60].setData(next.bars60, next.anomalies, next.bars5, next.rollovers); charts[5].setData(next.bars5, next.anomalies, [], next.rollovers);
+  if (reviewDialog.open) renderProfitLossReview();
   $('.selection-label').textContent = '双周期联动';
   $('#selection-text').textContent = '点击任意 K 线，查看两个周期的对应区间'; $('#selected-anomaly').hidden = true;
   $('#selection-bar').classList.remove('incomplete');
@@ -1891,6 +1918,93 @@ async function showEntryRules() {
   if (!dialog.open) dialog.showModal();
 }
 
+const reviewMoney = (value: number) => `${number(value)} 元`;
+const reviewSignedMoney = (value: number) => `${signed(value)} 元`;
+const reviewPercent = (value: number) => `${(value * 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`;
+const reviewDirection = (direction: WeeklyEntry['direction']) => direction === 'long' ? '做多' : '做空';
+const reviewExitLabel = (type: ProfitLossReviewResult['completedTrades'][number]['exitType']) => ({
+  'take-profit': '止盈出场',
+  'stop-loss': '止损出场',
+  'session-close': '休市出场',
+}[type]);
+const reviewGranularityLabel = (granularity: ProfitLossReviewResult['completedTrades'][number]['granularity']) =>
+  granularity === 'one-minute' ? '1 分钟判定' : '5 分钟回退';
+
+function reviewMetric(label: string, value: string, testid?: string, tone?: string): string {
+  return `<div class="review-metric"${tone ? ` data-tone="${tone}"` : ''}><span>${label}</span><strong${testid ? ` data-testid="${testid}"` : ''}>${value}</strong></div>`;
+}
+
+function renderProfitLossReview(): void {
+  const content = $('#review-content');
+  if (!dataset) {
+    content.innerHTML = '<div class="review-empty" data-testid="review-empty"><strong>行情数据尚未加载</strong><p>请先等待行情加载完成，或点击“重试”后再打开盈亏情况。</p></div>';
+    return;
+  }
+
+  const result = reviewProfitLoss(charts[60].getWeeklyEntries(), dataset.bars5, dataset.bars1);
+  const stats = result.statistics;
+  const tradeRows = result.completedTrades.map((trade, index) => {
+    const resultClass = trade.cashPnl > 0 ? 'win' : trade.cashPnl < 0 ? 'loss' : 'flat';
+    return `<li class="review-trade review-${resultClass}" data-testid="review-trade" data-exit-type="${trade.exitType}">
+      <div class="review-trade-heading"><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-${resultClass}">${reviewExitLabel(trade.exitType)}</span></div>
+      <div class="review-trade-grid">
+        <span>入场时间 <b>${shortTime(trade.entryTimeMs)}</b></span><span>入场价 <b>${number(trade.entryPrice)}</b></span>
+        <span>出场时间 <b>${shortTime(trade.exitTimeMs)}</b></span><span>出场价 <b>${number(trade.exitPrice)}</b></span>
+        <span>判定来源 <b>${reviewGranularityLabel(trade.granularity)}</b></span><span>价格盈亏 <b>${reviewSignedMoney(trade.pricePnl)}</b></span>
+      </div>
+      <div class="review-trade-pnl"><span>资金盈亏</span><strong>${reviewSignedMoney(trade.cashPnl)}</strong><small>累计资金 ${reviewMoney(trade.capitalAfter)}</small></div>
+    </li>`;
+  }).join('');
+  const incompleteRows = result.incompleteTrades.map((trade, index) =>
+    `<li class="review-incomplete" data-testid="review-incomplete-trade"><div><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-incomplete">未完成</span></div><p>入场 ${shortTime(trade.entryTimeMs)} · 价格 ${number(trade.entryPrice)} · ${trade.lifecycleEndReason === 'data-end' ? '数据到达末尾，尚未出现出场信号' : '生命周期尚未完成'}</p></li>`,
+  ).join('');
+
+  content.innerHTML = `<div class="review-summary">
+    <div class="review-summary-heading"><div><span class="eyebrow">CURRENT DATASET</span><h3>复盘结果</h3><p>基于 ${number(stats.candidateCount)} 个历史入场候选，${number(dataset.bars5.length)} 根 5 分钟 K 线和 ${number(dataset.bars1.length)} 根 1 分钟 K 线。</p></div><span class="review-capital-result" data-testid="review-final-capital"><small>最终资金</small><strong>${reviewMoney(result.finalCapital)}</strong><em>${reviewSignedMoney(result.totalPnl)} · ${reviewPercent(result.returnRate)}</em></span></div>
+    <div class="review-metrics review-capital-metrics">
+      ${reviewMetric('初始资金', reviewMoney(result.initialCapital), 'review-initial-capital')}
+      ${reviewMetric('最终资金', reviewMoney(result.finalCapital), 'review-final-capital-metric', result.totalPnl >= 0 ? 'positive' : 'negative')}
+      ${reviewMetric('总盈亏', reviewSignedMoney(result.totalPnl), 'review-total-pnl', result.totalPnl >= 0 ? 'positive' : 'negative')}
+      ${reviewMetric('收益率', reviewPercent(result.returnRate), 'review-return-rate', result.returnRate >= 0 ? 'positive' : 'negative')}
+    </div>
+  </div>
+  <section class="review-section"><h3>交易统计</h3><div class="review-metrics">
+    ${reviewMetric('有效入场', number(stats.validEntryCount))}
+    ${reviewMetric('已完成交易', number(stats.completedTradeCount))}
+    ${reviewMetric('盈利交易', number(stats.winningTradeCount), undefined, 'positive')}
+    ${reviewMetric('亏损交易', number(stats.losingTradeCount), undefined, 'negative')}
+    ${reviewMetric('持平交易', number(stats.flatTradeCount), undefined, 'flat')}
+    ${reviewMetric('胜率', reviewPercent(stats.winRate))}
+    ${reviewMetric('止盈出场', number(stats.takeProfitCount), undefined, 'take-profit')}
+    ${reviewMetric('止损出场', number(stats.stopLossCount), undefined, 'stop-loss')}
+    ${reviewMetric('休市出场', number(stats.sessionCloseCount), undefined, 'session-close')}
+    ${reviewMetric('忽略候选', number(stats.ignoredNoEntryCount))}
+  </div></section>
+  <section class="review-section"><h3>盈亏质量</h3><div class="review-metrics">
+    ${reviewMetric('累计盈利', reviewSignedMoney(stats.cumulativeProfit), undefined, 'positive')}
+    ${reviewMetric('累计亏损', reviewSignedMoney(stats.cumulativeLoss), undefined, 'negative')}
+    ${reviewMetric('平均盈利', reviewMoney(stats.averageProfit), undefined, 'positive')}
+    ${reviewMetric('平均亏损', reviewMoney(stats.averageLoss), undefined, 'negative')}
+    ${reviewMetric('盈亏比', stats.profitLossRatio === null ? '无亏损' : `${number(stats.profitLossRatio)} : 1`)}
+    ${reviewMetric('最大回撤', reviewMoney(stats.maxDrawdown), undefined, 'negative')}
+    ${reviewMetric('最大回撤率', reviewPercent(stats.maxDrawdownRate), undefined, 'negative')}
+    ${reviewMetric('最大连胜', number(stats.maxConsecutiveWins), undefined, 'positive')}
+    ${reviewMetric('最大连亏', number(stats.maxConsecutiveLosses), undefined, 'negative')}
+  </div></section>
+  <section class="review-section"><div class="review-section-heading"><h3>逐笔交易</h3><span>${number(stats.completedTradeCount)} 笔</span></div>
+    ${tradeRows ? `<ol class="review-trades" data-testid="review-trade-list">${tradeRows}</ol>` : '<p class="review-empty review-empty-inline" data-testid="review-no-completed">当前数据没有已完成交易。</p>'}
+  </section>
+  <section class="review-section" data-testid="review-incomplete-section"><div class="review-section-heading"><h3>未完成交易</h3><span>${number(stats.incompleteTradeCount)} 笔</span></div>
+    ${incompleteRows ? `<ul class="review-incomplete-list">${incompleteRows}</ul>` : '<p class="review-empty review-empty-inline" data-testid="review-no-incomplete">没有未完成交易。</p>'}
+  </section>
+  <div class="review-note"><strong>判定口径</strong><span>每个有效入场独立按 1 手计算，豆粕合约乘数为 10；不计算手续费和滑点。止盈、止损优先使用完整的 1 分钟 K 线判定，缺少完整分钟时回退到 5 分钟 K 线。</span></div>`;
+}
+
+function showProfitLossReview(): void {
+  renderProfitLossReview();
+  if (!reviewDialog.open) reviewDialog.showModal();
+}
+
 $('#instrument').addEventListener('change', () => void loadInstrument(($('#instrument') as HTMLSelectElement).value as Instrument));
 $('#toggle-monday').addEventListener('click', () => {
   mondayVisible = !mondayVisible;
@@ -1940,6 +2054,7 @@ $('#retry').addEventListener('click', () => void loadInstrument(requestedInstrum
 $('#dismiss-error').addEventListener('click', () => { $('#error').hidden = true; });
 $('#source-info').addEventListener('click', () => showDetails());
 $('#entry-rules').addEventListener('click', () => void showEntryRules());
+reviewButton.addEventListener('click', () => showProfitLossReview());
 $('#attribution').addEventListener('click', () => void window.market.openAttribution());
 $('#market-update').addEventListener('click', () => {
   if (marketUpdateRequestRunning || ['fetching', 'validating', 'saving'].includes(marketUpdateState.phase)) return;
@@ -1984,6 +2099,8 @@ for (const selector of ['#close-dialog', '#dialog-done']) $(selector).addEventLi
 $('#details-dialog').addEventListener('click', event => { if (event.target === $('#details-dialog')) ($('#details-dialog') as HTMLDialogElement).close(); });
 for (const selector of ['#close-rules', '#rules-done']) $(selector).addEventListener('click', () => ($('#rules-dialog') as HTMLDialogElement).close());
 $('#rules-dialog').addEventListener('click', event => { if (event.target === $('#rules-dialog')) ($('#rules-dialog') as HTMLDialogElement).close(); });
+for (const selector of ['#close-review', '#review-done']) $(selector).addEventListener('click', () => reviewDialog.close());
+reviewDialog.addEventListener('click', event => { if (event.target === reviewDialog) reviewDialog.close(); });
 const unsubscribeUpdates = window.updates.onState(renderUpdateState);
 const unsubscribeMarketUpdates = window.market.onUpdateState(state => {
   void acceptMarketUpdateState(state);
