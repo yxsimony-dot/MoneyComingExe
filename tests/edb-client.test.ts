@@ -1,10 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildRequestChunks, EDB_COLUMNS, EDB_ENDPOINT, EDB_SYMBOL, EdbClient, fetchEdbChunks } from '../src/main/edb-client';
+import {
+  buildRequestChunks,
+  EDB_COLUMNS,
+  EDB_ENDPOINT,
+  EDB_SYMBOL,
+  EdbClient,
+  fetchEdbChunks,
+  fetchEdbContractMappings,
+} from '../src/main/edb-client';
 import { parseBeijing } from '../src/domain/time';
 
 const HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
 const nano = (time: string) => String(BigInt(parseBeijing(time)) * 1_000_000n);
 const body = (time: string) => `${HEADER}\n${nano(time)},100,102,99,101,10,1000,1001\n`;
+const dailyNano = (date: string) => String(BigInt(Date.parse(`${date}T00:00:00Z`)) * 1_000_000n);
+const dailyBody = (date: string, open = 100) => `${HEADER}\n${dailyNano(date)},${open},102,99,101,10,1000,1001\n`;
 
 describe('fixed EDB client', () => {
   it('constructs only the fixed endpoint, symbol, period, columns, and headers', async () => {
@@ -43,6 +53,46 @@ describe('fixed EDB client', () => {
     const url = new URL(fetch.mock.calls[0][0]);
     expect(url.searchParams.get('start_time')).toBe('2026-10-09 09:00:00');
     expect(url.searchParams.get('end_time')).toBe('2026-10-09 09:00:00');
+  });
+
+  it('constructs fixed daily requests for the main series and controlled concrete contracts', async () => {
+    const fetch = vi.fn(async (_input: string, _init: RequestInit) => new Response(dailyBody('2026-08-10'), {
+      status: 200,
+      headers: { 'content-type': 'text/csv' },
+    }));
+    const client = new EdbClient({ fetch });
+    const start = parseBeijing('2026-08-10 00:00:00');
+    const end = parseBeijing('2026-08-10 23:59:00');
+    await client.fetchMainDailyRange(start, end);
+    await client.fetchContractDailyRange('m2701', start, end);
+    const requests = fetch.mock.calls.map(([input, init]) => ({
+      query: Object.fromEntries(new URL(input).searchParams),
+      init,
+    }));
+    expect(requests).toEqual([
+      {
+        query: {
+          period: '86400',
+          symbol: EDB_SYMBOL,
+          start_time: '2026-08-10 00:00:00',
+          end_time: '2026-08-10 23:59:00',
+          col: EDB_COLUMNS,
+        },
+        init: expect.objectContaining({ method: 'GET', headers: { Accept: '*/*' }, redirect: 'error' }),
+      },
+      {
+        query: {
+          period: '86400',
+          symbol: 'DCE.m2701',
+          start_time: '2026-08-10 00:00:00',
+          end_time: '2026-08-10 23:59:00',
+          col: EDB_COLUMNS,
+        },
+        init: expect.objectContaining({ method: 'GET', headers: { Accept: '*/*' }, redirect: 'error' }),
+      },
+    ]);
+    await expect(client.fetchContractDailyRange('DCE.m2701', start, end)).rejects.toThrow(/受控/);
+    await expect(client.fetchContractDailyRange('m2703', start, end)).rejects.toThrow(/受控/);
   });
 
   it.each([
@@ -120,5 +170,42 @@ describe('EDB chunk planning', () => {
     };
     const start = parseBeijing('2026-09-01 00:00:00');
     await expect(fetchEdbChunks(client, start, start + 20 * 24 * 60 * 60_000, 14)).rejects.toThrow(/boundary/);
+  });
+});
+
+describe('EDB daily mapping fetch', () => {
+  it('requests only generated candidates and returns a unique mapping', async () => {
+    const client = {
+      fetchMainDailyRange: vi.fn(async () => [{
+        datetimeNano: dailyNano('2026-08-10'),
+        tradingDate: '2026-08-10',
+        open: 99,
+        high: 102,
+        low: 99,
+        close: 101,
+        volume: 10,
+        openOi: 1000,
+        closeOi: 1001,
+      }]),
+      fetchContractDailyRange: vi.fn(async (contract: string) => contract === 'm2701'
+        ? [{
+            datetimeNano: dailyNano('2026-08-10'),
+            tradingDate: '2026-08-10',
+            open: 100,
+            high: 102,
+            low: 99,
+            close: 101,
+            volume: 10,
+            openOi: 1000,
+            closeOi: 1001,
+          }]
+        : []),
+    };
+    await expect(fetchEdbContractMappings(client, 1, 2)).resolves.toEqual([
+      { tradingDate: '2026-08-10', contract: 'm2701' },
+    ]);
+    expect(client.fetchContractDailyRange.mock.calls.map(call => call[0])).toEqual([
+      'm2601', 'm2605', 'm2609', 'm2701', 'm2705', 'm2709',
+    ]);
   });
 });

@@ -73,6 +73,7 @@ describe('offscreen test launch options', () => {
   it('enables positioning for test mode and the explicit command-line flag', () => {
     expect(isOffscreenTestLaunch(true, [])).toBe(true);
     expect(isOffscreenTestLaunch(false, ['--test-window-offscreen'])).toBe(true);
+    expect(isOffscreenTestLaunch(false, [], true)).toBe(true);
     expect(isOffscreenTestLaunch(false, [])).toBe(false);
   });
 

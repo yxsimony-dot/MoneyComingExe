@@ -1,4 +1,4 @@
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -22,7 +22,7 @@ delete env.ELECTRON_RUN_AS_NODE;
 const started = performance.now();
 const executablePath = process.env.MONEYCOMING_EXE;
 installerSmokeRun: {
-const app = await electron.launch({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env, timeout: 30000 });
+const app = await launchElectronTest({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env, timeout: 30000 });
 const errors = [];
 try {
   const page = await app.firstWindow();
@@ -35,6 +35,12 @@ try {
   const offscreenAfterShow = await assertElectronWindowOffscreen(app, 'app-smoke-after-show');
   page.on('pageerror', error => errors.push(error.message));
   await page.locator('html[data-ready="true"]').waitFor();
+  const frame = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const jump = async date => {
+    await page.getByTestId('date-input').fill(date);
+    await page.getByTestId('date-jump').click();
+    await frame();
+  };
   const startupMs = performance.now() - started;
   await page.setViewportSize({ width: 1100, height: 720 });
   const compactLayout = await page.evaluate(() => {
@@ -59,9 +65,38 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: resolve(output, 'default-1440.png') });
   assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+  const expectedRolloverLabels = [
+    '主力换月：m2601 -> m2605',
+    '主力换月：m2605 -> m2609',
+    '主力换月：m2609 -> m2701',
+  ];
+  const expectedRolloverStarts = [
+    '2025-12-03 21:00',
+    '2026-04-08 21:00',
+    '2026-08-07 21:00',
+  ];
+  const rolloverDiagnostics = async period => ({
+    count: await page.locator(`#card-${period}`).getAttribute('data-rollover-count'),
+    labels: JSON.parse(await page.locator(`#card-${period}`).getAttribute('data-rollover-labels')),
+    starts: JSON.parse(await page.locator(`#card-${period}`).getAttribute('data-rollover-starts')),
+  });
+  const initialRolloverDiagnostics = {
+    5: await rolloverDiagnostics(5),
+    60: await rolloverDiagnostics(60),
+  };
+  assert.deepEqual(initialRolloverDiagnostics, {
+    5: { count: '3', labels: expectedRolloverLabels, starts: expectedRolloverStarts },
+    60: { count: '3', labels: expectedRolloverLabels, starts: expectedRolloverStarts },
+  });
   assert.equal(await page.locator('#card-60').getAttribute('data-monday-count'), '0');
   assert.equal(await page.locator('#card-5').getAttribute('data-monday-count'), '0');
   assert.match(await page.locator('.monday-legend').first().innerText(), /● 周一前8根/);
+  await page.getByTestId('toggle-monday').click();
+  await frame();
+  assert.deepEqual(await rolloverDiagnostics(5), initialRolloverDiagnostics[5]);
+  assert.deepEqual(await rolloverDiagnostics(60), initialRolloverDiagnostics[60]);
+  await page.getByTestId('toggle-monday').click();
+  await frame();
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'disabled');
   assert.equal(await page.locator('#app-version').innerText(), `v${manifest.version}`);
@@ -73,6 +108,13 @@ try {
       return true;
     }
   }), true);
+  await jump('2026-08-10');
+  await page.screenshot({ path: resolve(output, 'rollover-1440.png') });
+  await page.setViewportSize({ width: 1100, height: 720 });
+  await frame();
+  await page.screenshot({ path: resolve(output, 'rollover-1100.png') });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await frame();
   assert.equal((await page.evaluate(() => window.market.load('../../secret'))).ok, false);
   if (process.env.MONEYCOMING_INSTALLER_SMOKE === '1') {
     assert.equal(executablePath ? true : false, true);
@@ -103,12 +145,6 @@ try {
     parentClass: element.parentElement?.className,
     borderStyle: getComputedStyle(element).borderStyle,
   })), { pointerEvents: 'none', position: 'absolute', parentClass: 'chart-container', borderStyle: 'solid' });
-  const frame = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const jump = async date => {
-    await page.getByTestId('date-input').fill(date);
-    await page.getByTestId('date-jump').click();
-    await frame();
-  };
   await jump('2020-01-01');
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2025-10-09T21:00:00+08:00')));
   assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
@@ -139,6 +175,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   await jump('2026-02-05');
   const sourceRows = readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
+  const sourceRows5 = readFileSync('futures_investigation_20261009/edb_main_continuous_5m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
   const chartRange = async period => ({
     from: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-from')),
     to: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-to')),
@@ -336,6 +373,65 @@ try {
   const tightRange = await chartRange(5);
   assert.ok(tightRange.from <= Number(await linkedOverlay.getAttribute('data-first-index')) - .5);
   assert.ok(tightRange.to >= Number(await linkedOverlay.getAttribute('data-last-index')) + .5);
+
+  const fiveCanvas = page.locator('#canvas-5');
+  let fiveBox = await fiveCanvas.boundingBox();
+  const priceAxisX = fiveBox.x + fiveBox.width - 18;
+  const priceAxisY = fiveBox.y + Math.max(55, fiveBox.height * .28);
+  await page.mouse.move(priceAxisX, priceAxisY);
+  await page.mouse.down();
+  await page.mouse.move(priceAxisX, priceAxisY + 44, { steps: 12 });
+  await page.mouse.up();
+  await frame();
+  assert.equal(await page.locator('#card-5').getAttribute('data-price-auto-scale'), 'false');
+
+  await jump('2026-10-09');
+  const targetStart = '2026-10-09 10:00:00';
+  const targetParent = sourceRows.find(row => row[0] === targetStart);
+  const targetStartMs = Date.parse(targetParent[0].replace(' ', 'T') + '+08:00');
+  const targetEndMs = Date.parse(targetParent[1].replace(' ', 'T') + '+08:00');
+  const targetChildren = sourceRows5.filter(row => {
+    const startMs = Date.parse(row[0].replace(' ', 'T') + '+08:00');
+    return targetStartMs <= startMs && startMs < targetEndMs;
+  });
+  const targetLow = Math.min(...targetChildren.map(row => Number(row[5])));
+  const targetHigh = Math.max(...targetChildren.map(row => Number(row[4])));
+  const manualPriceRange = {
+    from: Number(await page.locator('#card-5').getAttribute('data-price-range-from')),
+    to: Number(await page.locator('#card-5').getAttribute('data-price-range-to')),
+  };
+  assert.ok(
+    manualPriceRange.to < targetLow || manualPriceRange.from > targetHigh,
+    JSON.stringify({ manualPriceRange, targetLow, targetHigh }),
+  );
+  const correctedPoint = await hoverParent(targetStart);
+  await page.mouse.click(correctedPoint.x, correctedPoint.y);
+  await frame();
+  await page.waitForFunction(() =>
+    document.querySelector('#card-5')?.getAttribute('data-price-auto-scale') === 'true',
+  );
+  const correctedPriceRange = {
+    from: Number(await page.locator('#card-5').getAttribute('data-price-range-from')),
+    to: Number(await page.locator('#card-5').getAttribute('data-price-range-to')),
+  };
+  assert.equal(await page.locator('#card-5').getAttribute('data-price-auto-scale'), 'true');
+  assert.ok(correctedPriceRange.from <= targetLow, JSON.stringify({ correctedPriceRange, targetLow, targetHigh }));
+  assert.ok(correctedPriceRange.to >= targetHigh, JSON.stringify({ correctedPriceRange, targetLow, targetHigh }));
+  assert.equal(await linkedOverlay.getAttribute('data-visible'), 'true');
+  await page.mouse.move(10, 10);
+  await frame();
+  await page.screenshot({ path: resolve(output, 'linked-price-correction-1440.png') });
+  await page.setViewportSize({ width: 1100, height: 720 });
+  await frame();
+  const compactCorrectedPriceRange = {
+    from: Number(await page.locator('#card-5').getAttribute('data-price-range-from')),
+    to: Number(await page.locator('#card-5').getAttribute('data-price-range-to')),
+  };
+  assert.ok(compactCorrectedPriceRange.from <= targetLow, JSON.stringify({ compactCorrectedPriceRange, targetLow, targetHigh }));
+  assert.ok(compactCorrectedPriceRange.to >= targetHigh, JSON.stringify({ compactCorrectedPriceRange, targetLow, targetHigh }));
+  await page.screenshot({ path: resolve(output, 'linked-price-correction-1100.png') });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await frame();
 
   await page.mouse.move(10, 10);
   await jump('2020-01-01');

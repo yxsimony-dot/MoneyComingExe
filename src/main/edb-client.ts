@@ -1,6 +1,11 @@
 import { mergeMinuteChunks, parseEdbMinuteCsv } from '../domain/market-data';
+import {
+  buildMainContractCandidates,
+  identifyMainContracts,
+  parseEdbDailyCsv,
+} from '../domain/contract-rollover';
 import { formatBeijing } from '../domain/time';
-import type { EdbMinuteRecord } from '../shared/types';
+import type { EdbDailyRecord, EdbMinuteRecord, MainContractMapping } from '../shared/types';
 
 export const EDB_ENDPOINT = 'https://edb.shinnytech.com/md/kline' as const;
 export const EDB_SYMBOL = 'KQ.m@DCE.m' as const;
@@ -63,12 +68,54 @@ export class EdbClient {
   }
 
   async fetchRange(startMs: number, endMs: number): Promise<EdbMinuteRecord[]> {
+    const text = await this.fetchCsv(EDB_SYMBOL, '60', startMs, endMs);
+    try {
+      return parseEdbMinuteCsv(text, 'EDB 响应');
+    } catch {
+      throw new EdbClientError('invalid-response', 'EDB CSV 内容校验失败');
+    }
+  }
+
+  async fetchMainDailyRange(startMs: number, endMs: number): Promise<EdbDailyRecord[]> {
+    return this.fetchDaily(EDB_SYMBOL, startMs, endMs);
+  }
+
+  async fetchContractDailyRange(
+    contract: string,
+    startMs: number,
+    endMs: number,
+  ): Promise<EdbDailyRecord[]> {
+    if (!/^m\d{2}(?:01|05|09)$/.test(contract)) {
+      throw new EdbClientError('invalid-response', 'EDB 具体合约不在受控豆粕候选范围内');
+    }
+    return this.fetchDaily(`DCE.${contract}`, startMs, endMs);
+  }
+
+  private async fetchDaily(
+    symbol: string,
+    startMs: number,
+    endMs: number,
+  ): Promise<EdbDailyRecord[]> {
+    const text = await this.fetchCsv(symbol, '86400', startMs, endMs);
+    try {
+      return parseEdbDailyCsv(text, 'EDB 日线响应');
+    } catch {
+      throw new EdbClientError('invalid-response', 'EDB 日线 CSV 内容校验失败');
+    }
+  }
+
+  private async fetchCsv(
+    symbol: string,
+    period: '60' | '86400',
+    startMs: number,
+    endMs: number,
+  ): Promise<string> {
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs) {
       throw new EdbClientError('invalid-response', 'EDB 请求时间范围无效');
     }
     const url = new URL(EDB_ENDPOINT);
-    url.searchParams.set('period', '60');
-    url.searchParams.set('symbol', EDB_SYMBOL);
+    url.searchParams.set('period', period);
+    url.searchParams.set('symbol', symbol);
     url.searchParams.set('start_time', formatBeijing(startMs));
     url.searchParams.set('end_time', formatBeijing(endMs));
     url.searchParams.set('col', EDB_COLUMNS);
@@ -93,12 +140,7 @@ export class EdbClient {
     if (contentType.includes('text/html') || contentType.includes('application/json')) {
       throw new EdbClientError('invalid-response', 'EDB 返回了非 CSV 内容');
     }
-    const text = await readLimitedResponse(response, this.maxResponseBytes);
-    try {
-      return parseEdbMinuteCsv(text, 'EDB 响应');
-    } catch {
-      throw new EdbClientError('invalid-response', 'EDB CSV 内容校验失败');
-    }
+    return readLimitedResponse(response, this.maxResponseBytes);
   }
 }
 
@@ -133,4 +175,22 @@ export async function fetchEdbChunks(
     chunks.push(await client.fetchRange(chunk.startMs, chunk.endMs));
   }
   return mergeMinuteChunks(chunks);
+}
+
+export async function fetchEdbContractMappings(
+  client: Pick<EdbClient, 'fetchMainDailyRange' | 'fetchContractDailyRange'>,
+  startMs: number,
+  endMs: number,
+): Promise<MainContractMapping[]> {
+  const main = await client.fetchMainDailyRange(startMs, endMs);
+  if (!main.length) throw new Error('EDB 未返回主连日线数据');
+  const contracts = buildMainContractCandidates(
+    main[0].tradingDate,
+    main.at(-1)!.tradingDate,
+  );
+  const candidates = new Map<string, EdbDailyRecord[]>();
+  for (const contract of contracts) {
+    candidates.set(contract, await client.fetchContractDailyRange(contract, startMs, endMs));
+  }
+  return identifyMainContracts(main, candidates);
 }

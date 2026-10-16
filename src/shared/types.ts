@@ -1,5 +1,6 @@
 export type Instrument = 'main_continuous';
 export type Period = 5 | 60;
+export type MinuteDecisionGranularity = 'one-minute' | 'five-minute-fallback' | 'five-minute-close';
 export interface Bar {
   startMs: number; endMs: number; start: string; end: string;
   open: number; high: number; low: number; close: number;
@@ -18,13 +19,34 @@ export interface EdbMinuteRecord {
   openOi: number;
   closeOi: number;
 }
+export interface EdbDailyRecord {
+  datetimeNano: string;
+  tradingDate: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  openOi: number;
+  closeOi: number;
+}
+export interface MainContractMapping {
+  tradingDate: string;
+  contract: string;
+}
+export interface ContractRollover {
+  tradingDate: string;
+  time: string;
+  timeMs: number;
+  fromContract: string;
+  toContract: string;
+}
 export interface SnapshotFileMetadata {
   name: string;
   sha256: string;
   rows: number;
 }
-export interface MarketSnapshotMetadata {
-  schemaVersion: 1;
+interface MarketSnapshotMetadataBase {
   snapshotId: string;
   source: {
     provider: 'EDB';
@@ -35,18 +57,42 @@ export interface MarketSnapshotMetadata {
   requestStart: string;
   requestEnd: string;
   sourceLatestAt: string;
+}
+export interface MarketSnapshotMetadataV1 extends MarketSnapshotMetadataBase {
+  schemaVersion: 1;
   files: {
     bars5: SnapshotFileMetadata;
     bars60: SnapshotFileMetadata;
   };
 }
+export interface MarketSnapshotMetadataV2 extends MarketSnapshotMetadataBase {
+  schemaVersion: 2;
+  files: {
+    bars5: SnapshotFileMetadata;
+    bars60: SnapshotFileMetadata;
+    rollovers: SnapshotFileMetadata;
+  };
+}
+export interface MarketSnapshotMetadataV3 extends MarketSnapshotMetadataBase {
+  schemaVersion: 3;
+  files: {
+    bars1: SnapshotFileMetadata;
+    bars5: SnapshotFileMetadata;
+    bars60: SnapshotFileMetadata;
+    rollovers: SnapshotFileMetadata;
+  };
+}
+export type MarketSnapshotMetadata =
+  | MarketSnapshotMetadataV1
+  | MarketSnapshotMetadataV2
+  | MarketSnapshotMetadataV3;
 export type SnapshotSource = 'builtin' | 'user';
 export interface Anomaly {
   timeMs: number; title: string; detail: string;
 }
 export interface Dataset {
   instrument: Instrument; name: string; symbol: string;
-  bars5: Bar[]; bars60: Bar[]; anomalies: Anomaly[];
+  bars1: EdbMinuteRecord[]; bars5: Bar[]; bars60: Bar[]; rollovers: ContractRollover[]; anomalies: Anomaly[];
   auditAvailable: boolean; dataDirectory: string;
   snapshotSource: SnapshotSource;
   sourceLatestAt: string;
@@ -62,12 +108,18 @@ export type MarketUpdatePhase =
   | 'up-to-date'
   | 'failed';
 export interface MarketUpdateCounts {
+  added1: number;
+  replaced1: number;
+  removed1: number;
   added5: number;
   replaced5: number;
   removed5: number;
   added60: number;
   replaced60: number;
   removed60: number;
+  addedRollovers: number;
+  replacedRollovers: number;
+  removedRollovers: number;
 }
 export interface PublicMarketUpdateError {
   code: 'network' | 'invalid-response' | 'validation' | 'storage' | 'unexpected';
@@ -150,7 +202,15 @@ export type ReactionTestScenario =
   | 'quarter-wick-touch'
   | 'quarter-repeated-touch'
   | 'quarter-no-touch'
-  | 'quarter-autoscale';
+  | 'quarter-autoscale'
+  | 'take-profit-entry-touch'
+  | 'take-profit-later-touch'
+  | 'take-profit-repeated-touch'
+  | 'take-profit-no-touch'
+  | 'exit-take-profit'
+  | 'exit-stop-loss'
+  | 'exit-stop-risk-same-bar'
+  | 'exit-no-touch';
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;
   clearReactionScenario: () => void;

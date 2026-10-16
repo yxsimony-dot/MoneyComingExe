@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$outputName = 'release-signed-test-' + [guid]::NewGuid().ToString('N')
-$output = Join-Path $root $outputName
+$outputName = 'moneycoming-release-signed-test-' + [guid]::NewGuid().ToString('N')
+$output = Join-Path ([IO.Path]::GetTempPath()) $outputName
 $pfx = Join-Path ([IO.Path]::GetTempPath()) (
   'moneycoming-signing-' + [guid]::NewGuid().ToString('N') + '.pfx'
 )
@@ -92,7 +92,7 @@ authorityKeyIdentifier=keyid,issuer
     & '.\node_modules\.bin\electron-builder.cmd' `
       --win nsis `
       --publish never `
-      "--config.directories.output=$outputName"
+      "--config.directories.output=$output"
     if ($LASTEXITCODE -ne 0) {
       exit $LASTEXITCODE
     }
@@ -179,11 +179,12 @@ $paths | ForEach-Object {
   Remove-Item -LiteralPath $extensionsFile -Force -ErrorAction SilentlyContinue
 
   $outputFullPath = [IO.Path]::GetFullPath($output)
-  $rootPrefix = $root.TrimEnd([IO.Path]::DirectorySeparatorChar) +
+  $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+  $tempPrefix = $tempRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) +
     [IO.Path]::DirectorySeparatorChar
   if (
-    $outputFullPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase) -and
-    (Split-Path $outputFullPath -Leaf) -like 'release-signed-test-*'
+    $outputFullPath.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+    (Split-Path $outputFullPath -Leaf) -like 'moneycoming-release-signed-test-*'
   ) {
     Remove-Item -LiteralPath $outputFullPath -Recurse -Force -ErrorAction SilentlyContinue
   }

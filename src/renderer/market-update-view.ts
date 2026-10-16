@@ -34,19 +34,20 @@ function metadata(state: MarketUpdateState, dataset?: Dataset): string {
 function countSummary(state: MarketUpdateState): string {
   const counts = state.counts;
   if (!counts) return '更新完成';
-  const main = `5 分钟 +${counts.added5} · 60 分钟 +${counts.added60}`;
-  const revised = counts.replaced5 + counts.replaced60;
-  const removed = counts.removed5 + counts.removed60;
-  return `${main}${revised ? ` · 修订 ${revised}` : ''}${removed ? ` · 移除 ${removed}` : ''}`;
+  const main = `1 分钟 +${counts.added1} · 5 分钟 +${counts.added5} · 60 分钟 +${counts.added60}`;
+  const revised = counts.replaced1 + counts.replaced5 + counts.replaced60;
+  const removed = counts.removed1 + counts.removed5 + counts.removed60;
+  const rolloverChanges = counts.addedRollovers + counts.replacedRollovers + counts.removedRollovers;
+  return `${main}${revised ? ` · 修订 ${revised}` : ''}${removed ? ` · 移除 ${removed}` : ''}${rolloverChanges ? ` · 换月映射 ${rolloverChanges}` : ''}`;
 }
 
 export function marketUpdateView(state: MarketUpdateState, dataset?: Dataset): MarketUpdateView {
   const metadataText = metadata(state, dataset);
   switch (state.phase) {
     case 'fetching':
-      return { buttonLabel: '正在下载', statusText: '正在从 EDB 获取增量历史数据…', metadataText, busy: true, tone: 'working' };
+      return { buttonLabel: '正在下载', statusText: '正在从 EDB 获取价格与主力合约日线…', metadataText, busy: true, tone: 'working' };
     case 'validating':
-      return { buttonLabel: '正在校验', statusText: '正在校验并重建 5 分钟、60 分钟行情…', metadataText, busy: true, tone: 'working' };
+      return { buttonLabel: '正在校验', statusText: '正在校验价格并重建主力换月映射…', metadataText, busy: true, tone: 'working' };
     case 'saving':
       return { buttonLabel: '正在保存', statusText: '正在原子保存新的本地快照…', metadataText, busy: true, tone: 'working' };
     case 'succeeded': {
@@ -80,7 +81,7 @@ export function marketUpdateView(state: MarketUpdateState, dataset?: Dataset): M
     case 'idle':
       return {
         buttonLabel: '更新行情',
-        statusText: '按需更新 EDB 豆粕主连历史数据',
+        statusText: '更新 EDB 豆粕主连价格与换月映射',
         metadataText,
         busy: false,
         tone: 'neutral',

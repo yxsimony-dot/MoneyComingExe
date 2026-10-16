@@ -224,6 +224,110 @@ function equalNumber(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-9;
 }
 
+function sameMinuteRecord(left: EdbMinuteRecord, right: EdbMinuteRecord): boolean {
+  return left.datetimeNano === right.datetimeNano
+    && left.startMs === right.startMs
+    && left.start === right.start
+    && equalNumber(left.open, right.open)
+    && equalNumber(left.high, right.high)
+    && equalNumber(left.low, right.low)
+    && equalNumber(left.close, right.close)
+    && equalNumber(left.volume, right.volume)
+    && equalNumber(left.openOi, right.openOi)
+    && equalNumber(left.closeOi, right.closeOi);
+}
+
+export function assertMinuteRecordsValid(records: readonly EdbMinuteRecord[]): void {
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    const previous = records[index - 1];
+    if (previous && record.startMs <= previous.startMs) {
+      throw new Error('1 分钟行情存在重复或未严格递增记录');
+    }
+    if (!/^\d+$/.test(record.datetimeNano)
+      || BigInt(record.datetimeNano) !== BigInt(record.startMs) * 1_000_000n
+      || record.start !== formatBeijing(record.startMs)) {
+      throw new Error(`1 分钟行情时间字段不一致：${record.start}`);
+    }
+    tradingMinuteAt(record.startMs);
+    if (![record.open, record.high, record.low, record.close, record.volume, record.openOi, record.closeOi]
+      .every(Number.isFinite)) {
+      throw new Error(`1 分钟行情存在非有限数值：${record.start}`);
+    }
+    if (record.low > record.high
+      || record.open < record.low
+      || record.open > record.high
+      || record.close < record.low
+      || record.close > record.high) {
+      throw new Error(`1 分钟行情 OHLC 范围无效：${record.start}`);
+    }
+    if (record.volume < 0 || record.openOi < 0 || record.closeOi < 0) {
+      throw new Error(`1 分钟行情成交量或持仓量为负：${record.start}`);
+    }
+  }
+}
+
+export interface MergeMinutesResult {
+  records: EdbMinuteRecord[];
+  added: number;
+  replaced: number;
+  removed: number;
+}
+
+/**
+ * Revises overlapping records and appends new records without deleting local
+ * history that is no longer available from the remote rolling window.
+ */
+export function mergeMinuteHistory(
+  local: readonly EdbMinuteRecord[],
+  remote: readonly EdbMinuteRecord[],
+): MergeMinutesResult {
+  assertMinuteRecordsValid(local);
+  assertMinuteRecordsValid(remote);
+  const recordsByStart = new Map(local.map(record => [record.startMs, record]));
+  let added = 0;
+  let replaced = 0;
+  for (const record of remote) {
+    const existing = recordsByStart.get(record.startMs);
+    if (!existing) added += 1;
+    else if (!sameMinuteRecord(existing, record)) replaced += 1;
+    recordsByStart.set(record.startMs, record);
+  }
+  const records = [...recordsByStart.values()].sort((left, right) => left.startMs - right.startMs);
+  assertMinuteRecordsValid(records);
+  return { records, added, replaced, removed: 0 };
+}
+
+export function completeMinutesForFiveMinuteBar(
+  bar: Bar,
+  records: readonly EdbMinuteRecord[],
+): EdbMinuteRecord[] | undefined {
+  if (bar.expectedMinutes !== 5 || bar.endMs - bar.startMs !== 5 * MINUTE_MS) return undefined;
+  const candidates = records.filter(record => record.startMs >= bar.startMs && record.startMs < bar.endMs);
+  if (candidates.length !== 5) return undefined;
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (candidates[index].startMs !== bar.startMs + index * MINUTE_MS) return undefined;
+    try {
+      assertMinuteRecordsValid([candidates[index]]);
+    } catch {
+      return undefined;
+    }
+  }
+  const aggregate = aggregateMinutes(candidates, 5, bar.endMs);
+  if (aggregate.length !== 1) return undefined;
+  const rebuilt = aggregate[0];
+  const matches = rebuilt.startMs === bar.startMs
+    && rebuilt.endMs === bar.endMs
+    && equalNumber(rebuilt.open, bar.open)
+    && equalNumber(rebuilt.high, bar.high)
+    && equalNumber(rebuilt.low, bar.low)
+    && equalNumber(rebuilt.close, bar.close)
+    && equalNumber(rebuilt.volume, bar.volume)
+    && equalNumber(rebuilt.openOi, bar.openOi)
+    && equalNumber(rebuilt.closeOi, bar.closeOi);
+  return matches ? candidates : undefined;
+}
+
 export function assertBarsValid(bars: Bar[], period: Period): void {
   for (let index = 0; index < bars.length; index++) {
     const bar = bars[index];
@@ -325,14 +429,24 @@ export function mergeBars(local: Bar[], replacement: Bar[], switchPointMs: numbe
   };
 }
 
-export function updateCounts(five: MergeBarsResult, sixty: MergeBarsResult): MarketUpdateCounts {
+export function updateCounts(
+  minutes: MergeMinutesResult,
+  five: MergeBarsResult,
+  sixty: MergeBarsResult,
+): MarketUpdateCounts {
   return {
+    added1: minutes.added,
+    replaced1: minutes.replaced,
+    removed1: minutes.removed,
     added5: five.added,
     replaced5: five.replaced,
     removed5: five.removed,
     added60: sixty.added,
     replaced60: sixty.replaced,
     removed60: sixty.removed,
+    addedRollovers: 0,
+    replacedRollovers: 0,
+    removedRollovers: 0,
   };
 }
 
@@ -352,6 +466,22 @@ export function serializeBars(bars: Bar[]): string {
     bar.observedMinutes,
     bar.expectedMinutes,
     bar.complete ? 'True' : 'False',
+  ].join(','));
+  return `\uFEFF${[header, ...lines].join('\r\n')}\r\n`;
+}
+
+export function serializeMinuteRecords(records: readonly EdbMinuteRecord[]): string {
+  assertMinuteRecordsValid(records);
+  const header = REQUIRED_COLUMNS.join(',');
+  const lines = records.map(record => [
+    record.datetimeNano,
+    record.open,
+    record.high,
+    record.low,
+    record.close,
+    record.volume,
+    record.openOi,
+    record.closeOi,
   ].join(','));
   return `\uFEFF${[header, ...lines].join('\r\n')}\r\n`;
 }

@@ -66,8 +66,12 @@ export function offscreenWindowPosition(
   };
 }
 
-export function isOffscreenTestLaunch(testMode: boolean, argv: readonly string[]): boolean {
-  return testMode || argv.includes('--test-window-offscreen');
+export function isOffscreenTestLaunch(
+  testMode: boolean,
+  argv: readonly string[],
+  geometryOnlyTestMode = false,
+): boolean {
+  return testMode || geometryOnlyTestMode || argv.includes('--test-window-offscreen');
 }
 
 export function windowPositionOptionsForLaunch(

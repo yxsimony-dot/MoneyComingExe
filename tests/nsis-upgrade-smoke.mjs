@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import { parse } from 'yaml';
 import { assetName } from '../scripts/release-utils.mjs';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
@@ -156,7 +156,7 @@ try {
     MONEYCOMING_TEST_UPDATER: '1',
     MONEYCOMING_TEST_UPDATE_MODE: 'up-to-date',
   };
-  app = await electron.launch({
+  app = await launchElectronTest({
     executablePath: executable,
     args: [],
     cwd: sandbox,

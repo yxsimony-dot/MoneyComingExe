@@ -1,4 +1,4 @@
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
@@ -6,7 +6,7 @@ import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.MONEYCOMING_EXE;
-const app = await electron.launch({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env });
+const app = await launchElectronTest({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env });
 const report = { packaged: !!executablePath, instruments: {}, passed: false };
 try {
   const page = await app.firstWindow();

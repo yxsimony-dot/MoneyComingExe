@@ -47,3 +47,14 @@
 #### Scenario: 离屏窗口拥有焦点或任务栏图标
 - **WHEN** 测试窗口已经完全离屏但仍拥有焦点或显示任务栏图标
 - **THEN** 屏幕外窗口定位验收仍然通过
+
+### Requirement: 所有 GUI 测试入口统一启用离屏标记
+系统 SHALL 让项目内所有自动化 Electron/EXE GUI 测试通过共享启动路径追加 `--test-window-offscreen`，不得仅依赖可被测试场景删除或覆盖的 `MONEYCOMING_TEST_MODE` 环境变量。
+
+#### Scenario: 测试模拟普通生产环境
+- **WHEN** 自动化测试为验证真实产品逻辑而删除 `MONEYCOMING_TEST_MODE`
+- **THEN** 测试启动路径仍通过 `--test-window-offscreen` 在首次显示前将窗口完整放置于所有显示器之外
+
+#### Scenario: 新增 GUI 测试
+- **WHEN** 项目新增会启动 Electron 或打包 EXE 窗口的自动化测试
+- **THEN** 测试必须使用共享启动路径并对实际窗口矩形执行无交集断言

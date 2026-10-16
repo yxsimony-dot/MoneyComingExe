@@ -1,6 +1,6 @@
 {
   "name": "moneycoming",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "private": true,
   "description": "豆粕离线历史看盘",
   "author": "MoneyComing",
@@ -11,13 +11,14 @@
     "test": "vitest run",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
     "start": "electron .",
-    "package": "npm run build && electron-builder --win nsis --publish never",
+    "package": "npm run build && node scripts/prepare-release.mjs && electron-builder --win nsis --publish never",
     "verify:tag": "node scripts/verify-tag-version.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:security": "node scripts/verify-credentials.mjs",
     "verify:public-release": "node scripts/verify-public-release.mjs",
     "verify:signing-path": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signing-path.ps1",
     "test:app": "node tests/app-smoke.mjs",
+    "test:offscreen-window": "node tests/offscreen-production-mode-smoke.mjs",
     "test:market-update": "node tests/market-update-smoke.mjs",
     "test:market-update-live": "node tests/market-update-live.mjs",
     "test:update": "node tests/update-smoke.mjs",
@@ -41,8 +42,10 @@
         "from": "futures_investigation_20261009",
         "to": "data",
         "filter": [
+          "edb_*_1m_raw.csv",
           "edb_*_5m.csv",
           "edb_*_60m.csv",
+          "edb_*_rollovers.csv",
           "summary.json",
           "cross_source_audit.json"
         ]

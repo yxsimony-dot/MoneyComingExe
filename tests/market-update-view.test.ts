@@ -14,12 +14,18 @@ function state(phase: MarketUpdatePhase): MarketUpdateState {
     sourceLatestAt: '2026-10-14 15:00:00',
     snapshotUpdatedAt: '2026-10-15T02:30:00.000Z',
     counts: {
+      added1: 60,
+      replaced1: 2,
+      removed1: 0,
       added5: 12,
       replaced5: 1,
       removed5: 0,
       added60: 1,
       replaced60: 0,
       removed60: 0,
+      addedRollovers: 1,
+      replacedRollovers: 0,
+      removedRollovers: 0,
     },
     error: { code: 'network', message: '无法连接 EDB 数据源' },
   };
@@ -44,8 +50,9 @@ describe('market update view', () => {
 
   it('reports exact source and local snapshot times without claiming today or realtime data', () => {
     const view = marketUpdateView(state('succeeded'), dataset);
-    expect(view.statusText).toContain('5 分钟 +12 · 60 分钟 +1');
-    expect(view.statusText).toContain('修订 1');
+    expect(view.statusText).toContain('1 分钟 +60 · 5 分钟 +12 · 60 分钟 +1');
+    expect(view.statusText).toContain('修订 3');
+    expect(view.statusText).toContain('换月映射 1');
     expect(view.statusText).toContain('数据源最新至 2026-10-14 15:00');
     expect(view.metadataText).toContain('本地快照：2026-10-15 10:30');
     expect(`${view.statusText} ${view.metadataText}`).not.toMatch(/今天|实时/);

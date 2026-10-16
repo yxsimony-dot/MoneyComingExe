@@ -16,7 +16,8 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import asar from '@electron/asar';
-import { _electron as electron } from 'playwright';
+import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import semver from 'semver';
 import { parse, stringify } from 'yaml';
 import { assetName, readOption } from '../scripts/release-utils.mjs';
@@ -156,8 +157,10 @@ function productionEnvironment() {
   return environment;
 }
 
-async function launchInstalled() {
-  const app = await electron.launch({
+const offscreenLaunches = [];
+
+async function launchInstalled(label) {
+  const app = await launchElectronTest({
     executablePath: executable,
     args: [],
     cwd: sandbox,
@@ -165,6 +168,8 @@ async function launchInstalled() {
     timeout: 60_000,
   });
   const page = await app.firstWindow();
+  const offscreen = await assertElectronWindowOffscreen(app, label);
+  offscreenLaunches.push({ label, ...offscreen });
   await page.locator('html[data-ready="true"]').waitFor({ timeout: 60_000 });
   return { app, page };
 }
@@ -233,7 +238,7 @@ try {
   brokenConfig.repo = `${brokenConfig.repo}-missing`;
   await writeFile(appUpdatePath, stringify(brokenConfig), 'utf8');
 
-  const failureLaunch = await launchInstalled();
+  const failureLaunch = await launchInstalled('public-update-check-failure');
   app = failureLaunch.app;
   const failurePage = failureLaunch.page;
   const failed = await waitForUpdatePhase(failurePage, 'failed');
@@ -247,7 +252,7 @@ try {
 
   await writeFile(appUpdatePath, originalUpdateConfig, 'utf8');
 
-  const launched = await launchInstalled();
+  const launched = await launchInstalled('public-update-source-version');
   app = launched.app;
   const page = launched.page;
   let available = await waitForUpdatePhase(page, ['available', 'failed']);
@@ -297,7 +302,7 @@ try {
   assert.equal(await waitForPackagedVersion(toVersion), toVersion);
   await stopInstalledProcesses();
 
-  const updated = await launchInstalled();
+  const updated = await launchInstalled('public-update-updated-version');
   app = updated.app;
   const updatedPage = updated.page;
   assert.equal(await updatedPage.locator('#app-version').innerText(), `v${toVersion}`);
@@ -351,6 +356,7 @@ try {
       relaunchedVersionLabel: `v${toVersion}`,
       finalPhase: finalState.phase,
     },
+    offscreenLaunches,
     uninstalled: true,
     completedAt: new Date().toISOString(),
   };

@@ -14,14 +14,17 @@ describe('portable data service', () => {
     expect(resolveDataDirectory('C:\\中文 空格\\MoneyComing\\MoneyComing.exe', true, 'D:\\development')).toBe('C:\\中文 空格\\MoneyComing\\data');
     expect(resolveDataDirectory('irrelevant', false, process.cwd())).toBe(source);
   });
-  it('loads both main-continuous periods without altering source files', async () => {
+  it('loads background minutes and both visible periods without altering source files', async () => {
     const file=join(source,'edb_main_continuous_5m.csv');
     const before=createHash('sha256').update(await readFile(file)).digest('hex');
     const service=createDataService(source);
     const result=await service.load('main_continuous');
     expect(result.ok).toBe(true);
     if (result.ok) {
+      expect(result.data.bars1).toHaveLength(82_650);
       expect([result.data.bars5.length,result.data.bars60.length]).toEqual([16530,1438]);
+      expect(result.data.rollovers.map(({ fromContract, toContract }) => `${fromContract}->${toContract}`))
+        .toEqual(['m2601->m2605', 'm2605->m2609', 'm2609->m2701']);
       expect(result.data.bars5.at(-1)?.end).toBe('2026-10-09 15:00:00');
       expect(result.data.anomalies).toEqual([]);
       expect(result.data.auditAvailable).toBe(true);
@@ -39,15 +42,14 @@ describe('portable data service', () => {
     const result=await createDataService(join(source,'missing')).load('main_continuous');
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      // Both reads fail concurrently; either missing filename is actionable.
-      expect(result.error).toMatch(/edb_main_continuous_(5|60)m\.csv/);
+      expect(result.error).toMatch(/edb_main_continuous_(?:1m_raw|5m|60m)\.csv/);
       expect(result.error).toContain(join(source, 'missing'));
       expect(result.error).toContain('文件不存在');
     }
   });
   it('invalidates cached data on reload and recovers after files are restored', async () => {
     const dir=await mkdtemp(join(tmpdir(),'moneycoming-service-')); temps.push(dir);
-    for (const n of ['edb_main_continuous_5m.csv','edb_main_continuous_60m.csv']) await cp(join(source,n),join(dir,n));
+    for (const n of ['edb_main_continuous_1m_raw.csv','edb_main_continuous_5m.csv','edb_main_continuous_60m.csv','edb_main_continuous_rollovers.csv']) await cp(join(source,n),join(dir,n));
     const service=createDataService(dir); const first=await service.load('main_continuous'); expect(first.ok).toBe(true);
     if (first.ok) expect(first.data.auditAvailable).toBe(false);
     const file=join(dir,'edb_main_continuous_5m.csv'); await writeFile(file,'bad data');

@@ -54,6 +54,12 @@ PowerShell 快捷方式验收在取得主窗口句柄后读取实际窗口矩形
 
 实现不新增 `setSkipTaskbar()`、强制最小化或焦点恢复逻辑。现有测试使用 `showInactive()` 的地方可以继续使用，性能测试现有的 `show()` 也可以保留；这些行为不属于离屏能力的验收条件。
 
+### 6. 统一 Electron 测试启动器强制注入离屏标记
+
+所有基于实际 `BrowserWindow` 的 Playwright/Electron GUI 测试通过共享测试启动器启动应用。启动器在保留调用方提供的 `args`、环境变量和其他 Playwright 选项的同时，无条件追加 `--test-window-offscreen`，不再把单个测试脚本是否设置 `MONEYCOMING_TEST_MODE` 作为唯一保障。
+
+需要模拟生产环境的测试可以继续删除 `MONEYCOMING_TEST_MODE`，但必须保留离屏命令行标记并执行实际窗口矩形断言。测试契约同时扫描 `tests` 目录，禁止测试脚本绕过共享启动器直接调用底层 `electron.launch`。
+
 ## Risks / Trade-offs
 
 - [操作系统可能修正极端窗口坐标] -> 在实际显示前后读取最终窗口边界并执行相交断言，发现修正时立即让测试失败。

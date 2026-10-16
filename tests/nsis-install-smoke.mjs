@@ -23,8 +23,10 @@ const sha256 = async path => createHash('sha256').update(await readFile(path)).d
 async function dataFingerprint() {
   const result = {};
   for (const name of [
+    'edb_main_continuous_1m_raw.csv',
     'edb_main_continuous_5m.csv',
     'edb_main_continuous_60m.csv',
+    'edb_main_continuous_rollovers.csv',
     'summary.json',
     'cross_source_audit.json',
     'entry-rules.md',
@@ -119,8 +121,10 @@ try {
   await runPhase('install', () => run(installer, ['/S', `/D=${installDirectory}`]));
   assert.equal((await stat(executable)).isFile(), true);
   for (const name of [
+    'edb_main_continuous_1m_raw.csv',
     'edb_main_continuous_5m.csv',
     'edb_main_continuous_60m.csv',
+    'edb_main_continuous_rollovers.csv',
     'summary.json',
     'cross_source_audit.json',
     'entry-rules.md',

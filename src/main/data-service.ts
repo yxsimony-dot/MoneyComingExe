@@ -58,8 +58,10 @@ export function createDataService(directory: string, marketDataDirectory?: strin
         const data: Dataset = {
           instrument,
           ...instruments[instrument],
+          bars1: snapshot.bars1,
           bars5: snapshot.bars5,
           bars60: snapshot.bars60,
+          rollovers: snapshot.rollovers,
           anomalies,
           auditAvailable,
           dataDirectory: snapshot.directory,

@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createDataService, resolveMarketDataPaths } from './data-service';
-import { EdbClient, fetchEdbChunks } from './edb-client';
+import { EdbClient, fetchEdbChunks, fetchEdbContractMappings } from './edb-client';
 import { FakeUpdater, type FakeMode } from './fake-updater';
 import { registerMarketUpdateIpc } from './market-update-ipc';
 import { saveMarketSnapshot } from './market-snapshot';
@@ -25,7 +25,11 @@ import type { Instrument } from '../shared/types';
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.setName('MoneyComing');
 const testMode = process.env.MONEYCOMING_TEST_MODE === '1';
-const offscreenTestWindow = isOffscreenTestLaunch(testMode, process.argv);
+const offscreenTestWindow = isOffscreenTestLaunch(
+  testMode,
+  process.argv,
+  process.env.MONEYCOMING_TEST_WINDOW_OFFSCREEN === '1',
+);
 if (testMode && process.env.MONEYCOMING_TEST_USER_DATA) {
   app.setPath('userData', resolve(process.env.MONEYCOMING_TEST_USER_DATA));
 }
@@ -80,6 +84,7 @@ app.whenReady().then(async () => {
   const marketCoordinator = new MarketUpdateCoordinator({
     loadSnapshot: () => service.loadSnapshot(),
     fetchMinutes: (startMs, endMs) => fetchEdbChunks(edbClient, startMs, endMs),
+    fetchContractMappings: (startMs, endMs) => fetchEdbContractMappings(edbClient, startMs, endMs),
     saveSnapshot: candidate => saveMarketSnapshot(marketPaths, candidate),
     invalidate: () => service.invalidate(),
     publish: state => {

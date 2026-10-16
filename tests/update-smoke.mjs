@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import semver from 'semver';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
@@ -21,7 +21,7 @@ async function launch(mode) {
     MONEYCOMING_TEST_UPDATE_VERSION: targetVersion,
   };
   delete env.ELECTRON_RUN_AS_NODE;
-  const app = await electron.launch({ args: ['.'], env, timeout: 30000 });
+  const app = await launchElectronTest({ args: ['.'], env, timeout: 30000 });
   const page = await app.firstWindow();
   const offscreenBeforeShow = await assertElectronWindowOffscreen(app, `update-${mode}-before-show`);
   await app.evaluate(({ BrowserWindow }) => {

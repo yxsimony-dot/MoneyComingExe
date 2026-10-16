@@ -1,21 +1,30 @@
 import './style.css';
-import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, TickMarkType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type Logical, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
-import type { Anomaly, Bar, Dataset, Instrument, MarketUpdateState, Period, ReactionTestScenario, UpdateState } from '../shared/types';
+import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, LineType, TickMarkType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type Logical, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
+import type { Anomaly, Bar, ContractRollover, Dataset, EdbMinuteRecord, Instrument, MarketUpdateState, Period, ReactionTestScenario, UpdateState } from '../shared/types';
 import { DEFAULT_ENTRY_RULES } from '../shared/entry-rules';
 import { MARKET_PRICE_TICK } from '../shared/market';
 import { formatBeijing, locateDate, locateTime } from '../domain/time';
 import { analyzeWeeklyRange, type WeeklyBreakout } from '../domain/weekly-range';
 import { exponentialMovingAverage } from '../domain/ema';
+import { locateRolloverBar } from '../domain/contract-rollover';
 import {
+  analyzeEntryExit,
   analyzeWeeklyEntries,
+  entryLifecycle,
   entryObservationLine,
-  entryObservationWindow,
   entryQuarterSignal,
   entryReactionRange,
+  entryStopLossSignal,
+  entryTakeProfitSignal,
   selectWeeklyEntry,
   weeklyEntryMarkerId,
+  type EntryExitAnalysis,
+  type EntryLifecycle,
+  type EntryLifecycleEndReason,
   type EntryQuarterSignal,
   type EntryReactionRange,
+  type EntryStopLossSignal,
+  type EntryTakeProfitSignal,
   type WeeklyEntry,
 } from '../domain/weekly-entry';
 import { childrenFor, linkedLogicalRange, parentFor } from '../domain/link';
@@ -113,11 +122,19 @@ type ChartSelection =
   | {
       kind: 'entry';
       bars: Bar[];
+      focusBars: Bar[];
       triggerStart: number;
       direction: WeeklyEntry['direction'];
       pullbackLine: number;
+      entryCutoff: number;
+      sessionEnd: number;
+      forcedExitBar?: Bar;
+      endReason: EntryLifecycleEndReason;
       reactionRange?: EntryReactionRange;
       quarterSignal?: EntryQuarterSignal;
+      stopLossSignal?: EntryStopLossSignal;
+      takeProfitSignal?: EntryTakeProfitSignal;
+      exitAnalysis?: EntryExitAnalysis;
     };
 
 function toast(message: string) {
@@ -272,6 +289,8 @@ class MarketChart {
   private ema20?: ISeriesApi<'Line'>;
   private entryPullback?: ISeriesApi<'Line'>;
   private entryQuarter?: ISeriesApi<'Line'>;
+  private entryStopLoss?: ISeriesApi<'Line'>;
+  private entryTakeProfit?: ISeriesApi<'Line'>;
   private emaByStart = new Map<number, number>();
   readonly markers: ISeriesMarkersPluginApi<Time>;
   bars: Bar[] = [];
@@ -279,6 +298,7 @@ class MarketChart {
   private selection?: ChartSelection;
   private selectedDetail?: Bar;
   private anomalies: Anomaly[] = [];
+  private rollovers: ContractRollover[] = [];
   private chartHost: HTMLElement;
   private lastDetail?: Bar;
   private pointerInside = false;
@@ -395,10 +415,34 @@ class MarketChart {
         pointMarkersVisible: false, title: '',
         autoscaleInfoProvider: () => null,
       }, 0);
+      this.entryStopLoss = this.chart.addSeries(LineSeries, {
+        color: '#f4c95d', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
+        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        pointMarkersVisible: false, title: '',
+        autoscaleInfoProvider: () => null,
+      }, 0);
+      this.entryTakeProfit = this.chart.addSeries(LineSeries, {
+        color: '#4fc3f7', lineWidth: 2, lineStyle: LineStyle.Solid, lineType: LineType.WithSteps,
+        priceScaleId: 'right',
+        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        pointMarkersVisible: false, title: '',
+        autoscaleInfoProvider: () => null,
+      }, 0);
       this.element.dataset.pullbackLineStyle = 'solid';
       this.element.dataset.quarterLineStyle = 'solid';
       this.element.dataset.quarterLineColor = '#ffffff';
       this.element.dataset.quarterLineAutoScale = 'false';
+      this.element.dataset.stopLossLineStyle = 'solid';
+      this.element.dataset.stopLossLineColor = '#f4c95d';
+      this.element.dataset.stopLossLineWidth = '2';
+      this.element.dataset.stopLossLineAutoScale = 'false';
+      this.element.dataset.takeProfitLineStyle = 'solid';
+      this.element.dataset.takeProfitLineType = 'with-steps';
+      this.element.dataset.takeProfitLineColor = '#4fc3f7';
+      this.element.dataset.takeProfitLineWidth = '2';
+      this.element.dataset.takeProfitLineAutoScale = 'false';
     }
     this.setSubchartsVisible(true);
     this.markers = createSeriesMarkers(this.candle, [], { zOrder: 'top', autoScale: false });
@@ -499,9 +543,9 @@ class MarketChart {
     });
   }
 
-  setData(bars: Bar[], anomalies: Anomaly[], bars5: Bar[] = []) {
+  setData(bars: Bar[], anomalies: Anomaly[], bars5: Bar[] = [], rollovers: ContractRollover[] = []) {
     this.clearHoverRange();
-    this.bars = bars; this.anomalies = anomalies; this.selection = undefined; this.selectedDetail = undefined; this.focusedLogicalRange = undefined;
+    this.bars = bars; this.anomalies = anomalies; this.rollovers = rollovers; this.selection = undefined; this.selectedDetail = undefined; this.focusedLogicalRange = undefined;
     this.indexByStart = new Map(bars.map((bar, index) => [bar.startMs, index]));
     this.updateSelectionDiagnostics();
     this.drawEntryPullback();
@@ -642,16 +686,35 @@ class MarketChart {
   focus(bar: Bar) {
     this.focusBars([bar]);
   }
-  focusBars(bars: Bar[], targetSpan = 120) {
+  focusBars(bars: Bar[], targetSpan = 120, ensurePriceVisible = false) {
     const firstIndex = this.bars.indexOf(bars[0]);
     const lastIndex = this.bars.indexOf(bars.at(-1)!);
     const range = linkedLogicalRange(targetSpan, firstIndex, lastIndex, this.bars.length);
     if (range) {
       this.focusedLogicalRange = range;
       this.chart.timeScale().setVisibleLogicalRange(range);
+      if (ensurePriceVisible) this.ensureBarsVisibleOnPriceScale(bars);
       this.scheduleReactionRangeRender();
       this.refreshReactionRangeForFrames();
     }
+  }
+  private ensureBarsVisibleOnPriceScale(bars: Bar[]) {
+    const priceScale = this.chart.priceScale('right');
+    if (priceScale.options().autoScale) {
+      this.scheduleScaleDiagnostics();
+      return;
+    }
+    const low = Math.min(...bars.map(bar => bar.low));
+    const high = Math.max(...bars.map(bar => bar.high));
+    requestAnimationFrame(() => {
+      const visibleRange = priceScale.getVisibleRange();
+      if (!visibleRange || visibleRange.from > low || visibleRange.to < high) {
+        priceScale.setAutoScale(true);
+      }
+      this.scheduleScaleDiagnostics();
+      this.scheduleReactionRangeRender();
+      this.refreshReactionRangeForFrames();
+    });
   }
   setHoverRange(bars: Bar[]) {
     if (!this.hoverOverlay) return;
@@ -870,13 +933,47 @@ class MarketChart {
     this.drawMarkers();
     this.details(this.selectionOrLast());
   }
-  highlightEntry(bars: Bar[], entry: WeeklyEntry) {
-    const reactionRange = bars.length ? entryReactionRange(entry.direction, bars) : undefined;
+  highlightEntry(lifecycleOrBars: EntryLifecycle | Bar[], entry: WeeklyEntry, minutes: readonly EdbMinuteRecord[] = []) {
+    const lifecycle = Array.isArray(lifecycleOrBars)
+      ? (() => {
+          const bars = lifecycleOrBars;
+          const reactionRange = bars.length ? entryReactionRange(entry.direction, bars) : undefined;
+          const quarterSignal = reactionRange ? entryQuarterSignal(reactionRange, bars, MARKET_PRICE_TICK) : undefined;
+          const stopLossSignal = reactionRange ? entryStopLossSignal(reactionRange, MARKET_PRICE_TICK) : undefined;
+          const takeProfitSignal = reactionRange && quarterSignal
+            ? entryTakeProfitSignal(reactionRange, bars, quarterSignal, MARKET_PRICE_TICK)
+            : undefined;
+          const exitAnalysis = reactionRange && quarterSignal && stopLossSignal && takeProfitSignal
+            ? analyzeEntryExit(reactionRange, bars, minutes, quarterSignal, stopLossSignal, takeProfitSignal)
+            : undefined;
+          return {
+            analysisBars: bars,
+            focusBars: bars.slice(0, 16),
+            entryCutoff: Number.POSITIVE_INFINITY,
+            sessionEnd: Number.POSITIVE_INFINITY,
+            forcedExitBar: undefined,
+            reactionRange,
+            quarterSignal,
+            stopLossSignal,
+            takeProfitSignal,
+            exitAnalysis,
+            endReason: exitAnalysis?.exitSignal?.type ?? 'data-end',
+          } satisfies EntryLifecycle;
+        })()
+      : lifecycleOrBars;
+    const bars = lifecycle.analysisBars;
     this.selection = bars.length ? {
-      kind: 'entry', bars, triggerStart: entry.triggerBar.startMs,
+      kind: 'entry', bars, focusBars: lifecycle.focusBars, triggerStart: entry.triggerBar.startMs,
       direction: entry.direction, pullbackLine: entry.pullbackLine,
-      reactionRange,
-      quarterSignal: reactionRange ? entryQuarterSignal(reactionRange, bars, MARKET_PRICE_TICK) : undefined,
+      entryCutoff: lifecycle.entryCutoff,
+      sessionEnd: lifecycle.sessionEnd,
+      forcedExitBar: lifecycle.forcedExitBar,
+      endReason: lifecycle.endReason,
+      reactionRange: lifecycle.reactionRange,
+      quarterSignal: lifecycle.quarterSignal,
+      stopLossSignal: lifecycle.stopLossSignal,
+      takeProfitSignal: lifecycle.takeProfitSignal,
+      exitAnalysis: lifecycle.exitAnalysis,
     } : undefined;
     if (!bars.length) this.focusedLogicalRange = undefined;
     this.selectedDetail = bars[0];
@@ -895,8 +992,26 @@ class MarketChart {
       this.element.dataset.selectionPullbackLine = String(selection.pullbackLine);
       this.element.dataset.selectionFirstIndex = String(this.indexByStart.get(selection.bars[0].startMs) ?? -1);
       this.element.dataset.selectionLastIndex = String(this.indexByStart.get(selection.bars.at(-1)!.startMs) ?? -1);
+      this.element.dataset.lifecycleEndReason = selection.endReason;
+      this.element.dataset.lifecycleEntryCutoff = String(selection.entryCutoff);
+      this.element.dataset.lifecycleSessionEnd = String(selection.sessionEnd);
+      this.element.dataset.lifecycleForcedExitStart = selection.forcedExitBar
+        ? String(selection.forcedExitBar.startMs)
+        : '';
+      this.element.dataset.lifecycleFocusCount = String(selection.focusBars.length);
+      this.element.dataset.lifecycleFocusFirstIndex = String(selection.focusBars.length
+        ? this.indexByStart.get(selection.focusBars[0].startMs) ?? -1
+        : -1);
+      this.element.dataset.lifecycleFocusLastIndex = String(selection.focusBars.length
+        ? this.indexByStart.get(selection.focusBars.at(-1)!.startMs) ?? -1
+        : -1);
       this.element.dataset.reactionRangePresent = String(!!selection.reactionRange);
       this.element.dataset.quarterSignalPresent = String(!!selection.quarterSignal);
+      this.element.dataset.stopLossSignalPresent = String(!!selection.stopLossSignal);
+      this.element.dataset.takeProfitSignalPresent = String(!!selection.takeProfitSignal);
+      this.element.dataset.exitAnalysisPresent = String(!!selection.exitAnalysis);
+      this.element.dataset.riskTouchSignalPresent = String(!!selection.exitAnalysis?.riskTouchSignal);
+      this.element.dataset.exitSignalPresent = String(!!selection.exitAnalysis?.exitSignal);
       if (selection.reactionRange) {
         this.element.dataset.reactionRangeDirection = selection.reactionRange.direction;
         this.element.dataset.reactionRangeFirstStart = String(selection.reactionRange.extremeBar.startMs);
@@ -940,14 +1055,94 @@ class MarketChart {
           delete this.element.dataset[key];
         }
       }
+      if (selection.stopLossSignal) {
+        const signal = selection.stopLossSignal;
+        this.element.dataset.stopLossSignalDirection = signal.direction;
+        this.element.dataset.stopLossSignalPrice = String(signal.price);
+        this.element.dataset.stopLossSignalTick = String(signal.tick);
+        this.element.dataset.stopLossSignalRangeTicks = String(signal.rangeTicks);
+        this.element.dataset.stopLossSignalStopTicks = String(signal.stopTicks);
+        this.element.dataset.stopLossSignalLineStart = String(signal.lineStartBar.startMs);
+        this.element.dataset.stopLossSignalLineStartIndex = String(this.indexByStart.get(signal.lineStartBar.startMs) ?? -1);
+      } else {
+        for (const key of ['stopLossSignalDirection', 'stopLossSignalPrice', 'stopLossSignalTick', 'stopLossSignalRangeTicks',
+          'stopLossSignalStopTicks', 'stopLossSignalLineStart', 'stopLossSignalLineStartIndex']) {
+          delete this.element.dataset[key];
+        }
+      }
+      if (selection.takeProfitSignal) {
+        const signal = selection.takeProfitSignal;
+        this.element.dataset.takeProfitSignalDirection = signal.direction;
+        this.element.dataset.takeProfitSignalTick = String(signal.tick);
+        this.element.dataset.takeProfitSignalRangeTicks = String(signal.rangeTicks);
+        this.element.dataset.takeProfitSignalTargetTicks = String(signal.targetTicks);
+        this.element.dataset.takeProfitSignalDefaultPrice = String(signal.defaultPrice);
+        this.element.dataset.takeProfitSignalAdjustedPrice = String(signal.adjustedPrice);
+        this.element.dataset.takeProfitSignalLineStart = String(signal.lineStartBar.startMs);
+        this.element.dataset.takeProfitSignalEntryStart = signal.entryBar ? String(signal.entryBar.startMs) : '';
+        this.element.dataset.takeProfitSignalRiskTouchStart = signal.riskTouchBar ? String(signal.riskTouchBar.startMs) : '';
+        this.element.dataset.takeProfitSignalLineStartIndex = String(this.indexByStart.get(signal.lineStartBar.startMs) ?? -1);
+        this.element.dataset.takeProfitSignalEntryIndex = String(signal.entryBar
+          ? this.indexByStart.get(signal.entryBar.startMs) ?? -1
+          : -1);
+        this.element.dataset.takeProfitSignalRiskTouchIndex = String(signal.riskTouchBar
+          ? this.indexByStart.get(signal.riskTouchBar.startMs) ?? -1
+          : -1);
+      } else {
+        for (const key of ['takeProfitSignalDirection', 'takeProfitSignalTick', 'takeProfitSignalRangeTicks',
+          'takeProfitSignalTargetTicks', 'takeProfitSignalDefaultPrice', 'takeProfitSignalAdjustedPrice',
+          'takeProfitSignalLineStart', 'takeProfitSignalEntryStart', 'takeProfitSignalRiskTouchStart',
+          'takeProfitSignalLineStartIndex', 'takeProfitSignalEntryIndex', 'takeProfitSignalRiskTouchIndex']) {
+          delete this.element.dataset[key];
+        }
+      }
+      if (selection.exitAnalysis?.riskTouchSignal) {
+        const signal = selection.exitAnalysis.riskTouchSignal;
+        this.element.dataset.riskTouchSignalStart = String(signal.bar.startMs);
+        this.element.dataset.riskTouchSignalIndex = String(this.indexByStart.get(signal.bar.startMs) ?? -1);
+        this.element.dataset.riskTouchSignalGranularity = signal.granularity;
+        this.element.dataset.riskTouchSignalMinuteStart = signal.minute ? String(signal.minute.startMs) : '';
+      } else {
+        for (const key of ['riskTouchSignalStart', 'riskTouchSignalIndex', 'riskTouchSignalGranularity',
+          'riskTouchSignalMinuteStart']) {
+          delete this.element.dataset[key];
+        }
+      }
+      if (selection.exitAnalysis?.exitSignal) {
+        const signal = selection.exitAnalysis.exitSignal;
+        this.element.dataset.exitSignalType = signal.type;
+        this.element.dataset.exitSignalPrice = String(signal.price);
+        this.element.dataset.exitSignalStart = String(signal.bar.startMs);
+        this.element.dataset.exitSignalIndex = String(this.indexByStart.get(signal.bar.startMs) ?? -1);
+        this.element.dataset.exitSignalGranularity = signal.granularity;
+        this.element.dataset.exitSignalMinuteStart = signal.minute ? String(signal.minute.startMs) : '';
+        this.element.dataset.exitSignalLineEnd = String(signal.lineEndMs);
+      } else {
+        for (const key of ['exitSignalType', 'exitSignalPrice', 'exitSignalStart', 'exitSignalIndex',
+          'exitSignalGranularity', 'exitSignalMinuteStart', 'exitSignalLineEnd']) {
+          delete this.element.dataset[key];
+        }
+      }
     } else {
       delete this.element.dataset.selectionDirection;
       delete this.element.dataset.selectionTriggerStart;
       delete this.element.dataset.selectionPullbackLine;
       delete this.element.dataset.selectionFirstIndex;
       delete this.element.dataset.selectionLastIndex;
+      delete this.element.dataset.lifecycleEndReason;
+      delete this.element.dataset.lifecycleEntryCutoff;
+      delete this.element.dataset.lifecycleSessionEnd;
+      delete this.element.dataset.lifecycleForcedExitStart;
+      delete this.element.dataset.lifecycleFocusCount;
+      delete this.element.dataset.lifecycleFocusFirstIndex;
+      delete this.element.dataset.lifecycleFocusLastIndex;
       delete this.element.dataset.reactionRangePresent;
       delete this.element.dataset.quarterSignalPresent;
+      delete this.element.dataset.stopLossSignalPresent;
+      delete this.element.dataset.takeProfitSignalPresent;
+      delete this.element.dataset.exitAnalysisPresent;
+      delete this.element.dataset.riskTouchSignalPresent;
+      delete this.element.dataset.exitSignalPresent;
       for (const key of ['reactionRangeDirection', 'reactionRangeFirstStart', 'reactionRangeLastStart', 'reactionRangeExtremeStart',
         'reactionRangeReactionStart', 'reactionRangeFirstIndex', 'reactionRangeLastIndex', 'reactionRangeHigh', 'reactionRangeLow']) {
         delete this.element.dataset[key];
@@ -956,6 +1151,21 @@ class MarketChart {
         'quarterSignalQuarterTicks', 'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
         'quarterSignalEntryStart', 'quarterSignalLineStartIndex', 'quarterSignalReactionIndex',
         'quarterSignalSearchStartIndex', 'quarterSignalEntryIndex']) {
+        delete this.element.dataset[key];
+      }
+      for (const key of ['stopLossSignalDirection', 'stopLossSignalPrice', 'stopLossSignalTick', 'stopLossSignalRangeTicks',
+        'stopLossSignalStopTicks', 'stopLossSignalLineStart', 'stopLossSignalLineStartIndex']) {
+        delete this.element.dataset[key];
+      }
+      for (const key of ['takeProfitSignalDirection', 'takeProfitSignalTick', 'takeProfitSignalRangeTicks',
+        'takeProfitSignalTargetTicks', 'takeProfitSignalDefaultPrice', 'takeProfitSignalAdjustedPrice',
+        'takeProfitSignalLineStart', 'takeProfitSignalEntryStart', 'takeProfitSignalRiskTouchStart',
+        'takeProfitSignalLineStartIndex', 'takeProfitSignalEntryIndex', 'takeProfitSignalRiskTouchIndex']) {
+        delete this.element.dataset[key];
+      }
+      for (const key of ['riskTouchSignalStart', 'riskTouchSignalIndex', 'riskTouchSignalGranularity',
+        'riskTouchSignalMinuteStart', 'exitSignalType', 'exitSignalPrice', 'exitSignalStart', 'exitSignalIndex',
+        'exitSignalGranularity', 'exitSignalMinuteStart', 'exitSignalLineEnd']) {
         delete this.element.dataset[key];
       }
     }
@@ -992,6 +1202,86 @@ class MarketChart {
     this.element.dataset.quarterLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
     this.element.dataset.quarterLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
   }
+  private drawEntryStopLoss() {
+    if (!this.entryStopLoss) return;
+    const selection = this.selection;
+    const signal = selection?.kind === 'entry' ? selection.stopLossSignal : undefined;
+    const lineStartIndex = selection?.kind === 'entry' && signal
+      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+      : -1;
+    const lineEndMs = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal?.lineEndMs : undefined;
+    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
+      ? selection.bars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
+      : [];
+    if (!signal || !lineBars.length) {
+      this.entryStopLoss.setData([]);
+      this.element.dataset.stopLossLineVisible = 'false';
+      for (const key of ['stopLossLinePrice', 'stopLossLineTick', 'stopLossLineStopTicks', 'stopLossLinePointCount',
+        'stopLossLineFirstStart', 'stopLossLineLastStart', 'stopLossLineFirstIndex', 'stopLossLineLastIndex']) {
+        delete this.element.dataset[key];
+      }
+      return;
+    }
+
+    this.entryStopLoss.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
+    this.element.dataset.stopLossLineVisible = 'true';
+    this.element.dataset.stopLossLinePrice = String(signal.price);
+    this.element.dataset.stopLossLineTick = String(signal.tick);
+    this.element.dataset.stopLossLineStopTicks = String(signal.stopTicks);
+    this.element.dataset.stopLossLinePointCount = String(lineBars.length);
+    this.element.dataset.stopLossLineFirstStart = String(lineBars[0].startMs);
+    this.element.dataset.stopLossLineLastStart = String(lineBars.at(-1)!.startMs);
+    this.element.dataset.stopLossLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+    this.element.dataset.stopLossLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+  }
+  private drawEntryTakeProfit() {
+    if (!this.entryTakeProfit) return;
+    const selection = this.selection;
+    const signal = selection?.kind === 'entry' ? selection.takeProfitSignal : undefined;
+    const lineStartIndex = selection?.kind === 'entry' && signal
+      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+      : -1;
+    const lineEndMs = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal?.lineEndMs : undefined;
+    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
+      ? selection.bars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
+      : [];
+    if (!signal || !lineBars.length) {
+      this.entryTakeProfit.setData([]);
+      this.element.dataset.takeProfitLineVisible = 'false';
+      for (const key of ['takeProfitLineDefaultPrice', 'takeProfitLineAdjustedPrice', 'takeProfitLineTick',
+        'takeProfitLineRangeTicks', 'takeProfitLineTargetTicks', 'takeProfitLinePointCount', 'takeProfitLineFirstStart',
+        'takeProfitLineLastStart', 'takeProfitLineFirstIndex', 'takeProfitLineLastIndex', 'takeProfitLineValues',
+        'takeProfitLineSwitchStart', 'takeProfitLineSwitchIndex']) {
+        delete this.element.dataset[key];
+      }
+      return;
+    }
+
+    const riskTouchBar = selection?.kind === 'entry' ? selection.exitAnalysis?.riskTouchSignal?.bar : undefined;
+    const values = lineBars.map(bar => riskTouchBar && bar.startMs >= riskTouchBar.startMs
+      ? signal.adjustedPrice
+      : signal.defaultPrice);
+    this.entryTakeProfit.setData(lineBars.map((bar, index) => ({ time: timeKey(bar), value: values[index] })));
+    this.element.dataset.takeProfitLineVisible = 'true';
+    this.element.dataset.takeProfitLineDefaultPrice = String(signal.defaultPrice);
+    this.element.dataset.takeProfitLineAdjustedPrice = String(signal.adjustedPrice);
+    this.element.dataset.takeProfitLineTick = String(signal.tick);
+    this.element.dataset.takeProfitLineRangeTicks = String(signal.rangeTicks);
+    this.element.dataset.takeProfitLineTargetTicks = String(signal.targetTicks);
+    this.element.dataset.takeProfitLinePointCount = String(lineBars.length);
+    this.element.dataset.takeProfitLineFirstStart = String(lineBars[0].startMs);
+    this.element.dataset.takeProfitLineLastStart = String(lineBars.at(-1)!.startMs);
+    this.element.dataset.takeProfitLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+    this.element.dataset.takeProfitLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+    this.element.dataset.takeProfitLineValues = JSON.stringify(values);
+    if (riskTouchBar) {
+      this.element.dataset.takeProfitLineSwitchStart = String(riskTouchBar.startMs);
+      this.element.dataset.takeProfitLineSwitchIndex = String(this.indexByStart.get(riskTouchBar.startMs) ?? -1);
+    } else {
+      delete this.element.dataset.takeProfitLineSwitchStart;
+      delete this.element.dataset.takeProfitLineSwitchIndex;
+    }
+  }
   private drawEntryPullback() {
     if (!this.entryPullback) return;
     const selection = this.selection;
@@ -1004,6 +1294,8 @@ class MarketChart {
       delete this.element.dataset.pullbackLineFirstValue;
       delete this.element.dataset.pullbackLineLastValue;
       this.drawEntryQuarter();
+      this.drawEntryStopLoss();
+      this.drawEntryTakeProfit();
       this.scheduleReactionRangeRender();
       return;
     }
@@ -1024,6 +1316,8 @@ class MarketChart {
       delete this.element.dataset.pullbackLineLastValue;
     }
     this.drawEntryQuarter();
+    this.drawEntryStopLoss();
+    this.drawEntryTakeProfit();
     this.scheduleReactionRangeRender();
   }
   showReactionTestScenario(scenario: ReactionTestScenario, direction: WeeklyEntry['direction'], startMs: number) {
@@ -1041,16 +1335,130 @@ class MarketChart {
         close: target === 'doji' ? midpoint : rising ? bar.high : bar.low,
       };
     };
-    const controlledQuarterScenario = scenario.startsWith('quarter-');
+    const controlledQuarterScenario = scenario.startsWith('quarter-')
+      || scenario.startsWith('take-profit-')
+      || scenario.startsWith('exit-');
     const rangeTicks = scenario === 'quarter-divisible' ? 12 : 11;
     const base = Math.round(source[0].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
     const quarterPrice = direction === 'long'
       ? base + Math.ceil(rangeTicks / 4)
       : base + rangeTicks - Math.ceil(rangeTicks / 4);
+    const takeProfitControlled = (bar: Bar, index: number): Bar | undefined => {
+      if (!scenario.startsWith('take-profit-')) return undefined;
+      const sameBarRiskTouch = scenario === 'take-profit-entry-touch' && index === 2;
+      const preEntryRiskTouch = scenario === 'take-profit-later-touch' && index === 2;
+      const entryOffset = scenario === 'take-profit-later-touch' ? 3 : 2;
+      const laterRiskTouch = scenario === 'take-profit-later-touch'
+        ? index === 5
+        : scenario === 'take-profit-repeated-touch'
+          ? index === 4 || index === 6
+          : false;
+      if (direction === 'long') {
+        if (preEntryRiskTouch) {
+          return { ...bar, open: base + 1, high: quarterPrice - 1, low: base, close: base + 1 };
+        }
+        if (index === entryOffset) {
+          return {
+            ...bar,
+            open: base + 6,
+            high: base + 8,
+            low: sameBarRiskTouch ? base : quarterPrice,
+            close: base + 7,
+          };
+        }
+        return {
+          ...bar,
+          open: base + 6,
+          high: base + 8,
+          low: laterRiskTouch ? base : base + 5,
+          close: base + 7,
+        };
+      }
+      if (preEntryRiskTouch) {
+        return { ...bar, open: base + rangeTicks - 1, high: base + rangeTicks, low: quarterPrice + 1, close: base + rangeTicks - 1 };
+      }
+      if (index === entryOffset) {
+        return {
+          ...bar,
+          open: base + rangeTicks - 6,
+          high: sameBarRiskTouch ? base + rangeTicks : quarterPrice,
+          low: base + rangeTicks - 8,
+          close: base + rangeTicks - 7,
+        };
+      }
+      return {
+        ...bar,
+        open: base + rangeTicks - 6,
+        high: laterRiskTouch ? base + rangeTicks : base + rangeTicks - 5,
+        low: base + rangeTicks - 8,
+        close: base + rangeTicks - 7,
+      };
+    };
+    const exitControlled = (bar: Bar, index: number): Bar | undefined => {
+      if (!scenario.startsWith('exit-') || index < 2) return undefined;
+      const takeProfitExit = scenario === 'exit-take-profit' && index === 4;
+      const laterStopTouch = scenario === 'exit-take-profit' && index === 6;
+      const priorRiskTouch = scenario === 'exit-stop-loss' && index === 3;
+      const stopExit = (scenario === 'exit-stop-loss' || scenario === 'exit-stop-risk-same-bar') && index === 4;
+      if (direction === 'long') {
+        if (index === 2) return { ...bar, open: base + 6, high: base + 8, low: quarterPrice, close: base + 7 };
+        if (takeProfitExit) return { ...bar, open: base + 7, high: base + rangeTicks * 3, low: base + 5, close: base + 8 };
+        if (priorRiskTouch) return { ...bar, open: base + 6, high: base + 8, low: base, close: base + 7 };
+        if (stopExit || laterStopTouch) return { ...bar, open: base + 6, high: base + 8, low: base - Math.ceil(rangeTicks * 0.75), close: base + 5 };
+        return { ...bar, open: base + 6, high: base + 8, low: base + 5, close: base + 7 };
+      }
+      if (index === 2) {
+        return {
+          ...bar,
+          open: base + rangeTicks - 6,
+          high: quarterPrice,
+          low: base + rangeTicks - 8,
+          close: base + rangeTicks - 7,
+        };
+      }
+      if (takeProfitExit) {
+        return {
+          ...bar,
+          open: base + rangeTicks - 7,
+          high: base + rangeTicks - 5,
+          low: base - rangeTicks * 2,
+          close: base + rangeTicks - 8,
+        };
+      }
+      if (priorRiskTouch) {
+        return {
+          ...bar,
+          open: base + rangeTicks - 6,
+          high: base + rangeTicks,
+          low: base + rangeTicks - 8,
+          close: base + rangeTicks - 7,
+        };
+      }
+      if (stopExit || laterStopTouch) {
+        return {
+          ...bar,
+          open: base + rangeTicks - 6,
+          high: base + rangeTicks + Math.ceil(rangeTicks * 0.75),
+          low: base + rangeTicks - 8,
+          close: base + rangeTicks - 5,
+        };
+      }
+      return {
+        ...bar,
+        open: base + rangeTicks - 6,
+        high: base + rangeTicks - 5,
+        low: base + rangeTicks - 8,
+        close: base + rangeTicks - 7,
+      };
+    };
     const controlled = (bar: Bar, index: number): Bar => {
       if (direction === 'long') {
         if (index === 0) return { ...bar, open: base + 3, high: base + 4, low: base, close: base + 1 };
         if (index === 1) return { ...bar, open: base + 2, high: base + rangeTicks, low: base + 1, close: base + rangeTicks - 1 };
+        const exitBar = exitControlled(bar, index);
+        if (exitBar) return exitBar;
+        const takeProfitBar = takeProfitControlled(bar, index);
+        if (takeProfitBar) return takeProfitBar;
         const touch = scenario === 'quarter-wick-touch'
           ? index === 2
           : scenario === 'quarter-repeated-touch'
@@ -1068,6 +1476,10 @@ class MarketChart {
       }
       if (index === 0) return { ...bar, open: base + rangeTicks - 3, high: base + rangeTicks, low: base + rangeTicks - 4, close: base + rangeTicks - 1 };
       if (index === 1) return { ...bar, open: base + rangeTicks - 2, high: base + rangeTicks - 1, low: base, close: base + 1 };
+      const exitBar = exitControlled(bar, index);
+      if (exitBar) return exitBar;
+      const takeProfitBar = takeProfitControlled(bar, index);
+      if (takeProfitBar) return takeProfitBar;
       const touch = scenario === 'quarter-wick-touch'
         ? index === 2
         : scenario === 'quarter-repeated-touch'
@@ -1107,6 +1519,25 @@ class MarketChart {
   }
   drawMarkers() {
     const markers: SeriesMarker<Time>[] = [];
+    const rolloverMarkers = this.rollovers.flatMap(rollover => {
+      const bar = locateRolloverBar(rollover, this.bars, this.period);
+      if (!bar) return [];
+      const label = `主力换月：${rollover.fromContract} -> ${rollover.toContract}`;
+      return [{
+        marker: {
+          time: timeKey(bar),
+          position: 'aboveBar' as const,
+          color: '#ffdf55',
+          shape: 'arrowDown' as const,
+          text: label,
+          size: 3,
+          id: `rollover-${rollover.tradingDate}-${rollover.fromContract}-${rollover.toContract}`,
+        },
+        label,
+        start: shortTime(bar.startMs),
+      }];
+    });
+    markers.push(...rolloverMarkers.map(item => item.marker));
     const selection = this.selection;
     if (selection?.kind === 'linked') {
       markers.push(...selection.bars.map((bar) => ({ time: timeKey(bar), position: 'belowBar' as const, color: '#e2b36a', shape: 'square' as const, size: 0.6, id: `selected-${bar.startMs}` })));
@@ -1124,12 +1555,40 @@ class MarketChart {
         id: `observation-follow-${selection.direction}-${selection.triggerStart}-${bar.startMs}`,
       })));
       const trueEntry = selection.quarterSignal?.entryBar;
+      const riskTouch = selection.exitAnalysis?.riskTouchSignal?.bar;
+      const exit = selection.exitAnalysis?.exitSignal;
+      const showRiskTouch = !!riskTouch
+        && !(exit?.type === 'stop-loss' && exit.bar.startMs === riskTouch.startMs);
+      const sameEntryRiskTouch = showRiskTouch && !!trueEntry && trueEntry.startMs === riskTouch.startMs;
+      if (showRiskTouch) {
+        markers.push({
+          time: timeKey(riskTouch), position: long ? 'belowBar' : 'aboveBar',
+          color: '#4fc3f7', shape: 'square',
+          text: `${long ? '触底' : '触顶'}${sameEntryRiskTouch ? '·入场' : ''}`, size: 0.3,
+          id: `take-profit-risk-touch-${selection.direction}-${selection.triggerStart}-${riskTouch.startMs}`,
+        });
+      }
       if (trueEntry) {
         markers.push({
           time: timeKey(trueEntry), position: long ? 'belowBar' : 'aboveBar',
           color: '#ffffff', shape: long ? 'arrowUp' : 'arrowDown',
-          text: '入场', size: 1.1,
+          text: sameEntryRiskTouch ? undefined : '入场', size: 1.1,
           id: `true-entry-${selection.direction}-${selection.triggerStart}-${trueEntry.startMs}`,
+        });
+      }
+      if (exit) {
+        const takeProfit = exit.type === 'take-profit';
+        const sessionClose = exit.type === 'session-close';
+        const above = sessionClose ? long : long ? takeProfit : !takeProfit;
+        const text = takeProfit ? '止盈出场' : sessionClose ? '休市出场' : '止损出场';
+        markers.push({
+          time: timeKey(exit.bar),
+          position: above ? 'aboveBar' : 'belowBar',
+          color: takeProfit ? '#4fc3f7' : sessionClose ? '#dc94ff' : '#f4c95d',
+          shape: long ? 'arrowDown' : 'arrowUp',
+          text,
+          size: 1.15,
+          id: `actual-exit-${exit.type}-${selection.direction}-${selection.triggerStart}-${exit.bar.startMs}`,
         });
       }
     }
@@ -1162,6 +1621,9 @@ class MarketChart {
     this.element.dataset.entryMarkerIds = JSON.stringify(markers
       .filter(marker => marker.id?.startsWith('entry-'))
       .map(marker => marker.id));
+    this.element.dataset.rolloverCount = String(rolloverMarkers.length);
+    this.element.dataset.rolloverLabels = JSON.stringify(rolloverMarkers.map(item => item.label));
+    this.element.dataset.rolloverStarts = JSON.stringify(rolloverMarkers.map(item => item.start));
     this.element.dataset.linkedMarkerCount = String(markers.filter(marker => marker.id?.startsWith('selected-')).length);
     this.element.dataset.observationTriggerCount = String(markers.filter(marker => marker.id?.startsWith('observation-trigger-')).length);
     this.element.dataset.observationFollowCount = String(markers.filter(marker => marker.id?.startsWith('observation-follow-')).length);
@@ -1177,6 +1639,37 @@ class MarketChart {
       delete this.element.dataset.trueEntryMarkerStart;
       delete this.element.dataset.trueEntryMarkerDirection;
       delete this.element.dataset.trueEntryMarkerPosition;
+    }
+    const riskTouchMarkers = markers.filter(marker => marker.id?.startsWith('take-profit-risk-touch-'));
+    this.element.dataset.riskTouchMarkerCount = String(riskTouchMarkers.length);
+    if (riskTouchMarkers.length) {
+      this.element.dataset.riskTouchMarkerId = String(riskTouchMarkers[0].id);
+      this.element.dataset.riskTouchMarkerStart = String(selection?.kind === 'entry'
+        ? selection.exitAnalysis?.riskTouchSignal?.bar.startMs
+        : '');
+      this.element.dataset.riskTouchMarkerDirection = String(selection?.kind === 'entry' ? selection.direction : '');
+      this.element.dataset.riskTouchMarkerPosition = String(riskTouchMarkers[0].position);
+      this.element.dataset.riskTouchMarkerText = String(riskTouchMarkers[0].text);
+    } else {
+      delete this.element.dataset.riskTouchMarkerId;
+      delete this.element.dataset.riskTouchMarkerStart;
+      delete this.element.dataset.riskTouchMarkerDirection;
+      delete this.element.dataset.riskTouchMarkerPosition;
+      delete this.element.dataset.riskTouchMarkerText;
+    }
+    const exitMarkers = markers.filter(marker => marker.id?.startsWith('actual-exit-'));
+    this.element.dataset.exitMarkerCount = String(exitMarkers.length);
+    if (exitMarkers.length) {
+      const exit = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal : undefined;
+      this.element.dataset.exitMarkerId = String(exitMarkers[0].id);
+      this.element.dataset.exitMarkerText = String(exitMarkers[0].text);
+      this.element.dataset.exitMarkerStart = String(exit?.bar.startMs ?? '');
+      this.element.dataset.exitMarkerPosition = String(exitMarkers[0].position);
+    } else {
+      delete this.element.dataset.exitMarkerId;
+      delete this.element.dataset.exitMarkerText;
+      delete this.element.dataset.exitMarkerStart;
+      delete this.element.dataset.exitMarkerPosition;
     }
   }
 }
@@ -1195,6 +1688,30 @@ function clearCrosshairs() {
   finally { crosshairSyncing = false; }
 }
 
+const lifecycleEndLabels: Record<EntryLifecycleEndReason, string> = {
+  'take-profit': '止盈出场',
+  'stop-loss': '止损出场',
+  'session-close': '休市出场',
+  'no-entry-session-end': '未入场，已到休市',
+  'data-end': '数据暂未覆盖生命周期终点',
+};
+
+const rootLifecycleDiagnosticKeys = [
+  'entryLifecycleEndReason',
+  'entryLifecycleFirstStart',
+  'entryLifecycleLastStart',
+  'entryLifecycleEntryCutoff',
+  'entryLifecycleSessionEnd',
+  'entryLifecycleForcedExitStart',
+  'entryFocusCount',
+  'entryFocusFirstStart',
+  'entryFocusLastStart',
+] as const;
+
+function clearRootLifecycleDiagnostics(): void {
+  for (const key of rootLifecycleDiagnosticKeys) delete document.documentElement.dataset[key];
+}
+
 function selectBar(period: Period, bar: Bar, moveBoth = false, hoveredObjectId?: string) {
   if (!dataset) return;
   const sourceSpan = period === 60 ? charts[60].visibleLogicalSpan() ?? 120 : undefined;
@@ -1204,45 +1721,67 @@ function selectBar(period: Period, bar: Bar, moveBoth = false, hoveredObjectId?:
   const parent = period === 60 ? bar : parentFor(bar, dataset.bars60);
   const children = parent ? childrenFor(parent, dataset.bars5) : [bar];
   const entry = period === 60 ? charts[60].entryFor(bar, hoveredObjectId) : undefined;
-  const observation = entry ? entryObservationWindow(entry.triggerBar, dataset.bars5) : [];
+  const lifecycle = entry ? entryLifecycle(entry, dataset.bars5, dataset.bars1) : undefined;
   charts[60].highlight(parent ? [parent] : []);
-  if (entry && observation.length) charts[5].highlightEntry(observation, entry);
+  if (entry && lifecycle?.analysisBars.length) charts[5].highlightEntry(lifecycle, entry);
   else charts[5].highlight(children, period === 5 ? bar : undefined);
   if (parent && (period === 5 || moveBoth)) charts[60].focus(parent);
-  const focusBars = entry ? observation : children;
+  const focusBars = entry ? lifecycle?.focusBars ?? [] : children;
   if (focusBars.length && (period === 60 || moveBoth)) {
-    if (period === 60) charts[5].focusBars(focusBars, sourceSpan);
+    if (period === 60) charts[5].focusBars(focusBars, sourceSpan, true);
     else charts[5].focus(bar);
   }
   const expected = parent ? parent.expectedMinutes / 5 : 0;
   const complete = !!parent && children.length === expected && children.every(child => child.complete);
-  const observationMissing = !!entry && !observation.length;
+  const observationMissing = !!entry && !lifecycle?.analysisBars.length;
   $('.selection-label').textContent = entry ? '入场观察' : '双周期联动';
   $('#selection-text').textContent = entry
-    ? observation.length
-      ? `${entry.direction === 'long' ? '多头' : '空头'}  ·  触发 ${shortTime(entry.triggerBar.startMs)}  ·  回调线 ${number(entry.pullbackLine)}  ·  ${observation.length} 根 5 分钟${observation.length < 16 ? '  ·  已到数据末尾' : ''}`
+    ? lifecycle?.analysisBars.length
+      ? `${entry.direction === 'long' ? '多头' : '空头'}  ·  触发 ${shortTime(entry.triggerBar.startMs)}  ·  回调线 ${number(entry.pullbackLine)}  ·  生命周期 ${lifecycle.analysisBars.length} 根 5 分钟  ·  ${lifecycleEndLabels[lifecycle.endReason]}`
       : `${entry.direction === 'long' ? '多头' : '空头'}  ·  触发记录不在当前5分钟数据中，联动不完整`
     : parent ? `${interval(parent)}  ·  ${children.length} 根 5 分钟  /  ${parent.expectedMinutes} 个交易分钟${complete ? '' : '  ·  联动不完整'}` : '未找到包含该 K 线的 60 分钟区间，联动不完整';
-  $('#selection-bar').classList.toggle('incomplete', entry ? observationMissing : !complete);
+  $('#selection-bar').classList.toggle('incomplete', entry
+    ? observationMissing || lifecycle?.endReason === 'data-end'
+    : !complete);
   const anomaly = dataset.anomalies.find(a => a.timeMs >= (parent || bar).startMs && a.timeMs < (parent || bar).endMs);
   $('#selected-anomaly').hidden = !anomaly;
   $('#selected-anomaly').onclick = () => showDetails(anomaly);
   document.documentElement.dataset.selectedStart = String(bar.startMs);
   document.documentElement.dataset.selectedEnd = String(bar.endMs);
-  document.documentElement.dataset.childCount = String(entry ? observation.length : children.length);
+  document.documentElement.dataset.childCount = String(entry ? lifecycle?.analysisBars.length ?? 0 : children.length);
   document.documentElement.dataset.selectionKind = entry ? 'entry' : 'linked';
-  if (entry) {
+  if (entry && lifecycle) {
     document.documentElement.dataset.entryDirection = entry.direction;
     document.documentElement.dataset.entryTriggerStart = String(entry.triggerBar.startMs);
     document.documentElement.dataset.entryPullbackLine = String(entry.pullbackLine);
-    document.documentElement.dataset.observationCount = String(observation.length);
+    document.documentElement.dataset.observationCount = String(lifecycle.analysisBars.length);
     document.documentElement.dataset.entrySelectionSource = hoveredObjectId === weeklyEntryMarkerId(entry) ? 'marker' : 'default';
+    document.documentElement.dataset.entryLifecycleEndReason = lifecycle.endReason;
+    document.documentElement.dataset.entryLifecycleFirstStart = lifecycle.analysisBars.length
+      ? String(lifecycle.analysisBars[0].startMs)
+      : '';
+    document.documentElement.dataset.entryLifecycleLastStart = lifecycle.analysisBars.length
+      ? String(lifecycle.analysisBars.at(-1)!.startMs)
+      : '';
+    document.documentElement.dataset.entryLifecycleEntryCutoff = String(lifecycle.entryCutoff);
+    document.documentElement.dataset.entryLifecycleSessionEnd = String(lifecycle.sessionEnd);
+    document.documentElement.dataset.entryLifecycleForcedExitStart = lifecycle.forcedExitBar
+      ? String(lifecycle.forcedExitBar.startMs)
+      : '';
+    document.documentElement.dataset.entryFocusCount = String(lifecycle.focusBars.length);
+    document.documentElement.dataset.entryFocusFirstStart = lifecycle.focusBars.length
+      ? String(lifecycle.focusBars[0].startMs)
+      : '';
+    document.documentElement.dataset.entryFocusLastStart = lifecycle.focusBars.length
+      ? String(lifecycle.focusBars.at(-1)!.startMs)
+      : '';
   } else {
     delete document.documentElement.dataset.entryDirection;
     delete document.documentElement.dataset.entryTriggerStart;
     delete document.documentElement.dataset.entryPullbackLine;
     delete document.documentElement.dataset.observationCount;
     delete document.documentElement.dataset.entrySelectionSource;
+    clearRootLifecycleDiagnostics();
   }
 }
 
@@ -1271,7 +1810,7 @@ function renderDataset(next: Dataset, focusTime?: number) {
   $('#last-change').textContent = `${signed(last.close - last.open)}  (${signed((last.close - last.open) / last.open * 100)}%)`;
   $('#last-change').className = last.close >= last.open ? 'up' : 'down';
   $('#last-time').textContent = `${shortTime(last.endMs)} · 较末根开盘`;
-  charts[60].setData(next.bars60, next.anomalies, next.bars5); charts[5].setData(next.bars5, next.anomalies);
+  charts[60].setData(next.bars60, next.anomalies, next.bars5, next.rollovers); charts[5].setData(next.bars5, next.anomalies, [], next.rollovers);
   $('.selection-label').textContent = '双周期联动';
   $('#selection-text').textContent = '点击任意 K 线，查看两个周期的对应区间'; $('#selected-anomaly').hidden = true;
   $('#selection-bar').classList.remove('incomplete');
@@ -1280,6 +1819,7 @@ function renderDataset(next: Dataset, focusTime?: number) {
   delete document.documentElement.dataset.entryTriggerStart; delete document.documentElement.dataset.entryPullbackLine;
   delete document.documentElement.dataset.observationCount;
   delete document.documentElement.dataset.entrySelectionSource;
+  clearRootLifecycleDiagnostics();
   if (focusTime !== undefined) {
     const index = locateTime(next.bars5, focusTime);
     selectBar(5, next.bars5[index], true);
@@ -1393,6 +1933,7 @@ $('#latest').addEventListener('click', () => {
   delete document.documentElement.dataset.entryTriggerStart; delete document.documentElement.dataset.entryPullbackLine;
   delete document.documentElement.dataset.observationCount;
   delete document.documentElement.dataset.entrySelectionSource;
+  clearRootLifecycleDiagnostics();
   ($('#date-input') as HTMLInputElement).value = formatBeijing(dataset.bars5.at(-1)!.startMs).slice(0, 10);
 });
 $('#retry').addEventListener('click', () => void loadInstrument(requestedInstrument, true));

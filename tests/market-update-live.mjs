@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -94,7 +94,7 @@ async function launch() {
     timeout: 30_000,
   };
   if (executable) options.executablePath = executable;
-  const app = await electron.launch(options);
+  const app = await launchElectronTest(options);
   const page = await app.firstWindow();
   const offscreenBeforeShow = await assertElectronWindowOffscreen(app, 'market-update-live-before-show');
   await app.evaluate(({ BrowserWindow }) => {

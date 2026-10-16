@@ -33,6 +33,7 @@ Electron运行时安装步骤需要联网。打包后的应用可离线看盘；
 
 ```powershell
 npm test
+npm run test:offscreen-window
 npm run test:update
 npm run test:app
 npm run package
@@ -45,6 +46,8 @@ node tests/performance.mjs
 ```
 
 应用验收会启动窗口并生成 artifacts 下的截图及 JSON 记录；安装器验收会在隔离临时目录静默安装、从非项目工作目录启动并卸载。性能记录包含机器环境和测量口径。开发应用从 `futures_investigation_20261009` 读取数据，正式 EXE 从安装目录同级 `data` 读取内置基线，不依赖启动工作目录。
+
+所有自动化 GUI/EXE 验收窗口必须在首次显示前完整位于所有显示器范围之外。JavaScript 测试统一使用 `tests/electron-test-launch.mjs`，直接 EXE 或快捷方式验收必须传入 `--test-window-offscreen`，并对实际窗口矩形执行无交集断言；该规则不限制焦点和任务栏行为，也不改变普通用户启动位置。详细约束见根目录 `AGENTS.md`。
 
 正式发布只由与 `package.json` 版本一致的 `v<version>` 标签触发。维护步骤见 [发布流程](docs/发布流程.md)。
 

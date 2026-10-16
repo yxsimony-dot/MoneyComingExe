@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,7 +60,7 @@ async function launch(mode) {
     timeout: 30_000,
   };
   if (executable) options.executablePath = executable;
-  const app = await electron.launch(options);
+  const app = await launchElectronTest(options);
   const page = await app.firstWindow();
   const offscreenBeforeShow = await assertElectronWindowOffscreen(app, `market-update-${mode}-before-show`);
   await app.evaluate(({ BrowserWindow }) => {
@@ -81,6 +81,14 @@ async function jump(page, date) {
   await page.getByTestId('date-input').fill(date);
   await page.getByTestId('date-jump').click();
   await frame(page);
+}
+
+async function rolloverDiagnostics(page, period) {
+  return {
+    count: await page.locator(`#card-${period}`).getAttribute('data-rollover-count'),
+    labels: JSON.parse(await page.locator(`#card-${period}`).getAttribute('data-rollover-labels')),
+    starts: JSON.parse(await page.locator(`#card-${period}`).getAttribute('data-rollover-starts')),
+  };
 }
 
 const networkHits = { http: 0, webSocket: 0 };
@@ -106,6 +114,12 @@ try {
     offscreenScenarios.push({ mode: 'fixture', ...offscreen });
     try {
       assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+      const initialRollovers = {
+        5: await rolloverDiagnostics(page, 5),
+        60: await rolloverDiagnostics(page, 60),
+      };
+      assert.equal(initialRollovers[5].count, '3');
+      assert.equal(initialRollovers[60].count, '3');
       assert.equal(await app.evaluate(({ BrowserWindow, session }) => {
         const window = BrowserWindow.getAllWindows()[0];
         return window.webContents.session === session.defaultSession;
@@ -142,6 +156,8 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-mode'), '60');
       assert.equal(await page.getByTestId('toggle-monday').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.getByTestId('toggle-subcharts').getAttribute('aria-pressed'), 'true');
+      assert.deepEqual(await rolloverDiagnostics(page, 5), initialRollovers[5]);
+      assert.deepEqual(await rolloverDiagnostics(page, 60), initialRollovers[60]);
 
       await page.getByTestId('market-update').click();
       await page.locator('html[data-market-update-phase="succeeded"]').waitFor({ timeout: 30_000 });
@@ -156,12 +172,16 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-mode'), '60');
       assert.equal(await page.getByTestId('toggle-monday').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.getByTestId('toggle-subcharts').getAttribute('aria-pressed'), 'true');
+      assert.deepEqual(await rolloverDiagnostics(page, 5), initialRollovers[5]);
+      assert.deepEqual(await rolloverDiagnostics(page, 60), initialRollovers[60]);
 
       await page.getByTestId('market-update').click();
       await page.locator('html[data-market-update-phase="up-to-date"]').waitFor({ timeout: 30_000 });
       assert.match(await page.locator('#market-update-status').innerText(), /已是数据源当前最新/);
       assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
       assert.equal(await page.locator('html').getAttribute('data-selected-start'), historicalStart);
+      assert.deepEqual(await rolloverDiagnostics(page, 5), initialRollovers[5]);
+      assert.deepEqual(await rolloverDiagnostics(page, 60), initialRollovers[60]);
       if (process.env.MONEYCOMING_TEST_UPDATER === '1') {
         assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'up-to-date');
       }

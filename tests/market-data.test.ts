@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   aggregateMinutes,
   assertBarsValid,
+  assertMinuteRecordsValid,
+  completeMinutesForFiveMinuteBar,
   mergeBars,
+  mergeMinuteHistory,
   mergeMinuteChunks,
   parseEdbMinuteCsv,
   reconcileBars,
+  serializeMinuteRecords,
 } from '../src/domain/market-data';
 import { parseBeijing } from '../src/domain/time';
 import type { Bar, EdbMinuteRecord } from '../src/shared/types';
@@ -20,6 +25,17 @@ const row = (
 const csv = (...rows: string[]) => [HEADER, ...rows].join('\n');
 
 describe('EDB minute CSV parsing', () => {
+  it('parses and validates the committed one-minute baseline', () => {
+    const records = parseEdbMinuteCsv(
+      readFileSync('futures_investigation_20261009/edb_main_continuous_1m_raw.csv', 'utf8'),
+      '内置 1 分钟基线',
+    );
+    expect(records).toHaveLength(82_650);
+    expect(records[0].start).toBe('2025-10-09 21:00:00');
+    expect(records.at(-1)?.start).toBe('2026-10-09 14:59:00');
+    expect(() => assertMinuteRecordsValid(records)).not.toThrow();
+  });
+
   it('parses valid fixed-field records', () => {
     const records = parseEdbMinuteCsv(csv(
       row('2026-10-09 09:00:00'),
@@ -40,6 +56,19 @@ describe('EDB minute CSV parsing', () => {
     ['非交易分钟', csv(row('2026-10-09 12:00:00')), /非交易分钟/],
   ])('rejects %s', (_name, input, pattern) => {
     expect(() => parseEdbMinuteCsv(input)).toThrow(pattern);
+  });
+
+  it('validates reusable minute records and round-trips snapshot serialization', () => {
+    const records = parseEdbMinuteCsv(csv(
+      row('2026-10-09 09:00:00'),
+      row('2026-10-09 09:01:00', [101, 103, 100, 102, 11, 1001, 1002]),
+    ));
+    expect(parseEdbMinuteCsv(serializeMinuteRecords(records))).toEqual(records);
+    expect(() => assertMinuteRecordsValid([{ ...records[0], start: 'wrong' }])).toThrow(/时间字段/);
+    expect(() => assertMinuteRecordsValid([{ ...records[0], high: Number.NaN }])).toThrow(/非有限/);
+    expect(() => assertMinuteRecordsValid([{ ...records[0], low: 200 }])).toThrow(/OHLC/);
+    expect(() => assertMinuteRecordsValid([{ ...records[0], volume: -1 }])).toThrow(/负/);
+    expect(() => assertMinuteRecordsValid([records[1], records[0]])).toThrow(/严格递增/);
   });
 });
 
@@ -140,6 +169,26 @@ describe('incremental merging and reconciliation', () => {
     expect(() => mergeMinuteChunks([[minute], [{ ...minute, close: 999 }]])).toThrow(/冲突/);
   });
 
+  it('revises overlapping minutes, appends new minutes, and preserves old local history', () => {
+    const local = parseEdbMinuteCsv(csv(
+      row('2026-10-09 09:00:00'),
+      row('2026-10-09 09:01:00'),
+    ));
+    const remote = parseEdbMinuteCsv(csv(
+      row('2026-10-09 09:01:00', [101, 103, 100, 102, 11, 1001, 1002]),
+      row('2026-10-09 09:02:00'),
+    ));
+    const merged = mergeMinuteHistory(local, remote);
+    expect(merged).toMatchObject({ added: 1, replaced: 1, removed: 0 });
+    expect(merged.records.map(record => record.start)).toEqual([
+      '2026-10-09 09:00:00',
+      '2026-10-09 09:01:00',
+      '2026-10-09 09:02:00',
+    ]);
+    expect(merged.records[0]).toBe(local[0]);
+    expect(merged.records[1]).toBe(remote[0]);
+  });
+
   it('accepts matching 5m/60m bars and rejects altered OHLC or volume', () => {
     const input: EdbMinuteRecord[] = [];
     for (let minute = 0; minute < 60; minute++) {
@@ -154,5 +203,29 @@ describe('incremental merging and reconciliation', () => {
     assertBarsValid(bars60, 60);
     expect(() => reconcileBars(bars5, bars60)).not.toThrow();
     expect(() => reconcileBars(bars5, [{ ...bars60[0], volume: bars60[0].volume + 1 }])).toThrow(/volume 对账/);
+  });
+});
+
+describe('five-minute minute coverage', () => {
+  function completeFixture() {
+    const records = parseEdbMinuteCsv(csv(...Array.from({ length: 5 }, (_, index) => row(
+      `2026-10-09 09:0${index}:00`,
+      [100 + index, 102 + index, 99 + index, 101 + index, 10 + index, 1000 + index, 1001 + index],
+    ))));
+    return { records, bar: aggregateMinutes(records, 5)[0] };
+  }
+
+  it('returns exactly five ordered records when aggregation matches', () => {
+    const { records, bar } = completeFixture();
+    expect(completeMinutesForFiveMinuteBar(bar, records)).toEqual(records);
+  });
+
+  it.each([
+    ['missing', ({ records, bar }: ReturnType<typeof completeFixture>) => completeMinutesForFiveMinuteBar(bar, records.slice(0, 4))],
+    ['duplicate', ({ records, bar }: ReturnType<typeof completeFixture>) => completeMinutesForFiveMinuteBar(bar, [records[0], records[0], ...records.slice(2)])],
+    ['wrong order', ({ records, bar }: ReturnType<typeof completeFixture>) => completeMinutesForFiveMinuteBar(bar, [records[1], records[0], ...records.slice(2)])],
+    ['OHLC mismatch', ({ records, bar }: ReturnType<typeof completeFixture>) => completeMinutesForFiveMinuteBar({ ...bar, high: bar.high + 1 }, records)],
+  ])('rejects %s coverage', (_name, check) => {
+    expect(check(completeFixture())).toBeUndefined();
   });
 });

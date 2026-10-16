@@ -1,4 +1,4 @@
-import { _electron as electron } from 'playwright';
+import { launchElectronTest } from './electron-test-launch.mjs';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -11,7 +11,7 @@ const executablePath = resolve(process.env.MONEYCOMING_EXE || 'release/win-unpac
 const runs = [];
 for (let run = 0; run < 3; run++) {
   const start = performance.now();
-  const app = await electron.launch({ executablePath, args: [], env, cwd: os.tmpdir() });
+  const app = await launchElectronTest({ executablePath, args: [], env, cwd: os.tmpdir() });
   try {
     const page = await app.firstWindow();
     const offscreenBeforeShow = await assertElectronWindowOffscreen(app, `performance-run-${run + 1}-before-show`);
