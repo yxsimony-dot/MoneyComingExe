@@ -2,13 +2,21 @@ import { mergeMinuteChunks, parseEdbMinuteCsv } from '../domain/market-data';
 import {
   buildMainContractCandidates,
   identifyMainContracts,
+  isConcreteContract,
   parseEdbDailyCsv,
 } from '../domain/contract-rollover';
 import { formatBeijing } from '../domain/time';
+import {
+  DEFAULT_INSTRUMENT,
+  instrumentDefinition,
+  isInstrument,
+  type InstrumentDefinition,
+} from '../shared/instruments';
 import type { EdbDailyRecord, EdbMinuteRecord, MainContractMapping } from '../shared/types';
 
 export const EDB_ENDPOINT = 'https://edb.shinnytech.com/md/kline' as const;
-export const EDB_SYMBOL = 'KQ.m@DCE.m' as const;
+/** @deprecated Use the selected instrument definition's mainSymbol. */
+export const EDB_SYMBOL = DEFAULT_INSTRUMENT.mainSymbol;
 export const EDB_COLUMNS = 'open,high,low,close,volume,open_oi,close_oi' as const;
 const MINUTE_MS = 60_000;
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -67,8 +75,13 @@ export class EdbClient {
     this.maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_BYTES;
   }
 
-  async fetchRange(startMs: number, endMs: number): Promise<EdbMinuteRecord[]> {
-    const text = await this.fetchCsv(EDB_SYMBOL, '60', startMs, endMs);
+  async fetchRange(
+    definition: InstrumentDefinition,
+    startMs: number,
+    endMs: number,
+  ): Promise<EdbMinuteRecord[]> {
+    const registered = this.registeredDefinition(definition);
+    const text = await this.fetchCsv(registered.mainSymbol, '60', startMs, endMs);
     try {
       return parseEdbMinuteCsv(text, 'EDB 响应');
     } catch {
@@ -76,19 +89,32 @@ export class EdbClient {
     }
   }
 
-  async fetchMainDailyRange(startMs: number, endMs: number): Promise<EdbDailyRecord[]> {
-    return this.fetchDaily(EDB_SYMBOL, startMs, endMs);
+  async fetchMainDailyRange(
+    definition: InstrumentDefinition,
+    startMs: number,
+    endMs: number,
+  ): Promise<EdbDailyRecord[]> {
+    return this.fetchDaily(this.registeredDefinition(definition).mainSymbol, startMs, endMs);
   }
 
   async fetchContractDailyRange(
+    definition: InstrumentDefinition,
     contract: string,
     startMs: number,
     endMs: number,
   ): Promise<EdbDailyRecord[]> {
-    if (!/^m\d{2}(?:01|05|09)$/.test(contract)) {
-      throw new EdbClientError('invalid-response', 'EDB 具体合约不在受控豆粕候选范围内');
+    const registered = this.registeredDefinition(definition);
+    if (!isConcreteContract(registered, contract)) {
+      throw new EdbClientError('invalid-response', `EDB 具体合约不在受控${registered.shortName}候选范围内`);
     }
-    return this.fetchDaily(`DCE.${contract}`, startMs, endMs);
+    return this.fetchDaily(`${registered.contractSymbolPrefix}${contract}`, startMs, endMs);
+  }
+
+  private registeredDefinition(definition: InstrumentDefinition): InstrumentDefinition {
+    if (!definition || !isInstrument(definition.id)) {
+      throw new EdbClientError('invalid-response', 'EDB 品种不在注册表中');
+    }
+    return instrumentDefinition(definition.id);
   }
 
   private async fetchDaily(
@@ -166,31 +192,37 @@ export function buildRequestChunks(startMs: number, endMs: number, daysPerChunk 
 
 export async function fetchEdbChunks(
   client: Pick<EdbClient, 'fetchRange'>,
+  definition: InstrumentDefinition,
   startMs: number,
   endMs: number,
   daysPerChunk = 14,
 ): Promise<EdbMinuteRecord[]> {
   const chunks: EdbMinuteRecord[][] = [];
   for (const chunk of buildRequestChunks(startMs, endMs, daysPerChunk)) {
-    chunks.push(await client.fetchRange(chunk.startMs, chunk.endMs));
+    chunks.push(await client.fetchRange(definition, chunk.startMs, chunk.endMs));
   }
   return mergeMinuteChunks(chunks);
 }
 
 export async function fetchEdbContractMappings(
   client: Pick<EdbClient, 'fetchMainDailyRange' | 'fetchContractDailyRange'>,
+  definition: InstrumentDefinition,
   startMs: number,
   endMs: number,
 ): Promise<MainContractMapping[]> {
-  const main = await client.fetchMainDailyRange(startMs, endMs);
+  const main = await client.fetchMainDailyRange(definition, startMs, endMs);
   if (!main.length) throw new Error('EDB 未返回主连日线数据');
   const contracts = buildMainContractCandidates(
+    definition,
     main[0].tradingDate,
     main.at(-1)!.tradingDate,
   );
   const candidates = new Map<string, EdbDailyRecord[]>();
   for (const contract of contracts) {
-    candidates.set(contract, await client.fetchContractDailyRange(contract, startMs, endMs));
+    candidates.set(
+      contract,
+      await client.fetchContractDailyRange(definition, contract, startMs, endMs),
+    );
   }
-  return identifyMainContracts(main, candidates);
+  return identifyMainContracts(main, candidates, definition);
 }

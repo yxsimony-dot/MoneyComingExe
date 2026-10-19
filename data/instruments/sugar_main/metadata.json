@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-sugar_main",
+  "instrumentId": "sugar_main",
+  "mainSymbol": "KQ.m@CZCE.SR",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@CZCE.SR"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "7e60bc8892dc840e2fbd928c5fe84740a1f7f440012ae6ee085acd228070632d",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "90b3c1a23b2b243e9c70ada3709e4e192f143b073fbba4560f4d7bdc417724a4",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "8ae4b7aeb9668df375aad129f10dbbe8d4f54bca3d1e9b5173fde7fb21080573",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "3fb2d16d1b23cdc3089233cdaa217407f73979cfde6da780a4909cfbec78a82b",
+      "rows": 3
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "e580bf4ddd7a4580609b3c23e3e2e28976081ee246a69d73bf99c158f0da4c17",
+      "rows": 241
+    }
+  }
+}

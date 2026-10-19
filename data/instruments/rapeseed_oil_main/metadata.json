@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-rapeseed_oil_main",
+  "instrumentId": "rapeseed_oil_main",
+  "mainSymbol": "KQ.m@CZCE.OI",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@CZCE.OI"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "596a063ca68b5392602732f5cca0c3bc5378d19182641b617e493b3d394f62c2",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "96700eb33785b2ee607e7cb1728ef945fc3ae3cb1be0c38bc6c14a35f55124cd",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "0257052f31f89a7fad3846f009304e14b40ef7477979cd6c6e78dd9144f7bcf0",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "3b334c153b7fd53f13f9c118113afc3fdf165cf9af500c6847700a07282d5e98",
+      "rows": 4
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "0659e67ae0c14ca9d46bff6de8482cdb53bb2bc7bb73a844a89cbc5d90702ad0",
+      "rows": 241
+    }
+  }
+}

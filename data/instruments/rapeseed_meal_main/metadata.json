@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-rapeseed_meal_main",
+  "instrumentId": "rapeseed_meal_main",
+  "mainSymbol": "KQ.m@CZCE.RM",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@CZCE.RM"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "e2697c95f34583018313fe69b39dad821a9b09ad62842244f8bdc636d05908e9",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "753d56b290f7450038d7d489e4b09b18b6b4e9f9920b126e5d219e3f3c1afd3d",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "3df944765e3e184855d9fddcb844a2d0928eb1d7fb1ab0a0ef3be27a3161e350",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "3edb8e8423d204149084474e6f459dcd041c246ea07495ec1e90861970e8d90a",
+      "rows": 4
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "601678665de4b57a866f7be5a2cc5afff668a5ebd386dfe76c7783de7284171b",
+      "rows": 241
+    }
+  }
+}

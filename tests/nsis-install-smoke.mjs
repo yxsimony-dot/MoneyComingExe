@@ -1,11 +1,23 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { assetName, readOption } from '../scripts/release-utils.mjs';
+import {
+  REQUIRED_DATA,
+  validatePackagedDataDirectory,
+} from '../scripts/verify-release.mjs';
 
 const root = process.cwd();
 const releaseDirectory = resolve(readOption('dir', process.env.MONEYCOMING_RELEASE_DIR || 'release'));
@@ -17,25 +29,18 @@ const appData = join(sandbox, 'appdata');
 const localAppData = join(sandbox, 'localappdata');
 const executable = join(installDirectory, 'MoneyComing.exe');
 const installedDataDirectory = join(installDirectory, 'data');
+const output = join(root, 'artifacts');
+await mkdir(output, { recursive: true });
 
 const sha256 = async path => createHash('sha256').update(await readFile(path)).digest('hex');
 
 async function dataFingerprint() {
   const result = {};
-  for (const name of [
-    'edb_main_continuous_1m_raw.csv',
-    'edb_main_continuous_5m.csv',
-    'edb_main_continuous_60m.csv',
-    'edb_main_continuous_rollovers.csv',
-    'summary.json',
-    'cross_source_audit.json',
-    'entry-rules.md',
-  ]) {
+  for (const name of REQUIRED_DATA) {
     const path = join(installedDataDirectory, name);
     const info = await stat(path);
     result[name] = {
       bytes: info.size,
-      modifiedAt: info.mtimeMs,
       sha256: await sha256(path),
     };
   }
@@ -116,22 +121,21 @@ async function removeTreeWithRetry(path, timeout = 30_000) {
   }
 }
 
+async function readJsonArtifact(name) {
+  return JSON.parse(
+    (await readFile(join(output, name), 'utf8')).replace(/^\uFEFF/, ''),
+  );
+}
+
 let uninstaller;
 try {
   await runPhase('install', () => run(installer, ['/S', `/D=${installDirectory}`]));
   assert.equal((await stat(executable)).isFile(), true);
-  for (const name of [
-    'edb_main_continuous_1m_raw.csv',
-    'edb_main_continuous_5m.csv',
-    'edb_main_continuous_60m.csv',
-    'edb_main_continuous_rollovers.csv',
-    'summary.json',
-    'cross_source_audit.json',
-    'entry-rules.md',
-  ]) {
+  for (const name of REQUIRED_DATA) {
     assert.equal((await stat(join(installedDataDirectory, name))).isFile(), true, `缺少 data/${name}`);
   }
   const installedDataBefore = await dataFingerprint();
+  const packagedDataBefore = await validatePackagedDataDirectory(installedDataDirectory);
 
   const environment = {
     ...process.env,
@@ -143,40 +147,139 @@ try {
     MONEYCOMING_TEST_USER_DATA: join(appData, 'MoneyComing'),
   };
   delete environment.ELECTRON_RUN_AS_NODE;
+  delete environment.MONEYCOMING_TEST_BUILTIN_DATA;
   await runPhase('app-smoke', () => run(process.execPath, [join(root, 'tests', 'app-smoke.mjs')], {
     cwd: root,
     env: environment,
     timeout: 180_000,
   }));
-  await runPhase('market-update-smoke', () => run(process.execPath, [join(root, 'tests', 'market-update-smoke.mjs')], {
-    cwd: sandbox,
-    env: {
-      ...environment,
-      MONEYCOMING_TEST_UPDATER: '1',
-      MONEYCOMING_TEST_UPDATE_MODE: 'up-to-date',
+  await runPhase('real-baseline-offline-smoke', () => run(
+    process.execPath,
+    [join(root, 'tests', 'real-baseline-offline-smoke.mjs')],
+    {
+      cwd: root,
+      env: environment,
+      timeout: 600_000,
     },
-    timeout: 240_000,
+  ));
+  await runPhase('multi-instrument-smoke', () => run(
+    process.execPath,
+    [join(root, 'tests', 'multi-instrument-smoke.mjs')],
+    {
+      cwd: root,
+      env: environment,
+      timeout: 300_000,
+    },
+  ));
+  await runPhase('legacy-appdata-migration-smoke', () => run(
+    process.execPath,
+    [join(root, 'tests', 'legacy-appdata-migration-smoke.mjs')],
+    {
+      cwd: root,
+      env: environment,
+      timeout: 300_000,
+    },
+  ));
+  const shortcutEnvironment = {
+    ...environment,
+    APPDATA: appData,
+    LOCALAPPDATA: localAppData,
+  };
+  delete shortcutEnvironment.MONEYCOMING_TEST_MODE;
+  delete shortcutEnvironment.MONEYCOMING_TEST_USER_DATA;
+  delete shortcutEnvironment.MONEYCOMING_TEST_EDB_MODE;
+  delete shortcutEnvironment.MONEYCOMING_TEST_UPDATER;
+  delete shortcutEnvironment.MONEYCOMING_TEST_UPDATE_MODE;
+  delete shortcutEnvironment.MONEYCOMING_TEST_UPDATE_VERSION;
+  await runPhase('shortcut-smoke', () => run('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    join(root, 'tests', 'shortcut-smoke.ps1'),
+  ], {
+    cwd: root,
+    env: shortcutEnvironment,
+    timeout: 120_000,
   }));
   const installedDataAfter = await dataFingerprint();
-  assert.deepEqual(installedDataAfter, installedDataBefore, '行情更新不应修改安装目录 data');
-  const pointer = JSON.parse(await readFile(join(appData, 'MoneyComing', 'market-data', 'current.json'), 'utf8'));
-  assert.equal(typeof pointer.snapshotId, 'string');
+  assert.deepEqual(installedDataAfter, installedDataBefore, '验收流程不应修改安装目录 data');
+  const packagedDataAfter = await validatePackagedDataDirectory(installedDataDirectory);
+
+  const appSmoke = await readJsonArtifact('installer-app-smoke.json');
+  const realBaseline = await readJsonArtifact('real-baseline-offline-smoke.json');
+  const multiInstrument = await readJsonArtifact('multi-instrument-smoke.json');
+  const legacyMigration = await readJsonArtifact('legacy-appdata-migration-smoke.json');
+  const shortcut = await readJsonArtifact('shortcut.json');
+  assert.equal(realBaseline.instruments.length, 15);
+  assert.equal(multiInstrument.updateAll.items.length, 15);
+  assert.equal(legacyMigration.migratedSnapshotId, 'legacy-old-global');
+  assert.equal(shortcut.offscreen, true);
+
+  const installerInfo = await stat(installer);
+  const finalReport = {
+    passed: true,
+    installer: {
+      path: installer,
+      version: latest.version,
+      bytes: installerInfo.size,
+    },
+    peakWorkingSetBytes: realBaseline.peakWorkingSetBytes,
+    instruments: realBaseline.instruments.map(instrument => ({
+      instrumentId: instrument.instrumentId,
+      name: instrument.name,
+      sourceLatestAt: instrument.sourceLatestAt,
+      firstMinute: instrument.firstMinute,
+      lastMinute: instrument.lastMinute,
+    })),
+    currentUpdate: multiInstrument.currentUpdate,
+    updateAll: multiInstrument.updateAll,
+    legacyMigration: {
+      firstMinute: legacyMigration.firstMinute,
+      migratedSnapshotId: legacyMigration.migratedSnapshotId,
+      oldDataPreserved: legacyMigration.oldDataPreserved,
+      idempotent: legacyMigration.idempotent,
+    },
+    packagedData: {
+      before: {
+        valid: packagedDataBefore.valid,
+        instrumentCount: packagedDataBefore.instrumentCount,
+      },
+      after: {
+        valid: packagedDataAfter.valid,
+        instrumentCount: packagedDataAfter.instrumentCount,
+      },
+      requiredFileCount: REQUIRED_DATA.length,
+      sha256Unchanged: true,
+    },
+    offscreen: {
+      appSmoke: appSmoke.offscreen,
+      realBaseline: realBaseline.offscreen,
+      multiInstrument: multiInstrument.offscreen,
+      legacyMigration: legacyMigration.launches,
+      shortcut: {
+        windowBounds: shortcut.windowBounds,
+        displayBounds: shortcut.displayBounds,
+        offscreen: shortcut.offscreen,
+      },
+    },
+    uninstalled: false,
+  };
 
   const uninstallName = (await readdir(installDirectory)).find(name => /^Uninstall .*\.exe$/i.test(name));
   assert.ok(uninstallName, '安装目录缺少 NSIS 卸载程序');
   uninstaller = join(installDirectory, uninstallName);
   await runPhase('uninstall', () => run(uninstaller, ['/S'], { timeout: 180_000 }));
   await waitForMissing(executable);
+  finalReport.uninstalled = true;
+  await writeFile(
+    join(output, 'final-install-acceptance.json'),
+    `${JSON.stringify(finalReport, null, 2)}\n`,
+    'utf8',
+  );
 
-  console.log(JSON.stringify({
-    passed: true,
-    installer,
-    installDirectory,
-    launchedFrom: sandbox,
-    userSnapshot: pointer.snapshotId,
-    installedDataUnchanged: true,
-    uninstalled: true,
-  }));
+  console.log(JSON.stringify(finalReport));
 } finally {
   if (uninstaller) {
     await run(uninstaller, ['/S'], { timeout: 60_000 }).catch(() => undefined);

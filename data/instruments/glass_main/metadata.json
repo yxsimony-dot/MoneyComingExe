@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-glass_main",
+  "instrumentId": "glass_main",
+  "mainSymbol": "KQ.m@CZCE.FG",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@CZCE.FG"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "05500df838dfe95e9baf098bac52d5e812ea794f2ac1da5690264bf6fd1e1937",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "59166ca298b63785e138ab59f753ddeb7763c0e82339aeefb50f7fa22a6c7f91",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "844c03300195bb1f89ffd8e13d34282c982bae8943ac354e0e1dd658dec43509",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "3cecb055401516db4fd9a18412f5f0df684b368279b19f7b7033dd6a83b263b8",
+      "rows": 3
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "9c123f7da7b961a885b7537f80f6cbeafd562c9303e1336cbc9eb5f478eb1d64",
+      "rows": 241
+    }
+  }
+}

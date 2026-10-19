@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-10-19T02:08:12.319Z",
+  "instruments": [
+    {
+      "instrumentId": "main_continuous",
+      "name": "豆粕主连",
+      "firstMinute": "2025-10-09 21:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 84495,
+      "fiveMinuteRows": 16899,
+      "sixtyMinuteRows": 1470,
+      "mappingRows": 242,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "rapeseed_meal_main",
+      "name": "菜粕主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 4,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "pvc_main",
+      "name": "PVC主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "rebar_main",
+      "name": "螺纹钢主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "glass_main",
+      "name": "玻璃主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "rapeseed_oil_main",
+      "name": "菜油主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 4,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "palm_oil_main",
+      "name": "棕榈油主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "soybean_oil_main",
+      "name": "豆油主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "pulp_main",
+      "name": "纸浆主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 4,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "corn_main",
+      "name": "玉米主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 6,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "soda_ash_main",
+      "name": "纯碱主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "soybean_1_main",
+      "name": "豆一主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 5,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "methanol_main",
+      "name": "甲醇主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 4,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "sugar_main",
+      "name": "白糖主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 3,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    },
+    {
+      "instrumentId": "soybean_2_main",
+      "name": "豆二主连",
+      "firstMinute": "2025-10-20 09:00:00",
+      "lastMinute": "2026-10-16 22:59:00",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "minuteRows": 82305,
+      "fiveMinuteRows": 16461,
+      "sixtyMinuteRows": 1432,
+      "mappingRows": 241,
+      "rolloverRows": 5,
+      "checks": {
+        "metadataAndHashes": true,
+        "minuteRecords": true,
+        "rebuiltFiveMinuteBars": true,
+        "rebuiltSixtyMinuteBars": true,
+        "crossPeriodReconciliation": true,
+        "mainContractMappings": true,
+        "rolloverLocations": true
+      }
+    }
+  ]
+}

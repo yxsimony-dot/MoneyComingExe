@@ -4,15 +4,21 @@ import {
   detectContractRollovers,
   identifyMainContracts,
   locateRolloverBar,
+  mergeContractRollovers,
+  mergeMainContractMappings,
   parseContractRollovers,
   parseEdbDailyCsv,
   serializeContractRollovers,
 } from '../src/domain/contract-rollover';
 import { parseBeijing } from '../src/domain/time';
+import {
+  DEFAULT_INSTRUMENT,
+  INSTRUMENT_DEFINITIONS,
+} from '../src/shared/instruments';
 import type { Bar, ContractRollover } from '../src/shared/types';
 
 const DAILY_HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
-const dailyNano = (date: string) => String(BigInt(Date.parse(`${date}T00:00:00Z`)) * 1_000_000n);
+const dailyNano = (date: string) => String(BigInt(parseBeijing(`${date} 00:00:00`)) * 1_000_000n);
 const dailyCsv = (rows: string[]) => `${DAILY_HEADER}\n${rows.join('\n')}${rows.length ? '\n' : ''}`;
 
 function dailyRow(
@@ -87,7 +93,7 @@ describe('rollover CSV', () => {
     [
       'invalid contract',
       'trading_date,time,from_contract,to_contract\n2026-08-10,2026-08-07 21:00:00,M2609,m2701\n',
-      /豆粕主力月份合约/,
+      /豆粕受支持的具体合约代码/,
     ],
   ])('rejects %s records', (_name, text, pattern) => {
     expect(() => parseContractRollovers(text)).toThrow(pattern);
@@ -95,12 +101,12 @@ describe('rollover CSV', () => {
 });
 
 describe('daily main-contract matching', () => {
-  it('parses UTC trading dates and ignores open while matching all six required fields', () => {
+  it('parses Beijing-midnight trading dates and matches HLC despite other field differences', () => {
     const main = parseEdbDailyCsv(dailyCsv([
       dailyRow('2026-08-10', [3149, 3152, 3127, 3140, 633897, 2160574, 2221189]),
     ]));
     const contract = parseEdbDailyCsv(dailyCsv([
-      dailyRow('2026-08-10', [3148, 3152, 3127, 3140, 633897, 2160574, 2221189]),
+      dailyRow('2026-08-10', [3148, 3152, 3127, 3140, 1, 2, 3]),
     ]));
     expect(main[0].tradingDate).toBe('2026-08-10');
     expect(identifyMainContracts(main, new Map([['m2701', contract]]))).toEqual([
@@ -133,6 +139,57 @@ describe('daily main-contract matching', () => {
     expect(() => identifyMainContracts(main, new Map())).toThrow(/缺失/);
     const matching = parseEdbDailyCsv(dailyCsv([row]));
     expect(() => identifyMainContracts(main, new Map([['m2609', matching], ['m2701', matching]]))).toThrow(/歧义/);
+  });
+
+  it('inherits only an isolated missing day bounded by the same contract', () => {
+    const dates = ['2026-08-07', '2026-08-10', '2026-08-11'];
+    const rows = dates.map((date, index) => dailyRow(
+      date,
+      [100 + index, 110 + index, 90 + index, 105 + index, 10, 20, 30],
+    ));
+    const main = parseEdbDailyCsv(dailyCsv(rows));
+    const sameContract = parseEdbDailyCsv(dailyCsv([rows[0], rows[2]]));
+    expect(identifyMainContracts(main, new Map([['m2701', sameContract]]))).toEqual([
+      { tradingDate: dates[0], contract: 'm2701' },
+      { tradingDate: dates[1], contract: 'm2701' },
+      { tradingDate: dates[2], contract: 'm2701' },
+    ]);
+  });
+
+  it.each([
+    ['leading boundary', [undefined, 'm2701', 'm2701']],
+    ['trailing boundary', ['m2701', 'm2701', undefined]],
+    ['continuous gap', ['m2701', undefined, undefined, 'm2701']],
+    ['gap across a real rollover', ['m2609', undefined, 'm2701']],
+  ])('rejects a %s gap', (_name, contracts) => {
+    const rows = contracts.map((_contract, index) => dailyRow(
+      `2026-08-${String(10 + index).padStart(2, '0')}`,
+      [100 + index, 110 + index, 90 + index, 105 + index, 10, 20, 30],
+    ));
+    const main = parseEdbDailyCsv(dailyCsv(rows));
+    const candidates = new Map<string, ReturnType<typeof parseEdbDailyCsv>>();
+    contracts.forEach((contract, index) => {
+      if (!contract) return;
+      candidates.set(contract, [
+        ...(candidates.get(contract) ?? []),
+        parseEdbDailyCsv(dailyCsv([rows[index]]))[0],
+      ]);
+    });
+    expect(() => identifyMainContracts(main, candidates)).toThrow(/缺失/);
+  });
+
+  it('never inherits an ambiguous day even when neighbors use the same contract', () => {
+    const rows = ['2026-08-10', '2026-08-11', '2026-08-12'].map((date, index) => dailyRow(
+      date,
+      [100 + index, 110 + index, 90 + index, 105 + index, 10, 20, 30],
+    ));
+    const main = parseEdbDailyCsv(dailyCsv(rows));
+    const firstAndLast = parseEdbDailyCsv(dailyCsv([rows[0], rows[2]]));
+    const ambiguous = parseEdbDailyCsv(dailyCsv([rows[1]]));
+    expect(() => identifyMainContracts(main, new Map([
+      ['m2701', [...firstAndLast, ...ambiguous]],
+      ['m2705', ambiguous],
+    ]))).toThrow(/歧义/);
   });
 });
 
@@ -171,11 +228,63 @@ describe('rollover bar positioning', () => {
 });
 
 describe('controlled candidate generation', () => {
-  it('generates only January, May, and September contracts through a limited future window', () => {
-    expect(buildMainContractCandidates('2025-10-09', '2026-10-15')).toEqual([
+  it('uses the configured candidate months through the future window', () => {
+    const definition = {
+      ...DEFAULT_INSTRUMENT,
+      contractCode: {
+        ...DEFAULT_INSTRUMENT.contractCode,
+        candidateMonths: [1, 5, 9],
+      },
+    };
+    expect(buildMainContractCandidates(definition, '2025-10-09', '2026-10-15')).toEqual([
       'm2501', 'm2505', 'm2509',
       'm2601', 'm2605', 'm2609',
       'm2701', 'm2705', 'm2709',
     ]);
+  });
+
+  it('supports CZCE three-digit and DCE four-digit expiry formats', () => {
+    expect(buildMainContractCandidates(
+      {
+        ...INSTRUMENT_DEFINITIONS.rapeseed_meal_main,
+        contractCode: {
+          ...INSTRUMENT_DEFINITIONS.rapeseed_meal_main.contractCode,
+          candidateMonths: [1],
+          futureYearWindow: 0,
+        },
+      },
+      '2026-01-01',
+      '2026-12-31',
+    )).toEqual(['RM601']);
+    expect(buildMainContractCandidates(
+      {
+        ...DEFAULT_INSTRUMENT,
+        contractCode: {
+          ...DEFAULT_INSTRUMENT.contractCode,
+          candidateMonths: [1],
+          futureYearWindow: 0,
+        },
+      },
+      '2027-01-01',
+      '2027-12-31',
+    )).toEqual(['m2701']);
+  });
+});
+
+describe('incremental mapping and rollover merge', () => {
+  it('keeps historical mappings and rollovers while replacing overlap dates', () => {
+    expect(mergeMainContractMappings([
+      { tradingDate: '2026-04-08', contract: 'm2605' },
+      { tradingDate: '2026-04-09', contract: 'm2609' },
+    ], [
+      { tradingDate: '2026-04-09', contract: 'm2609' },
+      { tradingDate: '2026-08-10', contract: 'm2701' },
+    ])).toEqual([
+      { tradingDate: '2026-04-08', contract: 'm2605' },
+      { tradingDate: '2026-04-09', contract: 'm2609' },
+      { tradingDate: '2026-08-10', contract: 'm2701' },
+    ]);
+
+    expect(mergeContractRollovers(knownRollovers.slice(0, 2), knownRollovers.slice(1))).toEqual(knownRollovers);
   });
 });

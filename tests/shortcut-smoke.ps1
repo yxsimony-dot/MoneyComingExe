@@ -1,8 +1,15 @@
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
-$portableReport = Get-Content -LiteralPath (Join-Path $workspace 'artifacts/portable.json') -Raw -Encoding utf8 | ConvertFrom-Json
-$executable = (Resolve-Path -LiteralPath $portableReport.executablePath).Path
-$shortcutPath = Join-Path (Split-Path -Parent $executable) 'MoneyComing-Test.lnk'
+$portableReportPath = Join-Path $workspace 'artifacts/portable.json'
+if ($env:MONEYCOMING_EXE) {
+    $executable = (Resolve-Path -LiteralPath $env:MONEYCOMING_EXE).Path
+} elseif (Test-Path -LiteralPath (Join-Path $workspace 'release/win-unpacked/MoneyComing.exe')) {
+    $executable = (Resolve-Path -LiteralPath (Join-Path $workspace 'release/win-unpacked/MoneyComing.exe')).Path
+} else {
+    $portableReport = Get-Content -LiteralPath $portableReportPath -Raw -Encoding utf8 | ConvertFrom-Json
+    $executable = (Resolve-Path -LiteralPath $portableReport.executablePath).Path
+}
+$shortcutPath = Join-Path ([System.IO.Path]::GetTempPath()) "MoneyComing-Test-$PID.lnk"
 $reportPath = Join-Path $workspace 'artifacts/shortcut.json'
 $launchCwd = [System.IO.Path]::GetTempPath().TrimEnd('\')
 $testArguments = '--test-window-offscreen'
@@ -91,7 +98,7 @@ try {
         $saved.Arguments -ne $testArguments) {
         throw 'Saved shortcut target, working directory, or arguments differ from requested values.'
     }
-    $launched = Start-Process -FilePath $shortcutPath -WorkingDirectory $launchCwd -WindowStyle Normal -PassThru
+    $launched = Start-Process -FilePath $shortcutPath -WorkingDirectory $launchCwd -PassThru
     if ($null -eq $launched) { throw 'Shortcut launch did not return an owned process handle.' }
     $report.actualShortcutLaunch = $true
     $report.processId = $launched.Id
@@ -161,5 +168,6 @@ try {
     $json = $report | ConvertTo-Json -Depth 8
     Set-Content -LiteralPath $reportPath -Value $json -Encoding utf8
     Write-Output $json
+    Remove-Item -LiteralPath $shortcutPath -Force -ErrorAction SilentlyContinue
 }
 if (-not $report.passed) { exit 1 }

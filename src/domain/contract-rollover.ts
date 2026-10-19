@@ -5,9 +5,13 @@ import type {
   MainContractMapping,
   Period,
 } from '../shared/types';
+import {
+  DEFAULT_INSTRUMENT,
+  isConcreteContractCode,
+  type InstrumentDefinition,
+} from '../shared/instruments';
 import { formatBeijing, lowerBoundStart, parseBeijing } from './time';
 
-const DAY_NANOS = 86_400_000_000_000n;
 const DAILY_COLUMNS = [
   'datetime_nano',
   'open',
@@ -19,7 +23,7 @@ const DAILY_COLUMNS = [
   'close_oi',
 ] as const;
 const ROLLOVER_COLUMNS = ['trading_date', 'time', 'from_contract', 'to_contract'] as const;
-const MAIN_CONTRACT = /^m\d{2}(?:01|05|09)$/;
+const MAPPING_COLUMNS = ['trading_date', 'contract'] as const;
 
 function splitCsvRow(line: string): string[] {
   const values: string[] = [];
@@ -92,9 +96,20 @@ function validateHeader(
   };
 }
 
-function assertContract(contract: string, field: string): void {
-  if (!MAIN_CONTRACT.test(contract)) {
-    throw new Error(`${field} 必须为豆粕主力月份合约，例如 m2701`);
+export function isConcreteContract(
+  definition: InstrumentDefinition,
+  contract: string,
+): boolean {
+  return isConcreteContractCode(definition, contract);
+}
+
+function assertContract(
+  contract: string,
+  field: string,
+  definition: InstrumentDefinition,
+): void {
+  if (!isConcreteContract(definition, contract)) {
+    throw new Error(`${field} 必须为${definition.shortName}受支持的具体合约代码`);
   }
 }
 
@@ -115,10 +130,13 @@ export function parseEdbDailyCsv(text: string, label = 'EDB 日线响应'): EdbD
       const datetimeNano = field('datetime_nano');
       if (!/^\d+$/.test(datetimeNano)) throw new Error('datetime_nano 必须为非负整数');
       const nanos = BigInt(datetimeNano);
-      if (nanos % DAY_NANOS !== 0n) throw new Error('datetime_nano 必须对齐到 UTC 自然日');
       const timeMs = Number(nanos / 1_000_000n);
       if (!Number.isSafeInteger(timeMs)) throw new Error('datetime_nano 超出可支持范围');
-      const tradingDate = new Date(timeMs).toISOString().slice(0, 10);
+      const beijing = formatBeijing(timeMs);
+      if (!beijing.endsWith('00:00:00')) {
+        throw new Error('datetime_nano 必须对齐到北京时间自然日零点');
+      }
+      const tradingDate = beijing.slice(0, 10);
       const open = finiteNumber(field('open'), 'open');
       const high = finiteNumber(field('high'), 'high');
       const low = finiteNumber(field('low'), 'low');
@@ -152,7 +170,11 @@ export function parseEdbDailyCsv(text: string, label = 'EDB 日线响应'): EdbD
   return records;
 }
 
-export function parseContractRollovers(text: string, label = '换月文件'): ContractRollover[] {
+export function parseContractRollovers(
+  text: string,
+  label = '换月文件',
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): ContractRollover[] {
   const lines = normalizedLines(text);
   const { header, indexes } = validateHeader(lines, ROLLOVER_COLUMNS, label);
   const rollovers: ContractRollover[] = [];
@@ -168,8 +190,8 @@ export function parseContractRollovers(text: string, label = '换月文件'): Co
       const toContract = field('to_contract');
       assertDate(tradingDate, 'trading_date');
       const timeMs = parseBeijing(time);
-      assertContract(fromContract, 'from_contract');
-      assertContract(toContract, 'to_contract');
+      assertContract(fromContract, 'from_contract', definition);
+      assertContract(toContract, 'to_contract', definition);
       if (fromContract === toContract) throw new Error('新旧合约不得相同');
       if (tradingDates.has(tradingDate)) throw new Error('交易日重复');
       const previous = rollovers.at(-1);
@@ -185,7 +207,10 @@ export function parseContractRollovers(text: string, label = '换月文件'): Co
   return rollovers;
 }
 
-export function serializeContractRollovers(rollovers: ContractRollover[]): string {
+export function serializeContractRollovers(
+  rollovers: ContractRollover[],
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): string {
   const parsed = parseContractRollovers([
     ROLLOVER_COLUMNS.join(','),
     ...rollovers.map(rollover => [
@@ -194,7 +219,7 @@ export function serializeContractRollovers(rollovers: ContractRollover[]): strin
       rollover.fromContract,
       rollover.toContract,
     ].join(',')),
-  ].join('\n'));
+  ].join('\n'), '换月文件', definition);
   const lines = parsed.map(rollover => [
     rollover.tradingDate,
     rollover.time,
@@ -207,23 +232,22 @@ export function serializeContractRollovers(rollovers: ContractRollover[]): strin
 function sameDailyMatch(left: EdbDailyRecord, right: EdbDailyRecord): boolean {
   return left.high === right.high
     && left.low === right.low
-    && left.close === right.close
-    && left.volume === right.volume
-    && left.openOi === right.openOi
-    && left.closeOi === right.closeOi;
+    && left.close === right.close;
 }
 
 export function identifyMainContracts(
   main: EdbDailyRecord[],
   candidates: ReadonlyMap<string, EdbDailyRecord[]>,
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
 ): MainContractMapping[] {
   const candidateRows = new Map(
     [...candidates].map(([contract, rows]) => {
-      assertContract(contract, '候选合约');
+      assertContract(contract, '候选合约', definition);
       return [contract, new Map(rows.map(row => [row.tradingDate, row]))] as const;
     }),
   );
-  return main.map(row => {
+  const unresolvedKinds: Array<'missing' | 'ambiguous' | undefined> = [];
+  const mappings: Array<MainContractMapping | undefined> = main.map((row, index) => {
     const matches = [...candidateRows]
       .filter(([, rows]) => {
         const candidate = rows.get(row.tradingDate);
@@ -231,10 +255,29 @@ export function identifyMainContracts(
       })
       .map(([contract]) => contract);
     if (matches.length !== 1) {
-      throw new Error(`主连 ${row.tradingDate} 的具体合约匹配${matches.length ? '存在歧义' : '缺失'}`);
+      unresolvedKinds[index] = matches.length ? 'ambiguous' : 'missing';
+      return undefined;
     }
     return { tradingDate: row.tradingDate, contract: matches[0] };
   });
+  for (let index = 1; index < mappings.length - 1; index += 1) {
+    if (mappings[index] || unresolvedKinds[index] !== 'missing') continue;
+    const previous = mappings[index - 1];
+    const next = mappings[index + 1];
+    if (previous && next && previous.contract === next.contract) {
+      mappings[index] = {
+        tradingDate: main[index].tradingDate,
+        contract: previous.contract,
+      };
+      unresolvedKinds[index] = undefined;
+    }
+  }
+  const unresolvedIndex = mappings.findIndex(mapping => mapping === undefined);
+  if (unresolvedIndex >= 0) {
+    const kind = unresolvedKinds[unresolvedIndex] === 'ambiguous' ? '存在歧义' : '缺失';
+    throw new Error(`主连 ${main[unresolvedIndex].tradingDate} 的具体合约匹配${kind}`);
+  }
+  return mappings as MainContractMapping[];
 }
 
 export function locateRolloverBar(
@@ -252,6 +295,7 @@ export function locateRolloverBar(
 export function detectContractRollovers(
   mappings: MainContractMapping[],
   bars5: Bar[],
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
 ): ContractRollover[] {
   const rollovers: ContractRollover[] = [];
   for (let index = 1; index < mappings.length; index++) {
@@ -259,8 +303,8 @@ export function detectContractRollovers(
     const current = mappings[index];
     assertDate(previous.tradingDate, '前一交易日');
     assertDate(current.tradingDate, '当前交易日');
-    assertContract(previous.contract, '旧合约');
-    assertContract(current.contract, '新合约');
+    assertContract(previous.contract, '旧合约', definition);
+    assertContract(current.contract, '新合约', definition);
     if (current.tradingDate <= previous.tradingDate) throw new Error('主力合约映射必须按交易日严格递增');
     if (current.contract === previous.contract) continue;
     const cutoff = parseBeijing(`${previous.tradingDate} 15:00:00`);
@@ -282,19 +326,93 @@ export function detectContractRollovers(
   return rollovers;
 }
 
-export function buildMainContractCandidates(startDate: string, endDate: string): string[] {
+export function buildMainContractCandidates(
+  definition: InstrumentDefinition,
+  startDate: string,
+  endDate: string,
+): string[] {
   assertDate(startDate, '候选开始日期');
   assertDate(endDate, '候选结束日期');
   if (endDate < startDate) throw new Error('候选日期范围无效');
   const startYear = Number(startDate.slice(0, 4));
-  const endYear = Number(endDate.slice(0, 4)) + 1;
+  const endYear = Number(endDate.slice(0, 4)) + definition.contractCode.futureYearWindow;
   const contracts: string[] = [];
   for (let year = startYear; year <= endYear; year++) {
-    for (const month of ['01', '05', '09']) {
-      contracts.push(`m${String(year).slice(-2)}${month}`);
+    for (const month of definition.contractCode.candidateMonths) {
+      const monthText = String(month).padStart(2, '0');
+      const expiry = definition.contractCode.expiryDigits === 3
+        ? `${String(year).slice(-1)}${monthText}`
+        : `${String(year).slice(-2)}${monthText}`;
+      contracts.push(`${definition.productCode}${expiry}`);
     }
   }
   return contracts;
+}
+
+export function parseMainContractMappings(
+  text: string,
+  label = '主力映射文件',
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): MainContractMapping[] {
+  const lines = normalizedLines(text);
+  const { header, indexes } = validateHeader(lines, MAPPING_COLUMNS, label);
+  const mappings: MainContractMapping[] = [];
+  for (let index = 1; index < lines.length; index += 1) {
+    try {
+      const fields = splitCsvRow(lines[index]);
+      if (fields.length !== header.length) throw new Error('列数与表头不一致');
+      const tradingDate = fields[indexes.trading_date];
+      const contract = fields[indexes.contract];
+      assertDate(tradingDate, 'trading_date');
+      assertContract(contract, 'contract', definition);
+      const previous = mappings.at(-1);
+      if (previous && tradingDate <= previous.tradingDate) {
+        throw new Error('主力映射必须按交易日严格递增');
+      }
+      mappings.push({ tradingDate, contract });
+    } catch (error) {
+      throw new Error(`${label} 第${index + 1}行：${(error as Error).message}`);
+    }
+  }
+  return mappings;
+}
+
+export function serializeMainContractMappings(
+  mappings: MainContractMapping[],
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): string {
+  const parsed = parseMainContractMappings([
+    MAPPING_COLUMNS.join(','),
+    ...mappings.map(mapping => `${mapping.tradingDate},${mapping.contract}`),
+  ].join('\n'), '主力映射文件', definition);
+  return `\uFEFF${[
+    MAPPING_COLUMNS.join(','),
+    ...parsed.map(mapping => `${mapping.tradingDate},${mapping.contract}`),
+  ].join('\r\n')}\r\n`;
+}
+
+export function mergeMainContractMappings(
+  local: readonly MainContractMapping[],
+  remote: readonly MainContractMapping[],
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): MainContractMapping[] {
+  parseMainContractMappings(serializeMainContractMappings([...local], definition), '本地主力映射', definition);
+  parseMainContractMappings(serializeMainContractMappings([...remote], definition), '远端主力映射', definition);
+  const byDate = new Map(local.map(mapping => [mapping.tradingDate, mapping]));
+  for (const mapping of remote) byDate.set(mapping.tradingDate, mapping);
+  return [...byDate.values()].sort((left, right) => left.tradingDate.localeCompare(right.tradingDate));
+}
+
+export function mergeContractRollovers(
+  local: readonly ContractRollover[],
+  remote: readonly ContractRollover[],
+  definition: InstrumentDefinition = DEFAULT_INSTRUMENT,
+): ContractRollover[] {
+  parseContractRollovers(serializeContractRollovers([...local], definition), '本地主力换月', definition);
+  parseContractRollovers(serializeContractRollovers([...remote], definition), '远端主力换月', definition);
+  const byDate = new Map(local.map(rollover => [rollover.tradingDate, rollover]));
+  for (const rollover of remote) byDate.set(rollover.tradingDate, rollover);
+  return [...byDate.values()].sort((left, right) => left.tradingDate.localeCompare(right.tradingDate));
 }
 
 export function sameContractRollovers(

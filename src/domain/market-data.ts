@@ -1,4 +1,9 @@
 import type { Bar, EdbMinuteRecord, MarketUpdateCounts, Period } from '../shared/types';
+import {
+  DEFAULT_INSTRUMENT,
+  type TradingSchedule,
+  type TradingSessionDefinition,
+} from '../shared/instruments';
 import { formatBeijing } from './time';
 
 const MINUTE_MS = 60_000;
@@ -64,32 +69,80 @@ export interface TradingMinute {
   date: string;
 }
 
-export function tradingMinuteAt(ms: number): TradingMinute {
+function sessionTotal(session: TradingSessionDefinition): number {
+  return session.segments.reduce(
+    (total, segment) => total + segment.endMinute - segment.startMinute,
+    0,
+  );
+}
+
+function assertTradingSchedule(schedule: TradingSchedule): void {
+  const sessionIds = new Set<string>();
+  for (const session of schedule) {
+    if (sessionIds.has(session.id) || !session.segments.length) {
+      throw new Error('交易时段配置无效');
+    }
+    sessionIds.add(session.id);
+    let previousEnd = -1;
+    for (const segment of session.segments) {
+      if (!Number.isInteger(segment.startMinute)
+        || !Number.isInteger(segment.endMinute)
+        || segment.startMinute < 0
+        || segment.endMinute > 24 * 60
+        || segment.startMinute >= segment.endMinute
+        || segment.startMinute < previousEnd) {
+        throw new Error('交易时段配置无效');
+      }
+      previousEnd = segment.endMinute;
+    }
+  }
+}
+
+export function tradingMinuteAt(
+  ms: number,
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): TradingMinute {
+  assertTradingSchedule(schedule);
   const text = formatBeijing(ms);
   const hour = Number(text.slice(11, 13));
   const minute = Number(text.slice(14, 16));
   const second = Number(text.slice(17, 19));
   if (second !== 0 || ms % MINUTE_MS !== 0) throw new Error(`非整分钟时间：${text}`);
   const wallMinute = hour * 60 + minute;
-  const sessions: Array<[number, number, number, Bar['session'], number]> = [
-    [540, 615, 0, 'day', 225],
-    [630, 690, 75, 'day', 225],
-    [810, 900, 135, 'day', 225],
-    [1260, 1380, 0, 'night', 120],
-  ];
-  for (const [start, end, base, session, total] of sessions) {
-    if (wallMinute >= start && wallMinute < end) {
-      return { session, index: wallMinute - start + base, total, date: text.slice(0, 10) };
+  for (const session of schedule) {
+    let base = 0;
+    const total = sessionTotal(session);
+    for (const segment of session.segments) {
+      if (wallMinute >= segment.startMinute && wallMinute < segment.endMinute) {
+        return {
+          session: session.id,
+          index: wallMinute - segment.startMinute + base,
+          total,
+          date: text.slice(0, 10),
+        };
+      }
+      base += segment.endMinute - segment.startMinute;
     }
   }
   throw new Error(`非交易分钟：${text}`);
 }
 
-function wallMinute(session: Bar['session'], index: number): number {
-  if (session === 'night') return 1260 + index;
-  if (index < 75) return 540 + index;
-  if (index < 135) return 630 + index - 75;
-  return 810 + index - 135;
+function wallMinute(
+  sessionId: Bar['session'],
+  index: number,
+  schedule: TradingSchedule,
+): number {
+  const session = schedule.find(candidate => candidate.id === sessionId);
+  if (!session || index < 0 || index >= sessionTotal(session)) {
+    throw new Error('交易分钟索引超出交易时段');
+  }
+  let remaining = index;
+  for (const segment of session.segments) {
+    const length = segment.endMinute - segment.startMinute;
+    if (remaining < length) return segment.startMinute + remaining;
+    remaining -= length;
+  }
+  throw new Error('交易分钟索引超出交易时段');
 }
 
 function dateStartUtcMs(date: string): number {
@@ -97,7 +150,11 @@ function dateStartUtcMs(date: string): number {
   return Date.UTC(year, month - 1, day) - 8 * 60 * MINUTE_MS;
 }
 
-export function parseEdbMinuteCsv(text: string, label = 'EDB 响应'): EdbMinuteRecord[] {
+export function parseEdbMinuteCsv(
+  text: string,
+  label = 'EDB 响应',
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): EdbMinuteRecord[] {
   const fail = (line: number, reason: string): never => {
     throw new Error(`${label} 第${line}行：${reason}`);
   };
@@ -130,7 +187,7 @@ export function parseEdbMinuteCsv(text: string, label = 'EDB 响应'): EdbMinute
       if (nanos % NANO_PER_MINUTE !== 0n) throw new Error('datetime_nano 必须对齐到整分钟');
       const startMs = Number(nanos / 1_000_000n);
       if (!Number.isSafeInteger(startMs)) throw new Error('datetime_nano 超出可支持范围');
-      tradingMinuteAt(startMs);
+      tradingMinuteAt(startMs, schedule);
       const open = finiteNumber(field('open'), 'open');
       const high = finiteNumber(field('high'), 'high');
       const low = finiteNumber(field('low'), 'low');
@@ -180,10 +237,11 @@ export function aggregateMinutes(
   records: EdbMinuteRecord[],
   period: Period,
   coverageEndMs = records.length ? records.at(-1)!.startMs + MINUTE_MS : Number.NEGATIVE_INFINITY,
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
 ): Bar[] {
   const groups = new Map<string, { minute: TradingMinute; bucket: number; records: EdbMinuteRecord[] }>();
   for (const record of records) {
-    const minute = tradingMinuteAt(record.startMs);
+    const minute = tradingMinuteAt(record.startMs, schedule);
     const bucket = Math.floor(minute.index / period);
     const key = `${minute.date}|${minute.session}|${bucket}`;
     const group = groups.get(key) ?? { minute, bucket, records: [] };
@@ -195,8 +253,8 @@ export function aggregateMinutes(
     const startIndex = group.bucket * period;
     const stopIndex = Math.min(startIndex + period, group.minute.total);
     const dayStart = dateStartUtcMs(group.minute.date);
-    const startMs = dayStart + wallMinute(group.minute.session, startIndex) * MINUTE_MS;
-    const endMs = dayStart + (wallMinute(group.minute.session, stopIndex - 1) + 1) * MINUTE_MS;
+    const startMs = dayStart + wallMinute(group.minute.session, startIndex, schedule) * MINUTE_MS;
+    const endMs = dayStart + (wallMinute(group.minute.session, stopIndex - 1, schedule) + 1) * MINUTE_MS;
     if (endMs > coverageEndMs) continue;
     const part = group.records.sort((left, right) => left.startMs - right.startMs);
     bars.push({
@@ -237,7 +295,10 @@ function sameMinuteRecord(left: EdbMinuteRecord, right: EdbMinuteRecord): boolea
     && equalNumber(left.closeOi, right.closeOi);
 }
 
-export function assertMinuteRecordsValid(records: readonly EdbMinuteRecord[]): void {
+export function assertMinuteRecordsValid(
+  records: readonly EdbMinuteRecord[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): void {
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
     const previous = records[index - 1];
@@ -249,7 +310,7 @@ export function assertMinuteRecordsValid(records: readonly EdbMinuteRecord[]): v
       || record.start !== formatBeijing(record.startMs)) {
       throw new Error(`1 分钟行情时间字段不一致：${record.start}`);
     }
-    tradingMinuteAt(record.startMs);
+    tradingMinuteAt(record.startMs, schedule);
     if (![record.open, record.high, record.low, record.close, record.volume, record.openOi, record.closeOi]
       .every(Number.isFinite)) {
       throw new Error(`1 分钟行情存在非有限数值：${record.start}`);
@@ -301,6 +362,7 @@ export function mergeMinuteHistory(
 export function completeMinutesForFiveMinuteBar(
   bar: Bar,
   records: readonly EdbMinuteRecord[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
 ): EdbMinuteRecord[] | undefined {
   if (bar.expectedMinutes !== 5 || bar.endMs - bar.startMs !== 5 * MINUTE_MS) return undefined;
   const candidates = records.filter(record => record.startMs >= bar.startMs && record.startMs < bar.endMs);
@@ -308,12 +370,12 @@ export function completeMinutesForFiveMinuteBar(
   for (let index = 0; index < candidates.length; index += 1) {
     if (candidates[index].startMs !== bar.startMs + index * MINUTE_MS) return undefined;
     try {
-      assertMinuteRecordsValid([candidates[index]]);
+      assertMinuteRecordsValid([candidates[index]], schedule);
     } catch {
       return undefined;
     }
   }
-  const aggregate = aggregateMinutes(candidates, 5, bar.endMs);
+  const aggregate = aggregateMinutes(candidates, 5, bar.endMs, schedule);
   if (aggregate.length !== 1) return undefined;
   const rebuilt = aggregate[0];
   const matches = rebuilt.startMs === bar.startMs
@@ -328,7 +390,11 @@ export function completeMinutesForFiveMinuteBar(
   return matches ? candidates : undefined;
 }
 
-export function assertBarsValid(bars: Bar[], period: Period): void {
+export function assertBarsValid(
+  bars: Bar[],
+  period: Period,
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): void {
   for (let index = 0; index < bars.length; index++) {
     const bar = bars[index];
     const previous = bars[index - 1];
@@ -344,13 +410,13 @@ export function assertBarsValid(bars: Bar[], period: Period): void {
     if (bar.volume < 0 || bar.openOi < 0 || bar.closeOi < 0) {
       throw new Error(`${period} 分钟行情成交量或持仓量为负`);
     }
-    const minute = tradingMinuteAt(bar.startMs);
+    const minute = tradingMinuteAt(bar.startMs, schedule);
     const bucket = Math.floor(minute.index / period);
     const expectedStartIndex = bucket * period;
     const expectedStopIndex = Math.min(expectedStartIndex + period, minute.total);
     const dayStart = dateStartUtcMs(minute.date);
-    const expectedStartMs = dayStart + wallMinute(minute.session, expectedStartIndex) * MINUTE_MS;
-    const expectedEndMs = dayStart + (wallMinute(minute.session, expectedStopIndex - 1) + 1) * MINUTE_MS;
+    const expectedStartMs = dayStart + wallMinute(minute.session, expectedStartIndex, schedule) * MINUTE_MS;
+    const expectedEndMs = dayStart + (wallMinute(minute.session, expectedStopIndex - 1, schedule) + 1) * MINUTE_MS;
     if (bar.startMs !== expectedStartMs || bar.endMs !== expectedEndMs || bar.session !== minute.session) {
       throw new Error(`${period} 分钟行情时间桶或交易时段无效：${bar.start}`);
     }
@@ -470,8 +536,11 @@ export function serializeBars(bars: Bar[]): string {
   return `\uFEFF${[header, ...lines].join('\r\n')}\r\n`;
 }
 
-export function serializeMinuteRecords(records: readonly EdbMinuteRecord[]): string {
-  assertMinuteRecordsValid(records);
+export function serializeMinuteRecords(
+  records: readonly EdbMinuteRecord[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): string {
+  assertMinuteRecordsValid(records, schedule);
   const header = REQUIRED_COLUMNS.join(',');
   const lines = records.map(record => [
     record.datetimeNano,

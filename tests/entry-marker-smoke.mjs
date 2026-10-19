@@ -61,6 +61,8 @@ try {
   const card5 = page.locator('#card-5');
   const linkedOverlay = page.getByTestId('linked-hover-range');
   const reactionOverlay = page.getByTestId('entry-reaction-range');
+  const reactionOverlay2 = page.getByTestId('entry-reaction-range-2');
+  const entryRangePercent = 25;
   const chartRange = period => page.locator(`#card-${period}`).evaluate(element => ({
     from: Number(element.dataset.visibleFrom),
     to: Number(element.dataset.visibleTo),
@@ -111,10 +113,10 @@ try {
   const quarterSignalFor = (direction, bars, reaction, entryCutoff) => {
     if (!reaction) return undefined;
     const rangeTicks = Math.round(reaction.high - reaction.low);
-    const quarterTicks = Math.ceil(rangeTicks / 4);
+    const entryDistanceTicks = Math.ceil(rangeTicks * entryRangePercent / 100);
     const price = direction === 'long'
-      ? reaction.low + quarterTicks
-      : reaction.high - quarterTicks;
+      ? reaction.low + entryDistanceTicks
+      : reaction.high - entryDistanceTicks;
     const searchStartOffset = reaction.reactionOffset + 1 < bars.length
       ? reaction.reactionOffset + 1
       : undefined;
@@ -124,7 +126,9 @@ try {
       price,
       tick: 1,
       rangeTicks,
-      quarterTicks,
+      entryRangePercent,
+      entryDistanceTicks,
+      quarterTicks: entryDistanceTicks,
       lineStartOffset: reaction.extremeOffset,
       reactionOffset: reaction.reactionOffset,
       searchStartOffset,
@@ -156,6 +160,36 @@ try {
       for (const name of lifecycleRootAttributes) assert.equal(await html.getAttribute(name), null, name);
     }
     for (const name of lifecycleCardAttributes) assert.equal(await card5.getAttribute(name), null, name);
+  };
+  const assertSecondAttemptCleared = async () => {
+    assert.equal(await reactionOverlay2.getAttribute('data-present'), 'false');
+    assert.equal(await reactionOverlay2.getAttribute('data-visible'), 'false');
+    assert.equal(await reactionOverlay2.getAttribute('data-direction'), null);
+    assert.equal(await reactionOverlay2.isHidden(), true);
+    assert.equal(await card5.getAttribute('data-attempt2-present'), null);
+    for (const prefix of ['quarter', 'stop-loss', 'take-profit']) {
+      assert.equal(await card5.getAttribute(`data-attempt2-${prefix}-line-visible`), 'false');
+      assert.equal(await card5.getAttribute(`data-attempt2-${prefix}-line-point-count`), null);
+      assert.equal(await card5.getAttribute(`data-attempt2-${prefix}-line-first-start`), null);
+      assert.equal(await card5.getAttribute(`data-attempt2-${prefix}-line-last-start`), null);
+    }
+    assert.equal(await card5.getAttribute('data-attempt2-quarter-line-label-visible'), 'false');
+    assert.equal(await card5.getAttribute('data-attempt2-quarter-line-label-title'), null);
+    assert.equal(await card5.getAttribute('data-attempt2-entry-range-percent'), null);
+    assert.equal(await card5.getAttribute('data-attempt2-entry-distance-ticks'), null);
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-count'), '0');
+    for (const name of [
+      'data-second-trigger-marker-id',
+      'data-second-trigger-marker-start',
+      'data-second-trigger-marker-direction',
+      'data-second-trigger-marker-position',
+      'data-second-trigger-marker-text',
+    ]) {
+      assert.equal(await card5.getAttribute(name), null, name);
+    }
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-true-entry-marker-ids')), []);
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-risk-touch-marker-ids')), []);
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-exit-marker-ids')), []);
   };
   const stopLossSignalFor = (direction, reaction) => {
     if (!reaction) return undefined;
@@ -267,10 +301,17 @@ try {
     const endReason = await card5.getAttribute('data-lifecycle-end-reason');
     const observation = { index, bars, focusBars, focusFirstIndex, focusLastIndex, endReason };
     const lastIndex = observation.index + observation.bars.length - 1;
-    const reaction = reactionRangeFor(entry.direction, observation.bars);
-    const quarter = quarterSignalFor(entry.direction, observation.bars, reaction, policy.entryCutoff);
+    const attemptCount = Number(await card5.getAttribute('data-attempt-count'));
+    const firstAttemptCount = Number(await card5.getAttribute('data-attempt1-analysis-count'));
+    assert.ok(attemptCount === 1 || attemptCount === 2, `Unexpected attempt count ${attemptCount}`);
+    assert.ok(firstAttemptCount > 0 && firstAttemptCount <= observation.bars.length,
+      JSON.stringify({ firstAttemptCount, selectedCount }));
+    const firstAttemptBars = observation.bars.slice(0, firstAttemptCount);
+    const firstAttemptLastIndex = observation.index + firstAttemptBars.length - 1;
+    const reaction = reactionRangeFor(entry.direction, firstAttemptBars);
+    const quarter = quarterSignalFor(entry.direction, firstAttemptBars, reaction, policy.entryCutoff);
     const stopLoss = stopLossSignalFor(entry.direction, reaction);
-    const takeProfit = takeProfitSignalFor(entry.direction, observation.bars, reaction, quarter);
+    const takeProfit = takeProfitSignalFor(entry.direction, firstAttemptBars, reaction, quarter);
     assert.equal(await html.getAttribute('data-selection-kind'), 'entry');
     assert.equal(await html.getAttribute('data-entry-direction'), entry.direction);
     assert.equal(await html.getAttribute('data-entry-trigger-start'), String(entry.child.startMs));
@@ -363,13 +404,17 @@ try {
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-price')), quarter.price);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-tick')), quarter.tick);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-range-ticks')), quarter.rangeTicks);
+      assert.equal(Number(await card5.getAttribute('data-quarter-signal-entry-range-percent')),
+        quarter.entryRangePercent);
+      assert.equal(Number(await card5.getAttribute('data-quarter-signal-entry-distance-ticks')),
+        quarter.entryDistanceTicks);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-quarter-ticks')), quarter.quarterTicks);
-      assert.equal(await card5.getAttribute('data-quarter-signal-line-start'), String(observation.bars[quarter.lineStartOffset].startMs));
-      assert.equal(await card5.getAttribute('data-quarter-signal-reaction-start'), String(observation.bars[quarter.reactionOffset].startMs));
+      assert.equal(await card5.getAttribute('data-quarter-signal-line-start'), String(firstAttemptBars[quarter.lineStartOffset].startMs));
+      assert.equal(await card5.getAttribute('data-quarter-signal-reaction-start'), String(firstAttemptBars[quarter.reactionOffset].startMs));
       assert.equal(await card5.getAttribute('data-quarter-signal-search-start'),
-        quarter.searchStartOffset === undefined ? '' : String(observation.bars[quarter.searchStartOffset].startMs));
+        quarter.searchStartOffset === undefined ? '' : String(firstAttemptBars[quarter.searchStartOffset].startMs));
       assert.equal(await card5.getAttribute('data-quarter-signal-entry-start'),
-        quarter.entryOffset === undefined ? '' : String(observation.bars[quarter.entryOffset].startMs));
+        quarter.entryOffset === undefined ? '' : String(firstAttemptBars[quarter.entryOffset].startMs));
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-line-start-index')), observation.index + quarter.lineStartOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-reaction-index')), observation.index + quarter.reactionOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-search-start-index')),
@@ -380,21 +425,27 @@ try {
       assert.equal(await card5.getAttribute('data-quarter-line-style'), 'solid');
       assert.equal(await card5.getAttribute('data-quarter-line-color'), '#ffffff');
       assert.equal(await card5.getAttribute('data-quarter-line-auto-scale'), 'false');
+      assert.equal(await card5.getAttribute('data-quarter-line-label-visible'), 'true');
+      assert.equal(await card5.getAttribute('data-quarter-line-label-title'), '入场');
       assert.equal(Number(await card5.getAttribute('data-quarter-line-price')), quarter.price);
       assert.equal(Number(await card5.getAttribute('data-quarter-line-tick')), quarter.tick);
+      assert.equal(Number(await card5.getAttribute('data-quarter-line-entry-range-percent')),
+        quarter.entryRangePercent);
+      assert.equal(Number(await card5.getAttribute('data-quarter-line-entry-distance-ticks')),
+        quarter.entryDistanceTicks);
       assert.equal(Number(await card5.getAttribute('data-quarter-line-quarter-ticks')), quarter.quarterTicks);
-      assert.equal(Number(await card5.getAttribute('data-quarter-line-point-count')), observation.bars.length - quarter.lineStartOffset);
-      assert.equal(await card5.getAttribute('data-quarter-line-first-start'), String(observation.bars[quarter.lineStartOffset].startMs));
-      assert.equal(await card5.getAttribute('data-quarter-line-last-start'), String(observation.bars.at(-1).startMs));
+      assert.equal(Number(await card5.getAttribute('data-quarter-line-point-count')), firstAttemptBars.length - quarter.lineStartOffset);
+      assert.equal(await card5.getAttribute('data-quarter-line-first-start'), String(firstAttemptBars[quarter.lineStartOffset].startMs));
+      assert.equal(await card5.getAttribute('data-quarter-line-last-start'), String(firstAttemptBars.at(-1).startMs));
       assert.equal(Number(await card5.getAttribute('data-quarter-line-first-index')), observation.index + quarter.lineStartOffset);
-      assert.equal(Number(await card5.getAttribute('data-quarter-line-last-index')), lastIndex);
+      assert.equal(Number(await card5.getAttribute('data-quarter-line-last-index')), firstAttemptLastIndex);
       assert.equal(await card5.getAttribute('data-stop-loss-signal-direction'), entry.direction);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-price')), stopLoss.price);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-tick')), stopLoss.tick);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-range-ticks')), stopLoss.rangeTicks);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-stop-ticks')), stopLoss.stopTicks);
       assert.equal(await card5.getAttribute('data-stop-loss-signal-line-start'),
-        String(observation.bars[stopLoss.lineStartOffset].startMs));
+        String(firstAttemptBars[stopLoss.lineStartOffset].startMs));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-line-start-index')),
         observation.index + stopLoss.lineStartOffset);
       assert.equal(await card5.getAttribute('data-stop-loss-line-visible'), 'true');
@@ -414,11 +465,11 @@ try {
       const riskTouchStart = riskTouchStartAttribute === null ? undefined : Number(riskTouchStartAttribute);
       const riskTouchOffset = riskTouchStart === undefined
         ? undefined
-        : observation.bars.findIndex(bar => bar.startMs === riskTouchStart);
+        : firstAttemptBars.findIndex(bar => bar.startMs === riskTouchStart);
       if (riskTouchStart !== undefined) {
         assert.ok(riskTouchOffset >= 0, `Risk touch bar ${riskTouchStart} must be inside the observation window`);
       }
-      const stopLossBars = observation.bars
+      const stopLossBars = firstAttemptBars
         .slice(stopLoss.lineStartOffset)
         .filter(bar => exitLineEndMs === undefined || bar.endMs <= exitLineEndMs);
       assert.ok(stopLossBars.length > 0);
@@ -427,10 +478,10 @@ try {
         String(stopLossBars[0].startMs));
       assert.equal(await card5.getAttribute('data-stop-loss-line-last-start'), String(stopLossBars.at(-1).startMs));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-line-first-index')),
-        observation.index + observation.bars.indexOf(stopLossBars[0]));
+        observation.index + firstAttemptBars.indexOf(stopLossBars[0]));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-line-last-index')),
-        observation.index + observation.bars.indexOf(stopLossBars.at(-1)));
-      const takeProfitBars = observation.bars
+        observation.index + firstAttemptBars.indexOf(stopLossBars.at(-1)));
+      const takeProfitBars = firstAttemptBars
         .slice(takeProfit.lineStartOffset)
         .filter(bar => exitLineEndMs === undefined || bar.endMs <= exitLineEndMs);
       const takeProfitValues = takeProfitBars.map(bar => {
@@ -445,11 +496,11 @@ try {
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-default-price')), takeProfit.defaultPrice);
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-adjusted-price')), takeProfit.adjustedPrice);
       assert.equal(await card5.getAttribute('data-take-profit-signal-line-start'),
-        String(observation.bars[takeProfit.lineStartOffset].startMs));
+        String(firstAttemptBars[takeProfit.lineStartOffset].startMs));
       assert.equal(await card5.getAttribute('data-take-profit-signal-entry-start'),
-        takeProfit.entryOffset === undefined ? '' : String(observation.bars[takeProfit.entryOffset].startMs));
+        takeProfit.entryOffset === undefined ? '' : String(firstAttemptBars[takeProfit.entryOffset].startMs));
       assert.equal(await card5.getAttribute('data-take-profit-signal-risk-touch-start'),
-        takeProfit.riskTouchOffset === undefined ? '' : String(observation.bars[takeProfit.riskTouchOffset].startMs));
+        takeProfit.riskTouchOffset === undefined ? '' : String(firstAttemptBars[takeProfit.riskTouchOffset].startMs));
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-line-start-index')),
         observation.index + takeProfit.lineStartOffset);
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-entry-index')),
@@ -472,31 +523,33 @@ try {
         String(takeProfitBars[0].startMs));
       assert.equal(await card5.getAttribute('data-take-profit-line-last-start'), String(takeProfitBars.at(-1).startMs));
       assert.equal(Number(await card5.getAttribute('data-take-profit-line-first-index')),
-        observation.index + observation.bars.indexOf(takeProfitBars[0]));
+        observation.index + firstAttemptBars.indexOf(takeProfitBars[0]));
       assert.equal(Number(await card5.getAttribute('data-take-profit-line-last-index')),
-        observation.index + observation.bars.indexOf(takeProfitBars.at(-1)));
+        observation.index + firstAttemptBars.indexOf(takeProfitBars.at(-1)));
       assert.deepEqual(JSON.parse(await card5.getAttribute('data-take-profit-line-values')), takeProfitValues);
       assert.equal(await card5.getAttribute('data-take-profit-line-switch-start'),
         riskTouchStart === undefined ? null : String(riskTouchStart));
       assert.equal(await card5.getAttribute('data-take-profit-line-switch-index'),
         riskTouchOffset === undefined ? null : String(observation.index + riskTouchOffset));
-      assert.equal(await card5.getAttribute('data-true-entry-marker-count'), quarter.entryOffset === undefined ? '0' : '1');
+      const trueEntryMarkerCount = Number(await card5.getAttribute('data-true-entry-marker-count'));
+      assert.ok(quarter.entryOffset === undefined ? trueEntryMarkerCount === 0 : trueEntryMarkerCount >= 1);
       if (quarter.entryOffset === undefined) {
         assert.equal(await card5.getAttribute('data-true-entry-marker-id'), null);
         assert.equal(await card5.getAttribute('data-true-entry-marker-start'), null);
         assert.equal(await card5.getAttribute('data-true-entry-marker-direction'), null);
         assert.equal(await card5.getAttribute('data-true-entry-marker-position'), null);
       } else {
-        const entryBar = observation.bars[quarter.entryOffset];
+        const entryBar = firstAttemptBars[quarter.entryOffset];
         assert.equal(await card5.getAttribute('data-true-entry-marker-id'),
-          `true-entry-${entry.direction}-${entry.child.startMs}-${entryBar.startMs}`);
+          `true-entry-attempt-1-${entry.direction}-${entry.child.startMs}-${entryBar.startMs}`);
         assert.equal(await card5.getAttribute('data-true-entry-marker-start'), String(entryBar.startMs));
         assert.equal(await card5.getAttribute('data-true-entry-marker-direction'), entry.direction);
         assert.equal(await card5.getAttribute('data-true-entry-marker-position'), entry.direction === 'long' ? 'belowBar' : 'aboveBar');
       }
       const showRiskMarker = riskTouchStart !== undefined
         && !(exitType === 'stop-loss' && exitStart === riskTouchStart);
-      assert.equal(await card5.getAttribute('data-risk-touch-marker-count'), showRiskMarker ? '1' : '0');
+      const riskTouchMarkerCount = Number(await card5.getAttribute('data-risk-touch-marker-count'));
+      assert.ok(showRiskMarker ? riskTouchMarkerCount >= 1 : riskTouchMarkerCount === 0);
       if (!showRiskMarker) {
         assert.equal(await card5.getAttribute('data-risk-touch-marker-id'), null);
         assert.equal(await card5.getAttribute('data-risk-touch-marker-start'), null);
@@ -504,9 +557,9 @@ try {
         assert.equal(await card5.getAttribute('data-risk-touch-marker-position'), null);
         assert.equal(await card5.getAttribute('data-risk-touch-marker-text'), null);
       } else {
-        const riskTouchBar = observation.bars[riskTouchOffset];
+        const riskTouchBar = firstAttemptBars[riskTouchOffset];
         assert.equal(await card5.getAttribute('data-risk-touch-marker-id'),
-          `take-profit-risk-touch-${entry.direction}-${entry.child.startMs}-${riskTouchBar.startMs}`);
+          `take-profit-risk-touch-attempt-1-${entry.direction}-${entry.child.startMs}-${riskTouchBar.startMs}`);
         assert.equal(await card5.getAttribute('data-risk-touch-marker-start'), String(riskTouchBar.startMs));
         assert.equal(await card5.getAttribute('data-risk-touch-marker-direction'), entry.direction);
         assert.equal(await card5.getAttribute('data-risk-touch-marker-position'),
@@ -516,11 +569,12 @@ try {
             riskTouchOffset === quarter.entryOffset ? '·入场' : ''
           }`);
       }
-      assert.equal(await card5.getAttribute('data-exit-marker-count'), exitStart === undefined ? '0' : '1');
+      const exitMarkerCount = Number(await card5.getAttribute('data-exit-marker-count'));
+      assert.ok(exitStart === undefined ? exitMarkerCount === 0 : exitMarkerCount >= 1);
       assert.equal(await card5.getAttribute('data-exit-marker-start'),
         exitStart === undefined ? null : String(exitStart));
       if (exitStart !== undefined) {
-        assert.equal(exitStart, observation.bars.at(-1).startMs);
+        assert.equal(exitStart, firstAttemptBars.at(-1).startMs);
         const expectedExitText = exitType === 'take-profit'
           ? '止盈出场'
           : exitType === 'session-close'
@@ -535,14 +589,16 @@ try {
         assert.equal(Number(await card5.getAttribute('data-exit-signal-price')), forcedExitBar.close);
         assert.equal(await card5.getAttribute('data-exit-signal-granularity'), 'five-minute-close');
         assert.equal(await card5.getAttribute('data-exit-signal-line-end'), String(forcedExitBar.endMs));
-        assert.match(await card5.getAttribute('data-exit-marker-id'), /^actual-exit-session-close-/);
-        assert.equal(await card5.getAttribute('data-exit-marker-count'), '1');
+        assert.match(await card5.getAttribute('data-exit-marker-id'), /^actual-exit-attempt-1-session-close-/);
+        assert.ok(Number(await card5.getAttribute('data-exit-marker-count')) >= 1);
       }
     } else {
       assert.equal(await reactionOverlay.isHidden(), true);
       assert.equal(await reactionOverlay.getAttribute('data-visible'), 'false');
       assert.equal(await reactionOverlay.getAttribute('data-direction'), null);
       assert.equal(await card5.getAttribute('data-quarter-line-visible'), 'false');
+      assert.equal(await card5.getAttribute('data-quarter-line-label-visible'), 'false');
+      assert.equal(await card5.getAttribute('data-quarter-line-label-title'), null);
       assert.equal(await card5.getAttribute('data-quarter-line-price'), null);
       assert.equal(await card5.getAttribute('data-stop-loss-line-visible'), 'false');
       assert.equal(await card5.getAttribute('data-stop-loss-line-price'), null);
@@ -705,11 +761,14 @@ try {
   const assertQuarterAbsent = async signalPresent => {
     assert.equal(await card5.getAttribute('data-quarter-signal-present'), signalPresent);
     assert.equal(await card5.getAttribute('data-quarter-line-visible'), 'false');
+    assert.equal(await card5.getAttribute('data-quarter-line-label-visible'), 'false');
     for (const name of [
       'data-quarter-signal-direction',
       'data-quarter-signal-price',
       'data-quarter-signal-tick',
       'data-quarter-signal-range-ticks',
+      'data-quarter-signal-entry-range-percent',
+      'data-quarter-signal-entry-distance-ticks',
       'data-quarter-signal-quarter-ticks',
       'data-quarter-signal-line-start',
       'data-quarter-signal-reaction-start',
@@ -717,10 +776,13 @@ try {
       'data-quarter-signal-entry-start',
       'data-quarter-line-price',
       'data-quarter-line-tick',
+      'data-quarter-line-entry-range-percent',
+      'data-quarter-line-entry-distance-ticks',
       'data-quarter-line-quarter-ticks',
       'data-quarter-line-point-count',
       'data-quarter-line-first-start',
       'data-quarter-line-last-start',
+      'data-quarter-line-label-title',
       'data-true-entry-marker-id',
       'data-true-entry-marker-start',
       'data-true-entry-marker-direction',
@@ -911,7 +973,7 @@ try {
       window.moneyComingTest.showReactionScenario(scenario, direction, scenarioStart);
     }, { scenario, direction, scenarioStart: startMs });
     await frame();
-    return { startIndex, startMs, count: Math.min(16, five.length - startIndex) };
+    return { startIndex, startMs, count: Math.min(scenario === 'two-attempts' ? 10 : 16, five.length - startIndex) };
   };
   const assertControlledQuarterScenario = async ({
     scenario,
@@ -924,7 +986,8 @@ try {
   }) => {
     const shown = await showScenario(scenario, direction, startIndex);
     const rangeTicks = scenario === 'quarter-divisible' ? 12 : 11;
-    const quarterTicks = Math.ceil(rangeTicks / 4);
+    const entryDistanceTicks = Math.ceil(rangeTicks * entryRangePercent / 100);
+    const quarterTicks = entryDistanceTicks;
     const stopTicks = Math.ceil(rangeTicks * 0.75);
     const targetTicks = rangeTicks * 2;
     const base = Math.round(five[startIndex].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
@@ -967,6 +1030,8 @@ try {
     assert.equal(Number(await card5.getAttribute('data-quarter-signal-price')), price);
     assert.equal(Number(await card5.getAttribute('data-quarter-signal-tick')), 1);
     assert.equal(Number(await card5.getAttribute('data-quarter-signal-range-ticks')), rangeTicks);
+    assert.equal(Number(await card5.getAttribute('data-quarter-signal-entry-range-percent')), entryRangePercent);
+    assert.equal(Number(await card5.getAttribute('data-quarter-signal-entry-distance-ticks')), entryDistanceTicks);
     assert.equal(Number(await card5.getAttribute('data-quarter-signal-quarter-ticks')), quarterTicks);
     assert.equal(await card5.getAttribute('data-quarter-signal-line-start'), String(shown.startMs));
     assert.equal(await card5.getAttribute('data-quarter-signal-reaction-start'), String(reactionStart));
@@ -983,8 +1048,12 @@ try {
     assert.equal(await card5.getAttribute('data-quarter-line-style'), 'solid');
     assert.equal(await card5.getAttribute('data-quarter-line-color'), '#ffffff');
     assert.equal(await card5.getAttribute('data-quarter-line-auto-scale'), 'false');
+    assert.equal(await card5.getAttribute('data-quarter-line-label-visible'), 'true');
+    assert.equal(await card5.getAttribute('data-quarter-line-label-title'), '入场');
     assert.equal(Number(await card5.getAttribute('data-quarter-line-price')), price);
     assert.equal(Number(await card5.getAttribute('data-quarter-line-tick')), 1);
+    assert.equal(Number(await card5.getAttribute('data-quarter-line-entry-range-percent')), entryRangePercent);
+    assert.equal(Number(await card5.getAttribute('data-quarter-line-entry-distance-ticks')), entryDistanceTicks);
     assert.equal(Number(await card5.getAttribute('data-quarter-line-quarter-ticks')), quarterTicks);
     assert.equal(Number(await card5.getAttribute('data-quarter-line-point-count')), shown.count);
     assert.equal(await card5.getAttribute('data-quarter-line-first-start'), String(shown.startMs));
@@ -1065,7 +1134,7 @@ try {
       assert.equal(await card5.getAttribute('data-true-entry-marker-position'), null);
     } else {
       assert.equal(await card5.getAttribute('data-true-entry-marker-id'),
-        `true-entry-${direction}-${shown.startMs}-${entryStart}`);
+        `true-entry-attempt-1-${direction}-${shown.startMs}-${entryStart}`);
       assert.equal(await card5.getAttribute('data-true-entry-marker-start'), String(entryStart));
       assert.equal(await card5.getAttribute('data-true-entry-marker-direction'), direction);
       assert.equal(await card5.getAttribute('data-true-entry-marker-position'), direction === 'long' ? 'belowBar' : 'aboveBar');
@@ -1079,7 +1148,7 @@ try {
       assert.equal(await card5.getAttribute('data-risk-touch-marker-text'), null);
     } else {
       assert.equal(await card5.getAttribute('data-risk-touch-marker-id'),
-        `take-profit-risk-touch-${direction}-${shown.startMs}-${riskTouchStart}`);
+        `take-profit-risk-touch-attempt-1-${direction}-${shown.startMs}-${riskTouchStart}`);
       assert.equal(await card5.getAttribute('data-risk-touch-marker-start'), String(riskTouchStart));
       assert.equal(await card5.getAttribute('data-risk-touch-marker-direction'), direction);
       assert.equal(await card5.getAttribute('data-risk-touch-marker-position'),
@@ -1095,6 +1164,8 @@ try {
     return {
       ...shown,
       rangeTicks,
+      entryRangePercent,
+      entryDistanceTicks,
       quarterTicks,
       stopTicks,
       targetTicks,
@@ -1226,7 +1297,7 @@ try {
       assert.equal(await card5.getAttribute('data-exit-signal-granularity'), 'five-minute-fallback');
       assert.equal(await card5.getAttribute('data-exit-signal-line-end'),
         String(five[scenarioIndex + exitOffset].endMs));
-      assert.match(await card5.getAttribute('data-exit-marker-id'), new RegExp(`^actual-exit-${exitType}-${direction}-`));
+      assert.match(await card5.getAttribute('data-exit-marker-id'), new RegExp(`^actual-exit-attempt-1-${exitType}-${direction}-`));
       assert.equal(await card5.getAttribute('data-exit-marker-text'), expectedText);
       assert.equal(await card5.getAttribute('data-exit-marker-start'), String(expectedExitStart));
       assert.equal(await card5.getAttribute('data-exit-marker-position'),
@@ -1248,6 +1319,122 @@ try {
     const noExit = await assertControlledExitScenario({ scenario: 'exit-no-touch', direction });
     assert.equal(noExit.exitOffset, undefined);
   }
+
+  const assertTwoAttemptScenario = async direction => {
+    const shown = await showScenario('two-attempts', direction);
+    const starts = Array.from({ length: 10 }, (_, index) => five[scenarioIndex + index].startMs);
+    const firstEntryStart = starts[2];
+    const firstRiskStart = starts[3];
+    const firstExitStart = starts[4];
+    const secondTriggerStart = starts[5];
+    const secondReactionStart = starts[6];
+    const secondEntryStart = starts[7];
+    const secondRiskStart = starts[8];
+    const secondExitStart = starts[9];
+
+    assert.equal(shown.count, 10);
+    assert.equal(await card5.getAttribute('data-attempt-count'), '2');
+    assert.equal(await card5.getAttribute('data-selected-count'), '10');
+    assert.equal(await card5.getAttribute('data-lifecycle-focus-count'), '10');
+    assert.equal(await card5.getAttribute('data-observation-trigger-count'), '1');
+    assert.equal(await card5.getAttribute('data-observation-follow-count'), '9');
+    assert.equal(await card5.getAttribute('data-pullback-line-point-count'), '10');
+
+    for (const [overlay, firstStart, reactionStart] of [
+      [reactionOverlay, starts[0], starts[1]],
+      [reactionOverlay2, secondTriggerStart, secondReactionStart],
+    ]) {
+      assert.equal(await overlay.getAttribute('data-present'), 'true');
+      assert.equal(await overlay.getAttribute('data-visible'), 'true');
+      assert.equal(await overlay.getAttribute('data-direction'), direction);
+      assert.equal(await overlay.getAttribute('data-first-start'), String(firstStart));
+      assert.equal(await overlay.getAttribute('data-reaction-start'), String(reactionStart));
+      const box = await overlay.boundingBox();
+      assert.ok(box && box.width > 0 && box.height > 0, JSON.stringify({ direction, firstStart, reactionStart, box }));
+    }
+
+    for (const [attempt, triggerStart, reactionStart, entryStart, riskStart, exitStart] of [
+      [1, starts[0], starts[1], firstEntryStart, firstRiskStart, firstExitStart],
+      [2, secondTriggerStart, secondReactionStart, secondEntryStart, secondRiskStart, secondExitStart],
+    ]) {
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-present`), 'true');
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-number`), String(attempt));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-trigger-start`), String(triggerStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-analysis-count`), '5');
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-analysis-first-start`), String(triggerStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-analysis-last-start`), String(exitStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-reaction-start`), String(reactionStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-entry-range-percent`),
+        String(entryRangePercent));
+      assert.equal(
+        await card5.getAttribute(`data-attempt${attempt}-entry-distance-ticks`),
+        await card5.getAttribute(`data-attempt${attempt}-quarter-line-entry-distance-ticks`),
+      );
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-entry-start`), String(entryStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-risk-touch-start`), String(riskStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-exit-start`), String(exitStart));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-exit-type`), 'take-profit');
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-end-reason`), 'take-profit');
+      for (const prefix of ['quarter', 'stop-loss', 'take-profit']) {
+        assert.equal(await card5.getAttribute(`data-attempt${attempt}-${prefix}-line-visible`), 'true');
+        assert.equal(await card5.getAttribute(`data-attempt${attempt}-${prefix}-line-point-count`), '5');
+        assert.equal(await card5.getAttribute(`data-attempt${attempt}-${prefix}-line-last-start`), String(exitStart));
+      }
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-quarter-line-entry-range-percent`),
+        String(entryRangePercent));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-quarter-line-label-visible`), 'true');
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-quarter-line-label-title`), '入场');
+    }
+
+    assert.equal(await card5.getAttribute('data-attempt1-quarter-line-first-start'), String(starts[0]));
+    assert.equal(await card5.getAttribute('data-attempt2-quarter-line-first-start'), String(secondTriggerStart));
+    assert.equal(await card5.getAttribute('data-attempt1-stop-loss-line-last-start'), String(firstExitStart));
+    assert.equal(await card5.getAttribute('data-attempt2-stop-loss-line-first-start'), String(secondTriggerStart));
+    assert.equal(await card5.getAttribute('data-attempt1-take-profit-line-last-start'), String(firstExitStart));
+    assert.equal(await card5.getAttribute('data-attempt2-take-profit-line-first-start'), String(secondTriggerStart));
+
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-count'), '1');
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-id'),
+      `second-trigger-attempt-2-${direction}-${secondTriggerStart}`);
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-start'), String(secondTriggerStart));
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-direction'), direction);
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-position'),
+      direction === 'long' ? 'belowBar' : 'aboveBar');
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-text'), '二次触发');
+
+    const entryIds = JSON.parse(await card5.getAttribute('data-true-entry-marker-ids'));
+    const riskIds = JSON.parse(await card5.getAttribute('data-risk-touch-marker-ids'));
+    const exitIds = JSON.parse(await card5.getAttribute('data-exit-marker-ids'));
+    assert.deepEqual(entryIds, [
+      `true-entry-attempt-1-${direction}-${shown.startMs}-${firstEntryStart}`,
+      `true-entry-attempt-2-${direction}-${shown.startMs}-${secondEntryStart}`,
+    ]);
+    assert.deepEqual(riskIds, [
+      `take-profit-risk-touch-attempt-1-${direction}-${shown.startMs}-${firstRiskStart}`,
+      `take-profit-risk-touch-attempt-2-${direction}-${shown.startMs}-${secondRiskStart}`,
+    ]);
+    assert.deepEqual(exitIds, [
+      `actual-exit-attempt-1-take-profit-${direction}-${shown.startMs}-${firstExitStart}`,
+      `actual-exit-attempt-2-take-profit-${direction}-${shown.startMs}-${secondExitStart}`,
+    ]);
+    const allIds = [...entryIds, ...riskIds, ...exitIds];
+    assert.equal(new Set(allIds).size, allIds.length);
+    assert.ok(allIds.every(id => /attempt-[12]-/.test(id)));
+    assert.equal(await card5.getAttribute('data-true-entry-marker-count'), '2');
+    assert.equal(await card5.getAttribute('data-risk-touch-marker-count'), '2');
+    assert.equal(await card5.getAttribute('data-exit-marker-count'), '2');
+
+    let visibleRange = await chartRange(5);
+    for (let attempt = 0; attempt < 20 && Math.abs(visibleRange.span - 20) >= .05; attempt++) {
+      await page.waitForTimeout(50);
+      visibleRange = await chartRange(5);
+    }
+    assert.ok(Math.abs(visibleRange.span - 20) < .05, JSON.stringify({ direction, visibleRange }));
+    assert.ok(visibleRange.from <= scenarioIndex - .5, JSON.stringify({ direction, visibleRange, scenarioIndex }));
+    assert.ok(visibleRange.to >= scenarioIndex + 9.5, JSON.stringify({ direction, visibleRange, scenarioIndex }));
+  };
+
+  for (const direction of ['long', 'short']) await assertTwoAttemptScenario(direction);
 
   await assertControlledExitScenario({ scenario: 'exit-take-profit', direction: 'long' });
   await assertControlledExitScenario({ scenario: 'exit-no-touch', direction: 'short' });
@@ -1325,6 +1512,7 @@ try {
   await page.waitForTimeout(150);
   await page.screenshot({ path: resolve('artifacts/entry-take-profit-later-touch-long-1100.png') });
 
+  await assertTwoAttemptScenario('long');
   await page.evaluate(() => window.moneyComingTest.clearReactionScenario());
   await frame();
   assert.equal(await card5.getAttribute('data-selection-kind'), 'none');
@@ -1333,6 +1521,7 @@ try {
   assert.equal(await card5.getAttribute('data-exit-signal-present'), null);
   assert.equal(await card5.getAttribute('data-exit-signal-line-end'), null);
   assert.equal(await reactionOverlay.getAttribute('data-present'), 'false');
+  await assertSecondAttemptCleared();
   await assertQuarterAbsent(null);
   await assertStopLossAbsent(null);
   await assertTakeProfitAbsent(null);
@@ -1346,6 +1535,7 @@ try {
   const normalPoint = await findParentPoint(normalParent);
   const normalChildren = childrenFor(normalParent, five);
   assert.equal(await linkedOverlay.getAttribute('data-count'), String(normalChildren.length));
+  await assertTwoAttemptScenario('short');
   await page.mouse.click(normalPoint.x, normalPoint.box.y + normalPoint.box.height * .42);
   await frame();
   assert.equal(await html.getAttribute('data-selection-kind'), 'linked');
@@ -1372,6 +1562,7 @@ try {
   assert.equal(await reactionOverlay.getAttribute('data-visible'), 'false');
   assert.equal(await reactionOverlay.getAttribute('data-direction'), null);
   assert.equal(await reactionOverlay.isHidden(), true);
+  await assertSecondAttemptCleared();
   await assertQuarterAbsent(null);
   await assertStopLossAbsent(null);
   await assertTakeProfitAbsent(null);
@@ -1380,15 +1571,18 @@ try {
   assert.equal(await card5.getAttribute('data-exit-signal-line-end'), null);
   assert.deepEqual(JSON.parse(await card60.getAttribute('data-entry-marker-ids')), original60EntryMarkerIds);
 
+  await assertTwoAttemptScenario('long');
   await page.locator('#instrument').evaluate(element => element.dispatchEvent(new Event('change', { bubbles: true })));
   await page.waitForFunction(() => document.querySelector('#card-5')?.dataset.selectionKind === 'linked');
   await frame();
+  await assertSecondAttemptCleared();
   await assertQuarterAbsent(null);
   await assertStopLossAbsent(null);
   await assertTakeProfitAbsent(null);
   assert.deepEqual(JSON.parse(await card60.getAttribute('data-entry-marker-ids')), original60EntryMarkerIds);
 
   await clickBody(longEntry, five, 32);
+  await assertTwoAttemptScenario('short');
   await page.getByTestId('latest').click(); await frame();
   assert.equal(await card5.getAttribute('data-selection-kind'), 'none');
   await assertLifecycleDiagnosticsAbsent();
@@ -1400,6 +1594,7 @@ try {
   assert.equal(await reactionOverlay.getAttribute('data-present'), 'false');
   assert.equal(await reactionOverlay.getAttribute('data-visible'), 'false');
   assert.equal(await reactionOverlay.getAttribute('data-direction'), null);
+  await assertSecondAttemptCleared();
   assert.equal(await html.getAttribute('data-selection-kind'), null);
   assert.equal(await html.getAttribute('data-entry-direction'), null);
   assert.equal(await html.getAttribute('data-entry-pullback-line'), null);
@@ -1443,6 +1638,7 @@ try {
       'exit-stop-loss-long-short',
       'exit-stop-risk-same-bar-long-short',
       'exit-no-touch-long-short',
+      'two-attempts-long-short',
     ],
     datasetEndObservationCount: shortened.count,
     sixtyMinuteMarkerIdsStable: true,
@@ -1453,7 +1649,11 @@ try {
   assert.match(await page.locator('#rules-content').innerText(), /rangeTicks = round[\s\S]*多头白线为3023，空头白线为3028/);
   assert.match(await page.locator('#rules-content').innerText(), /不再以“触发K线及后续15根”为分析上限[\s\S]*14:45或22:45开始及之后的K线禁止新入场/);
   assert.match(await page.locator('#rules-content').innerText(), /以该根5分钟K线收盘价生成唯一的“休市出场”[\s\S]*初始5分钟视口仍只使用触发附近最多16根的紧凑范围/);
-  assert.match(await page.locator('#rules-content').innerText(), /首次方向反应K线的下一根5分钟K线[\s\S]*四分之一白线首次合格触碰即真正入场/);
+  assert.match(await page.locator('#rules-content').innerText(), /当前整数N控制，N可设为1至20 tick[\s\S]*首次没有有效历史设置时默认为1 tick[\s\S]*软件重启后继续使用/);
+  assert.match(await page.locator('#rules-content').innerText(), /close - open >= N × tick[\s\S]*open - close >= N × tick[\s\S]*实体正好等于N个tick也合格/);
+  assert.match(await page.locator('#rules-content').innerText(), /当前入场线百分比P为0至100之间的整数[\s\S]*entryDistanceTicks = ceil\(rangeTicks × P \/ 100\)/);
+  assert.match(await page.locator('#rules-content').innerText(), /P=0时[\s\S]*P=25时[\s\S]*P=100时[\s\S]*右侧价格轴显示“入场”/);
+  assert.match(await page.locator('#rules-content').innerText(), /首次方向反应K线的下一根5分钟K线[\s\S]*白色入场线首次合格触碰即真正入场/);
   assert.match(await page.locator('#rules-content').innerText(), /stopTicks = ceil\(rangeTicks × 0\.75\)[\s\S]*多头止损为3011，空头止损为3040/);
   assert.match(await page.locator('#rules-content').innerText(), /明黄色实线[\s\S]*不参与价格轴自动缩放/);
   assert.match(await page.locator('#rules-content').innerText(), /targetTicks = rangeTicks × 2[\s\S]*多头默认止盈为3053，空头默认止盈为2998/);
@@ -1463,10 +1663,15 @@ try {
   assert.match(await page.locator('#rules-content').innerText(), /后台1分钟数据[\s\S]*不显示1分钟图表、周期按钮或可见数据面板/);
   assert.match(await page.locator('#rules-content').innerText(), /恰好对应5根唯一、连续、有序的1分钟K线[\s\S]*只对该根使用5分钟保守规则[\s\S]*下一根5分钟K线重新独立验证/);
   assert.match(await page.locator('#rules-content').innerText(), /入场与止损同单元发生则确认入场后立即止损[\s\S]*持仓后止损与任何其他事件同单元发生时止损优先/);
-  assert.match(await page.locator('#rules-content').innerText(), /只记录第一处“止盈出场”“止损出场”或“休市出场”[\s\S]*立即结束本次生命周期/);
+  assert.match(await page.locator('#rules-content').innerText(), /该轮只记录第一处“止盈出场”“止损出场”或“休市出场”[\s\S]*首轮实际出场不一定结束整个60分钟事件/);
+  assert.match(await page.locator('#rules-content').innerText(), /从首轮出场K线的下一根5分钟K线开始观察第二轮[\s\S]*首轮出场K线自身必须排除/);
+  assert.match(await page.locator('#rules-content').innerText(), /low <= 首轮红框最低价[\s\S]*high >= 首轮红框最高价[\s\S]*中性灰色“二次触发”标记/);
+  assert.match(await page.locator('#rules-content').innerText(), /二次触发K线自身参与方向反应搜索和极值统计[\s\S]*与首轮相同的当前参数N和包含式门槛[\s\S]*第二轮真正入场仍从方向反应K线的下一根5分钟K线开始寻找/);
+  assert.match(await page.locator('#rules-content').innerText(), /每个60分钟回调事件最多包含首轮和第二轮[\s\S]*不得创建第三轮或第四轮/);
+  assert.match(await page.locator('#rules-content').innerText(), /第二笔入场使用包含第一笔已实现盈亏的可用资金[\s\S]*只有二次触发或第二轮红框但未真正入场时不计为交易/);
   assert.match(await page.locator('#rules-content').innerText(), /完整1分钟证据优先[\s\S]*止盈或止损优先于休市出场/);
-  assert.match(await page.locator('#rules-content').innerText(), /止盈线与止损线共用生命周期终点[\s\S]*截止到终点5分钟K线并包含该根/);
-  assert.match(await page.locator('#rules-content').innerText(), /白色四分之一入场指标线[\s\S]*都使用同一个生命周期终点/);
+  assert.match(await page.locator('#rules-content').innerText(), /每轮止盈线与止损线共用该轮终点[\s\S]*包含终点K线/);
+  assert.match(await page.locator('#rules-content').innerText(), /绿色动态回调线和方向观察标记延伸到整个60分钟事件的生命周期终点[\s\S]*首轮白色、黄色和亮蓝色计划线停止于首轮出场K线/);
   assert.match(await page.locator('#rules-meta').innerText(), /修改文字不会自动改变标记算法/);
   assert.equal(await page.locator('#rules-content script').count(), 0);
   assert.equal(await page.locator('[data-mode="1"], #card-1').count(), 0);

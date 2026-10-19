@@ -14,6 +14,7 @@ import {
 } from '../src/domain/market-data';
 import { parseBeijing } from '../src/domain/time';
 import type { Bar, EdbMinuteRecord } from '../src/shared/types';
+import type { TradingSchedule } from '../src/shared/instruments';
 
 const HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
 const nano = (time: string) => String(BigInt(parseBeijing(time)) * 1_000_000n);
@@ -118,6 +119,45 @@ describe('minute aggregation', () => {
       { start: '2026-10-09 09:00:00', observedMinutes: 2, expectedMinutes: 5, complete: false },
     ]);
     expect(aggregateMinutes(input, 60, at0907)).toEqual([]);
+  });
+
+  it('uses the active instrument schedule for minute validation and bucket boundaries', () => {
+    const schedule: TradingSchedule = [
+      {
+        id: 'day',
+        segments: [
+          { startMinute: 9 * 60, endMinute: 9 * 60 + 3 },
+          { startMinute: 9 * 60 + 10, endMinute: 9 * 60 + 14 },
+        ],
+      },
+    ];
+    const input = parseEdbMinuteCsv(csv(
+      row('2026-10-09 09:00:00'),
+      row('2026-10-09 09:01:00'),
+      row('2026-10-09 09:02:00'),
+      row('2026-10-09 09:10:00'),
+      row('2026-10-09 09:11:00'),
+      row('2026-10-09 09:12:00'),
+      row('2026-10-09 09:13:00'),
+    ), '短日盘', schedule);
+    const bars = aggregateMinutes(input, 5, parseBeijing('2026-10-09 09:14:00'), schedule);
+    expect(bars).toMatchObject([
+      {
+        start: '2026-10-09 09:00:00',
+        end: '2026-10-09 09:12:00',
+        observedMinutes: 5,
+        expectedMinutes: 5,
+      },
+      {
+        start: '2026-10-09 09:12:00',
+        end: '2026-10-09 09:14:00',
+        observedMinutes: 2,
+        expectedMinutes: 2,
+      },
+    ]);
+    expect(() => parseEdbMinuteCsv(csv(row('2026-10-09 09:05:00')), '短日盘', schedule))
+      .toThrow(/非交易分钟/);
+    expect(() => assertBarsValid(bars, 5, schedule)).not.toThrow();
   });
 });
 

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-main_continuous",
+  "instrumentId": "main_continuous",
+  "mainSymbol": "KQ.m@DCE.m",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@DCE.m"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "8bacddddcfc29a4e46dbf4f52835f883d448a888552fc3245a8a91775b2ce0a4",
+      "rows": 84495
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "892c6565c3c0b240ec76ecf433dfc8bc70b13d9fbd60c3690ccb01eda09ccafe",
+      "rows": 16899
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "d45124fbb2e349ba31d571d43d528e17de09e7a26f0b04c27c3eeecf76f57e5f",
+      "rows": 1470
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "c98f1e28b63039ff0e9bc83a030c23a8dd82a435e238b66bc13eebf1df66747c",
+      "rows": 3
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "66e91a70f5c4524795768575ce390e977fc7c756d1a229d9b57d3b2af911c0a8",
+      "rows": 242
+    }
+  }
+}

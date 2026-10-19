@@ -2,7 +2,12 @@ import './style.css';
 import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, LineType, TickMarkType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type Logical, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
 import type { Anomaly, Bar, ContractRollover, Dataset, EdbMinuteRecord, Instrument, MarketUpdateState, Period, ReactionTestScenario, UpdateState } from '../shared/types';
 import { DEFAULT_ENTRY_RULES } from '../shared/entry-rules';
-import { MARKET_PRICE_TICK } from '../shared/market';
+import {
+  DEFAULT_INSTRUMENT,
+  INSTRUMENT_LIST,
+  instrumentDefinition,
+  type InstrumentDefinition,
+} from '../shared/instruments';
 import { formatBeijing, locateDate, locateTime } from '../domain/time';
 import { analyzeWeeklyRange, type WeeklyBreakout } from '../domain/weekly-range';
 import { exponentialMovingAverage } from '../domain/ema';
@@ -12,6 +17,12 @@ import {
   type ProfitLossReviewResult,
 } from '../domain/profit-loss-review';
 import {
+  DEFAULT_ENTRY_RANGE_PERCENT,
+  DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  MAX_ENTRY_RANGE_PERCENT,
+  MAX_REACTION_BODY_TICKS,
+  MIN_ENTRY_RANGE_PERCENT,
+  MIN_REACTION_BODY_TICKS,
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryLifecycle,
@@ -24,15 +35,17 @@ import {
   weeklyEntryMarkerId,
   type EntryExitAnalysis,
   type EntryLifecycle,
+  type EntryLifecycleAttempt,
   type EntryLifecycleEndReason,
   type EntryQuarterSignal,
   type EntryReactionRange,
+  type EntryStrategySettings,
   type EntryStopLossSignal,
   type EntryTakeProfitSignal,
   type WeeklyEntry,
 } from '../domain/weekly-entry';
 import { childrenFor, linkedLogicalRange, parentFor } from '../domain/link';
-import { marketUpdateView } from './market-update-view';
+import { marketUpdateAllView, marketUpdateView } from './market-update-view';
 
 const icons = {
   mark: '<svg viewBox="0 0 32 32" fill="none"><path d="M5 24V13l7 6 7-11 8 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 8h5v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>',
@@ -52,15 +65,43 @@ app.innerHTML = `
   </header>
   <main>
     <section class="market-heading">
-      <div><div class="eyebrow">DALIAN COMMODITY EXCHANGE <span>/</span> 大商所</div><div class="heading-line"><h1 id="instrument-name">豆粕主连</h1><span class="symbol" id="instrument-symbol">KQ.m@DCE.m</span><span class="history-label">历史行情</span></div><p class="subtitle" id="subtitle">从整体趋势，到每一根 K 线。</p></div>
+      <div><div class="eyebrow"><span id="exchange-english">DALIAN COMMODITY EXCHANGE</span> <span>/</span> <span id="exchange-name">大商所</span></div><div class="heading-line"><h1 id="instrument-name">豆粕主连</h1><span class="symbol" id="instrument-symbol">KQ.m@DCE.m</span><span class="history-label">历史行情</span></div><p class="subtitle" id="subtitle">从整体趋势，到每一根 K 线。</p></div>
       <div class="quote"><div class="quote-caption">样本末根收盘 <span>元 / 吨</span></div><div class="quote-line"><strong id="last-close">—</strong><span id="last-change">—</span></div><div class="quote-time" id="last-time">正在读取本地数据</div></div>
     </section>
     <section class="toolbar" aria-label="行情工具栏">
-      <div class="toolbar-left"><label class="instrument-select"><span>品种</span><select id="instrument" data-testid="instrument" aria-label="选择标的"><option value="main_continuous">豆粕主连</option></select></label><span class="divider"></span><div class="segmented" aria-label="图表布局"><button data-mode="dual" data-testid="mode-dual" aria-pressed="true" class="active">${icons.grid}双周期</button><button data-mode="5" data-testid="mode-5" aria-pressed="false">5 分钟</button><button data-mode="60" data-testid="mode-60" aria-pressed="false">60 分钟</button></div></div>
+      <div class="toolbar-left"><label class="instrument-select"><span>品种</span><select id="instrument" data-testid="instrument" aria-label="选择标的">${INSTRUMENT_LIST.map(definition => `<option value="${definition.id}">${definition.name}</option>`).join('')}</select></label><span class="divider"></span><div class="segmented" aria-label="图表布局"><button data-mode="dual" data-testid="mode-dual" aria-pressed="true" class="active">${icons.grid}双周期</button><button data-mode="5" data-testid="mode-5" aria-pressed="false">5 分钟</button><button data-mode="60" data-testid="mode-60" aria-pressed="false">60 分钟</button></div></div>
       <div class="toolbar-right"><button id="toggle-monday" data-testid="toggle-monday" class="button" aria-pressed="false" title="显示或隐藏周一前8根范围及第9根起的逐次新高、新低突破标记">周一8根标记</button><button id="toggle-subcharts" data-testid="toggle-subcharts" class="button" aria-pressed="false" title="隐藏或显示成交量与持仓量副图">只看K线</button><form id="date-form" novalidate><label class="date-field">${icons.calendar}<input id="date-input" data-testid="date-input" type="date" aria-label="定位日期（北京时间）" required /></label><button type="submit" data-testid="date-jump" class="button jump-button">定位</button></form><button id="latest" data-testid="latest" class="button">${icons.latest}最新</button></div>
+      <section class="entry-settings-panel" id="entry-settings-panel" data-testid="entry-settings-panel" aria-label="入场参数与实时复盘" hidden>
+        <div class="entry-setting-controls">
+          <div class="entry-setting-control">
+            <span class="entry-setting-label-row">
+              <span class="entry-setting-label" data-testid="reaction-ticks-label">最小入场K线浮动</span>
+              <button type="button" id="reaction-rules-info" data-testid="reaction-rules-info" class="entry-setting-info" aria-label="查看5分钟K线识别规则" title="查看5分钟K线识别规则">${icons.info}</button>
+            </span>
+            <div class="entry-setting-stepper">
+              <button type="button" id="reaction-ticks-decrease" data-testid="reaction-ticks-decrease" aria-label="减少最小入场K线浮动" title="减少 1 tick">−</button>
+              <label><input id="reaction-ticks-input" data-testid="reaction-ticks-input" type="number" min="1" max="20" step="1" inputmode="numeric" aria-label="最小入场K线浮动" /><span>tick</span></label>
+              <button type="button" id="reaction-ticks-increase" data-testid="reaction-ticks-increase" aria-label="增加最小入场K线浮动" title="增加 1 tick">+</button>
+            </div>
+          </div>
+          <div class="entry-setting-control">
+            <span class="entry-setting-label">入场线</span>
+            <div class="entry-setting-stepper">
+              <button type="button" id="entry-percent-decrease" data-testid="entry-percent-decrease" aria-label="减少入场线百分比" title="减少 1%">−</button>
+              <label><input id="entry-percent-input" data-testid="entry-percent-input" type="number" min="0" max="100" step="1" inputmode="numeric" aria-label="入场线百分比" /><span>%</span></label>
+              <button type="button" id="entry-percent-increase" data-testid="entry-percent-increase" aria-label="增加入场线百分比" title="增加 1%">+</button>
+            </div>
+          </div>
+        </div>
+        <dl class="entry-settings-summary" aria-label="当前参数复盘摘要">
+          <div><dt>最终资金</dt><dd id="settings-final-capital" data-testid="settings-final-capital">—</dd></div>
+          <div><dt>总收益率</dt><dd id="settings-return-rate" data-testid="settings-return-rate">—</dd></div>
+          <div><dt>已完成交易</dt><dd id="settings-completed-trades" data-testid="settings-completed-trades">—</dd></div>
+        </dl>
+      </section>
       <div class="market-update-row" id="market-update-row" data-tone="neutral">
-        <div class="market-update-copy"><span id="market-update-status" role="status" aria-live="polite">按需更新 EDB 豆粕主连历史数据</span><small id="market-update-meta">正在读取本地快照信息</small></div>
-        <button id="market-update" data-testid="market-update" class="button market-update-button" type="button">${icons.update}<span id="market-update-label">更新行情</span></button>
+        <div class="market-update-copy"><span id="market-update-status" role="status" aria-live="polite">按需更新 EDB 当前品种主连历史数据</span><small id="market-update-meta">正在读取本地快照信息</small></div>
+        <div class="market-update-actions"><button id="market-update" data-testid="market-update" class="button market-update-button" type="button">${icons.update}<span id="market-update-label">更新行情</span></button><button id="market-update-all-entry" data-testid="market-update-all-entry" class="button market-update-all-entry" type="button" title="查看并更新全部十五个主连品种">全部品种</button></div>
       </div>
     </section>
     <div id="error" class="error-banner" role="alert" hidden><span id="error-text"></span><button class="button" data-testid="retry" id="retry">重新加载</button><button id="dismiss-error" aria-label="关闭错误提示">×</button></div>
@@ -81,6 +122,15 @@ app.innerHTML = `
       <div class="update-error" id="update-error" role="alert" hidden></div>
     </div>
     <div class="dialog-bottom update-actions"><button class="button" id="update-later">稍后</button><div><button class="button" id="update-retry" hidden>重试</button><button class="button primary" id="update-download" data-testid="update-download" hidden>立即下载</button><button class="button primary" id="update-install" data-testid="update-install" hidden>重启安装</button><button class="button primary" id="update-ok" hidden>知道了</button></div></div>
+  </dialog>
+  <dialog id="market-update-all-dialog" class="market-update-all-dialog" data-testid="market-update-all-dialog" aria-labelledby="market-update-all-title">
+    <div class="dialog-heading"><div><span class="eyebrow">ALL INSTRUMENTS</span><h2 id="market-update-all-title">更新全部品种</h2></div><button id="close-market-update-all" class="close-button" aria-label="关闭全部品种更新窗口">×</button></div>
+    <div class="market-update-all-body">
+      <p id="market-update-all-status" role="status" aria-live="polite">依次更新 15 个主连品种</p>
+      <ol id="market-update-all-list" class="market-update-all-list" data-testid="market-update-all-list" hidden></ol>
+      <div id="market-update-all-error" class="update-error" role="alert" hidden></div>
+    </div>
+    <div class="dialog-bottom"><span>逐品种串行执行，单个失败不会中止其余品种</span><button id="market-update-all" data-testid="market-update-all" class="button primary" type="button">${icons.update}<span id="market-update-all-label">更新全部品种</span></button></div>
   </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
 `;
@@ -105,8 +155,14 @@ const reviewDialog = document.createElement('dialog');
 reviewDialog.id = 'review-dialog';
 reviewDialog.dataset.testid = 'review-dialog';
 reviewDialog.setAttribute('aria-labelledby', 'review-title');
-reviewDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">PROFIT & LOSS REVIEW</span><h2 id="review-title">盈亏情况</h2></div><button id="close-review" data-testid="close-review" class="close-button" aria-label="关闭盈亏情况">×</button></div><div class="review-content" id="review-content"></div><div class="dialog-bottom"><span>固定按 1 手交易，不计算手续费和滑点</span><button class="button primary" id="review-done" data-testid="review-done">知道了</button></div>';
+reviewDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">PROFIT & LOSS REVIEW</span><h2 id="review-title">盈亏情况</h2></div><button id="close-review" data-testid="close-review" class="close-button" aria-label="关闭盈亏情况">×</button></div><div class="review-content" id="review-content"></div><div class="dialog-bottom"><span>100 万元初始资金 · 10 倍理论名义杠杆 · 整数手数 · 未计手续费和滑点</span><button class="button primary" id="review-done" data-testid="review-done">知道了</button></div>';
 document.body.append(reviewDialog);
+const reactionRulesDialog = document.createElement('dialog');
+reactionRulesDialog.id = 'reaction-rules-dialog';
+reactionRulesDialog.dataset.testid = 'reaction-rules-dialog';
+reactionRulesDialog.setAttribute('aria-labelledby', 'reaction-rules-title');
+reactionRulesDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">5-MINUTE REACTION BAR</span><h2 id="reaction-rules-title">5分钟K线识别</h2></div><button id="close-reaction-rules" data-testid="close-reaction-rules" class="close-button" aria-label="关闭5分钟K线识别规则">×</button></div><div class="reaction-rules-content" id="reaction-rules-content" data-testid="reaction-rules-content"></div><div class="dialog-bottom"><span>按当前“最小入场K线浮动”动态说明</span><button class="button primary" id="reaction-rules-done" data-testid="reaction-rules-done">知道了</button></div>';
+document.body.append(reactionRulesDialog);
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const number = (value: number) => value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
@@ -117,6 +173,12 @@ const shortTime = (ms: number) => formatBeijing(ms).slice(0, 16);
 const sameDate = (bar: Bar) => formatBeijing(bar.startMs).slice(0, 10) === formatBeijing(bar.endMs).slice(0, 10);
 const interval = (bar: Bar) => `${shortTime(bar.startMs)} — ${sameDate(bar) ? formatBeijing(bar.endMs).slice(11, 16) : shortTime(bar.endMs)}`;
 const updateDialog = $('#update-dialog') as HTMLDialogElement;
+const marketUpdateAllDialog = $('#market-update-all-dialog') as HTMLDialogElement;
+const exchangeEnglishNames: Record<InstrumentDefinition['exchange'], string> = {
+  DCE: 'DALIAN COMMODITY EXCHANGE',
+  CZCE: 'ZHENGZHOU COMMODITY EXCHANGE',
+  SHFE: 'SHANGHAI FUTURES EXCHANGE',
+};
 
 let dataset: Dataset | undefined;
 let mode: 'dual' | '5' | '60' = 'dual';
@@ -124,15 +186,71 @@ let subchartsVisible = true;
 let mondayVisible = false;
 let requestedInstrument: Instrument = 'main_continuous';
 let requestId = 0;
-let selected: { period: Period; bar: Bar } | undefined;
+let selected: {
+  period: Period;
+  bar: Bar;
+  entryMarkerId?: string;
+  entrySelectionSource?: 'marker' | 'default';
+} | undefined;
 let crosshairSyncing = false;
 let toastTimer: ReturnType<typeof setTimeout>;
 let updateState: UpdateState | undefined;
 let updateInteraction = false;
 let updateActionRunning = false;
-let marketUpdateState: MarketUpdateState = { phase: 'idle' };
+let marketUpdateState: MarketUpdateState = {
+  instrument: 'main_continuous',
+  phase: 'idle',
+};
 let marketUpdateRequestRunning = false;
-let reloadedMarketUpdateCompletion: string | undefined;
+let marketUpdateAllRequestRunning = false;
+const marketUpdateAllStates = new Map<Instrument, MarketUpdateState>();
+const reloadedMarketUpdateCompletions = new Map<Instrument, string>();
+let marketUpdateAllError: string | undefined;
+let retryInstrument: Instrument | undefined;
+let latestProfitLossReview: ProfitLossReviewResult | undefined;
+let strategyRefreshCount = 0;
+
+const ENTRY_STRATEGY_SETTINGS_STORAGE_KEY = 'moneycoming.entry-strategy-settings.v1';
+
+function persistEntryStrategySettings(settings: EntryStrategySettings): void {
+  try {
+    localStorage.setItem(ENTRY_STRATEGY_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // The validated in-memory setting remains usable if browser storage is unavailable.
+  }
+}
+
+function loadEntryStrategySettings(): EntryStrategySettings {
+  let parsed: Partial<EntryStrategySettings> = {};
+  try {
+    const stored = localStorage.getItem(ENTRY_STRATEGY_SETTINGS_STORAGE_KEY);
+    if (stored) {
+      const candidate = JSON.parse(stored) as unknown;
+      if (candidate && typeof candidate === 'object') parsed = candidate as Partial<EntryStrategySettings>;
+    }
+  } catch {
+    // Invalid JSON and inaccessible storage both fall back field-by-field.
+  }
+  const settings: EntryStrategySettings = {
+    reactionBodyTicks: Number.isInteger(parsed.reactionBodyTicks)
+      && parsed.reactionBodyTicks! >= MIN_REACTION_BODY_TICKS
+      && parsed.reactionBodyTicks! <= MAX_REACTION_BODY_TICKS
+      ? parsed.reactionBodyTicks!
+      : DEFAULT_ENTRY_STRATEGY_SETTINGS.reactionBodyTicks,
+    entryRangePercent: Number.isInteger(parsed.entryRangePercent)
+      && parsed.entryRangePercent! >= MIN_ENTRY_RANGE_PERCENT
+      && parsed.entryRangePercent! <= MAX_ENTRY_RANGE_PERCENT
+      ? parsed.entryRangePercent!
+      : DEFAULT_ENTRY_RANGE_PERCENT,
+  };
+  persistEntryStrategySettings(settings);
+  return settings;
+}
+
+let entryStrategySettings = loadEntryStrategySettings();
+document.documentElement.dataset.reactionBodyTicks = String(entryStrategySettings.reactionBodyTicks);
+document.documentElement.dataset.entryRangePercent = String(entryStrategySettings.entryRangePercent);
+document.documentElement.dataset.strategyRefreshCount = String(strategyRefreshCount);
 
 type ChartSelection =
   | { kind: 'linked'; bars: Bar[] }
@@ -147,6 +265,7 @@ type ChartSelection =
       sessionEnd: number;
       forcedExitBar?: Bar;
       endReason: EntryLifecycleEndReason;
+      attempts: EntryLifecycleAttempt[];
       reactionRange?: EntryReactionRange;
       quarterSignal?: EntryQuarterSignal;
       stopLossSignal?: EntryStopLossSignal;
@@ -165,8 +284,9 @@ function renderMarketUpdateState(state = marketUpdateState): void {
   marketUpdateState = state;
   const view = marketUpdateView(state, dataset);
   const button = $('#market-update') as HTMLButtonElement;
-  button.disabled = view.busy || marketUpdateRequestRunning;
-  button.setAttribute('aria-busy', String(view.busy || marketUpdateRequestRunning));
+  const busy = view.busy || marketUpdateRequestRunning || marketUpdateAllRequestRunning;
+  button.disabled = busy || !dataset;
+  button.setAttribute('aria-busy', String(busy));
   $('#market-update-label').textContent = view.buttonLabel;
   $('#market-update-status').textContent = view.statusText;
   $('#market-update-meta').textContent = view.metadataText;
@@ -174,14 +294,42 @@ function renderMarketUpdateState(state = marketUpdateState): void {
   document.documentElement.dataset.marketUpdatePhase = state.phase;
 }
 
+function renderMarketUpdateAllState(): void {
+  const view = marketUpdateAllView(
+    [...marketUpdateAllStates.values()],
+    marketUpdateAllRequestRunning,
+  );
+  const button = $('#market-update-all') as HTMLButtonElement;
+  button.disabled = view.busy || marketUpdateRequestRunning;
+  button.setAttribute('aria-busy', String(view.busy));
+  $('#market-update-all-label').textContent = view.buttonLabel;
+  $('#market-update-all-status').textContent = view.statusText;
+  $('#market-update-all-dialog').dataset.tone = view.tone;
+  const list = $('#market-update-all-list');
+  list.innerHTML = view.items.map(item => (
+    `<li data-instrument="${item.instrument}" data-tone="${item.tone}">`
+      + `<span><strong>${escapeHtml(item.name)}</strong><code>${escapeHtml(instrumentDefinition(item.instrument).mainSymbol)}</code></span>`
+      + `<em>${escapeHtml(item.statusText)}</em>`
+      + '</li>'
+  )).join('');
+  list.hidden = view.items.length === 0;
+  const error = $('#market-update-all-error');
+  error.textContent = marketUpdateAllError ?? '';
+  error.hidden = !marketUpdateAllError;
+}
+
 async function acceptMarketUpdateState(state: MarketUpdateState): Promise<void> {
+  marketUpdateAllStates.set(state.instrument, state);
+  renderMarketUpdateAllState();
+  const activeInstrument = dataset?.instrument ?? requestedInstrument;
+  if (state.instrument !== activeInstrument) return;
   const shouldReload = state.phase === 'succeeded'
     && !!state.completedAt
-    && state.completedAt !== reloadedMarketUpdateCompletion;
-  if (shouldReload) reloadedMarketUpdateCompletion = state.completedAt;
+    && state.completedAt !== reloadedMarketUpdateCompletions.get(state.instrument);
+  if (shouldReload) reloadedMarketUpdateCompletions.set(state.instrument, state.completedAt!);
   renderMarketUpdateState(state);
   if (!shouldReload) return;
-  await loadInstrument(requestedInstrument, true);
+  await loadInstrument(state.instrument, true);
   renderMarketUpdateState(state);
 }
 
@@ -301,13 +449,14 @@ class MarketChart {
   readonly element: HTMLElement;
   readonly chart: IChartApi;
   readonly candle: ISeriesApi<'Candlestick'>;
+  private definition = DEFAULT_INSTRUMENT;
   private volume?: ISeriesApi<'Histogram'>;
   private oi?: ISeriesApi<'Line'>;
   private ema20?: ISeriesApi<'Line'>;
   private entryPullback?: ISeriesApi<'Line'>;
-  private entryQuarter?: ISeriesApi<'Line'>;
-  private entryStopLoss?: ISeriesApi<'Line'>;
-  private entryTakeProfit?: ISeriesApi<'Line'>;
+  private entryQuarters: ISeriesApi<'Line'>[] = [];
+  private entryStopLosses: ISeriesApi<'Line'>[] = [];
+  private entryTakeProfits: ISeriesApi<'Line'>[] = [];
   private emaByStart = new Map<number, number>();
   readonly markers: ISeriesMarkersPluginApi<Time>;
   bars: Bar[] = [];
@@ -328,7 +477,7 @@ class MarketChart {
   private hoverRange?: { first: Bar; last: Bar };
   private hoverOverlay?: HTMLElement;
   private hoverRenderFrame?: number;
-  private reactionOverlay?: HTMLElement;
+  private reactionOverlays: HTMLElement[] = [];
   private reactionRenderFrame?: number;
   private focusedLogicalRange?: { from: number; to: number };
 
@@ -348,14 +497,18 @@ class MarketChart {
       this.hoverOverlay.setAttribute('aria-hidden', 'true');
       this.hoverOverlay.hidden = true;
       this.chartHost.after(this.hoverOverlay);
-      this.reactionOverlay = document.createElement('div');
-      this.reactionOverlay.className = 'entry-reaction-range';
-      this.reactionOverlay.dataset.testid = 'entry-reaction-range';
-      this.reactionOverlay.dataset.present = 'false';
-      this.reactionOverlay.dataset.visible = 'false';
-      this.reactionOverlay.setAttribute('aria-hidden', 'true');
-      this.reactionOverlay.hidden = true;
-      this.chartHost.after(this.reactionOverlay);
+      for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
+        const overlay = document.createElement('div');
+        overlay.className = 'entry-reaction-range';
+        overlay.dataset.testid = attemptIndex === 0 ? 'entry-reaction-range' : 'entry-reaction-range-2';
+        overlay.dataset.attempt = String(attemptIndex + 1);
+        overlay.dataset.present = 'false';
+        overlay.dataset.visible = 'false';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.hidden = true;
+        this.chartHost.after(overlay);
+        this.reactionOverlays.push(overlay);
+      }
     }
     this.chartHost.addEventListener('mouseenter', () => { this.pointerInside = true; });
     this.chartHost.addEventListener('wheel', () => {
@@ -410,43 +563,45 @@ class MarketChart {
         axisDoubleClickReset: { time: true, price: true },
       },
     });
-    this.candle = this.chart.addSeries(CandlestickSeries, { upColor: '#ef646e', downColor: '#28b59c', borderUpColor: '#ef646e', borderDownColor: '#28b59c', wickUpColor: '#ef646e', wickDownColor: '#28b59c', priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK }, priceLineColor: '#697689', priceLineStyle: 2 });
+    this.candle = this.chart.addSeries(CandlestickSeries, { upColor: '#ef646e', downColor: '#28b59c', borderUpColor: '#ef646e', borderDownColor: '#28b59c', wickUpColor: '#ef646e', wickDownColor: '#28b59c', priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick }, priceLineColor: '#697689', priceLineStyle: 2 });
     if (period === 60) {
       this.ema20 = this.chart.addSeries(LineSeries, {
         color: '#e8edf5', lineWidth: 2, priceScaleId: 'right',
-        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+        priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick },
         priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 3,
       }, 0);
       this.element.querySelector('.ohlc')!.insertAdjacentHTML('beforeend', '<span class="ema-readout" title="EMA20：α=2/21，以数据首根收盘价为初值，包含当前K线并连续递推">EMA20 <b data-value="ema20">—</b></span>');
     } else {
       this.entryPullback = this.chart.addSeries(LineSeries, {
         color: '#47d990', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
-        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+        priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick },
         priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
         pointMarkersVisible: false, title: '回调',
       }, 0);
-      this.entryQuarter = this.chart.addSeries(LineSeries, {
-        color: '#ffffff', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
-        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        pointMarkersVisible: false, title: '',
-        autoscaleInfoProvider: () => null,
-      }, 0);
-      this.entryStopLoss = this.chart.addSeries(LineSeries, {
-        color: '#f4c95d', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
-        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        pointMarkersVisible: false, title: '',
-        autoscaleInfoProvider: () => null,
-      }, 0);
-      this.entryTakeProfit = this.chart.addSeries(LineSeries, {
-        color: '#4fc3f7', lineWidth: 2, lineStyle: LineStyle.Solid, lineType: LineType.WithSteps,
-        priceScaleId: 'right',
-        priceFormat: { type: 'price', precision: 0, minMove: MARKET_PRICE_TICK },
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        pointMarkersVisible: false, title: '',
-        autoscaleInfoProvider: () => null,
-      }, 0);
+      for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
+        this.entryQuarters.push(this.chart.addSeries(LineSeries, {
+          color: '#ffffff', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
+          priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick },
+          priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+          pointMarkersVisible: false, title: '入场',
+          autoscaleInfoProvider: () => null,
+        }, 0));
+        this.entryStopLosses.push(this.chart.addSeries(LineSeries, {
+          color: '#f4c95d', lineWidth: 2, lineStyle: LineStyle.Solid, priceScaleId: 'right',
+          priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick },
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+          pointMarkersVisible: false, title: '',
+          autoscaleInfoProvider: () => null,
+        }, 0));
+        this.entryTakeProfits.push(this.chart.addSeries(LineSeries, {
+          color: '#4fc3f7', lineWidth: 2, lineStyle: LineStyle.Solid, lineType: LineType.WithSteps,
+          priceScaleId: 'right',
+          priceFormat: { type: 'price', precision: DEFAULT_INSTRUMENT.pricePrecision, minMove: DEFAULT_INSTRUMENT.priceTick },
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+          pointMarkersVisible: false, title: '',
+          autoscaleInfoProvider: () => null,
+        }, 0));
+      }
       this.element.dataset.pullbackLineStyle = 'solid';
       this.element.dataset.quarterLineStyle = 'solid';
       this.element.dataset.quarterLineColor = '#ffffff';
@@ -519,6 +674,7 @@ class MarketChart {
       const range = this.focusedLogicalRange;
       if (range) requestAnimationFrame(() => requestAnimationFrame(() => this.chart.timeScale().setVisibleLogicalRange(range)));
     }).observe(this.chartHost);
+    this.setInstrumentDefinition(DEFAULT_INSTRUMENT);
   }
 
   setSubchartsVisible(visible: boolean) {
@@ -558,6 +714,23 @@ class MarketChart {
       this.scheduleHoverRangeRender();
       this.scheduleReactionRangeRender();
     });
+  }
+
+  setInstrumentDefinition(definition: InstrumentDefinition) {
+    this.definition = definition;
+    const priceFormat = {
+      type: 'price' as const,
+      precision: definition.pricePrecision,
+      minMove: definition.priceTick,
+    };
+    this.candle.applyOptions({ priceFormat });
+    this.ema20?.applyOptions({ priceFormat });
+    this.entryPullback?.applyOptions({ priceFormat });
+    this.entryQuarters.forEach(series => series.applyOptions({ priceFormat }));
+    this.entryStopLosses.forEach(series => series.applyOptions({ priceFormat }));
+    this.entryTakeProfits.forEach(series => series.applyOptions({ priceFormat }));
+    this.element.dataset.priceTick = String(definition.priceTick);
+    this.element.dataset.pricePrecision = String(definition.pricePrecision);
   }
 
   setData(bars: Bar[], anomalies: Anomaly[], bars5: Bar[] = [], rollovers: ContractRollover[] = []) {
@@ -677,6 +850,17 @@ class MarketChart {
     const range = this.chart.timeScale().getVisibleLogicalRange();
     const span = range ? Number(range.to) - Number(range.from) : Number.NaN;
     return Number.isFinite(span) && span > 0 ? span : undefined;
+  }
+  logicalRange(): { from: Logical; to: Logical } | undefined {
+    const range = this.chart.timeScale().getVisibleLogicalRange();
+    return range ? { from: range.from, to: range.to } : undefined;
+  }
+  restoreLogicalRange(range?: { from: Logical; to: Logical }) {
+    if (!range) return;
+    this.focusedLogicalRange = range;
+    this.chart.timeScale().setVisibleLogicalRange(range);
+    this.scheduleHoverRangeRender();
+    this.scheduleReactionRangeRender();
   }
   resetPriceScale() {
     this.chart.priceScale('right').setAutoScale(true);
@@ -829,23 +1013,32 @@ class MarketChart {
     delete this.hoverOverlay.dataset.lastIndex;
   }
   private scheduleReactionRangeRender() {
-    if (!this.reactionOverlay || this.selection?.kind !== 'entry' || !this.selection.reactionRange || this.reactionRenderFrame !== undefined) return;
+    const hasRange = this.selection?.kind === 'entry'
+      && this.selection.attempts.some(attempt => !!attempt.reactionRange);
+    if (!this.reactionOverlays.length || !hasRange || this.reactionRenderFrame !== undefined) return;
     this.reactionRenderFrame = requestAnimationFrame(() => {
       this.reactionRenderFrame = undefined;
-      this.renderReactionRange();
+      this.renderReactionRanges();
     });
   }
   private refreshReactionRangeForFrames(remaining = 4) {
     if (remaining <= 0) return;
     requestAnimationFrame(() => {
-      this.renderReactionRange();
+      this.renderReactionRanges();
       this.refreshReactionRangeForFrames(remaining - 1);
     });
   }
-  private renderReactionRange() {
-    const range = this.selection?.kind === 'entry' ? this.selection.reactionRange : undefined;
-    if (!this.reactionOverlay || !range) {
-      this.hideReactionOverlay();
+  private renderReactionRanges() {
+    this.reactionOverlays.forEach((overlay, index) => {
+      const range = this.selection?.kind === 'entry'
+        ? this.selection.attempts[index]?.reactionRange
+        : undefined;
+      this.renderReactionRange(overlay, range);
+    });
+  }
+  private renderReactionRange(overlay: HTMLElement, range?: EntryReactionRange) {
+    if (!range) {
+      this.hideReactionOverlay(overlay);
       return;
     }
     const firstIndex = this.indexByStart.get(range.extremeBar.startMs);
@@ -854,7 +1047,7 @@ class MarketChart {
     const chartWidth = timeScale.width();
     const priceHeight = this.chart.panes()[0]?.getHeight() || 0;
     if (firstIndex === undefined || lastIndex === undefined || chartWidth <= 0 || priceHeight <= 0) {
-      this.hideReactionOverlay();
+      this.hideReactionOverlay(overlay);
       return;
     }
     const firstCoordinate = timeScale.logicalToCoordinate(firstIndex as Logical);
@@ -862,7 +1055,7 @@ class MarketChart {
     const highCoordinate = this.candle.priceToCoordinate(range.high);
     const lowCoordinate = this.candle.priceToCoordinate(range.low);
     if (firstCoordinate === null || lastCoordinate === null || highCoordinate === null || lowCoordinate === null) {
-      this.hideReactionOverlay();
+      this.hideReactionOverlay(overlay);
       return;
     }
     const adjacentCoordinate = timeScale.logicalToCoordinate((lastIndex + 1) as Logical)
@@ -871,7 +1064,7 @@ class MarketChart {
       ? Math.abs(lastCoordinate - firstCoordinate) / (lastIndex - firstIndex)
       : adjacentCoordinate === null ? 0 : Math.abs(adjacentCoordinate - firstCoordinate);
     if (!(spacing > 0)) {
-      this.hideReactionOverlay();
+      this.hideReactionOverlay(overlay);
       return;
     }
     const rawLeft = Math.min(firstCoordinate, lastCoordinate) - spacing / 2;
@@ -879,7 +1072,7 @@ class MarketChart {
     const rawTop = Math.min(highCoordinate, lowCoordinate);
     const rawBottom = Math.max(highCoordinate, lowCoordinate);
     if (rawRight <= 0 || rawLeft >= chartWidth || rawBottom <= 0 || rawTop >= priceHeight) {
-      this.hideReactionOverlay();
+      this.hideReactionOverlay(overlay);
       return;
     }
     const left = Math.max(0, rawLeft);
@@ -887,62 +1080,74 @@ class MarketChart {
     const top = Math.max(0, rawTop);
     const bottom = Math.min(priceHeight, rawBottom);
     if (right <= left || bottom <= top) {
-      this.hideReactionOverlay();
+      this.hideReactionOverlay(overlay);
       return;
     }
-    this.reactionOverlay.style.transform = `translate(${left}px, ${top}px)`;
-    this.reactionOverlay.style.width = `${right - left}px`;
-    this.reactionOverlay.style.height = `${bottom - top}px`;
-    this.reactionOverlay.hidden = false;
-    this.reactionOverlay.dataset.visible = 'true';
-    this.reactionOverlay.dataset.left = String(left);
-    this.reactionOverlay.dataset.top = String(top);
-    this.reactionOverlay.dataset.width = String(right - left);
-    this.reactionOverlay.dataset.height = String(bottom - top);
-    this.reactionOverlay.dataset.chartWidth = String(chartWidth);
-    this.reactionOverlay.dataset.priceHeight = String(priceHeight);
-    this.reactionOverlay.dataset.clippedX = String(rawLeft < 0 || rawRight > chartWidth);
-    this.reactionOverlay.dataset.clippedY = String(rawTop < 0 || rawBottom > priceHeight);
-    this.reactionOverlay.dataset.clipped = String(rawLeft < 0 || rawRight > chartWidth || rawTop < 0 || rawBottom > priceHeight);
+    overlay.style.transform = `translate(${left}px, ${top}px)`;
+    overlay.style.width = `${right - left}px`;
+    overlay.style.height = `${bottom - top}px`;
+    overlay.hidden = false;
+    overlay.dataset.visible = 'true';
+    overlay.dataset.left = String(left);
+    overlay.dataset.top = String(top);
+    overlay.dataset.width = String(right - left);
+    overlay.dataset.height = String(bottom - top);
+    overlay.dataset.chartWidth = String(chartWidth);
+    overlay.dataset.priceHeight = String(priceHeight);
+    overlay.dataset.clippedX = String(rawLeft < 0 || rawRight > chartWidth);
+    overlay.dataset.clippedY = String(rawTop < 0 || rawBottom > priceHeight);
+    overlay.dataset.clipped = String(rawLeft < 0 || rawRight > chartWidth || rawTop < 0 || rawBottom > priceHeight);
   }
-  private hideReactionOverlay() {
-    if (!this.reactionOverlay) return;
-    this.reactionOverlay.hidden = true;
-    this.reactionOverlay.dataset.visible = 'false';
+  private hideReactionOverlay(overlay: HTMLElement) {
+    overlay.hidden = true;
+    overlay.dataset.visible = 'false';
     for (const key of ['left', 'top', 'width', 'height', 'chartWidth', 'priceHeight', 'clippedX', 'clippedY', 'clipped']) {
-      delete this.reactionOverlay.dataset[key];
+      delete overlay.dataset[key];
     }
   }
-  private clearReactionOverlay() {
+  private clearReactionOverlays() {
     if (this.reactionRenderFrame !== undefined) {
       cancelAnimationFrame(this.reactionRenderFrame);
       this.reactionRenderFrame = undefined;
     }
-    this.hideReactionOverlay();
-    if (!this.reactionOverlay) return;
-    this.reactionOverlay.dataset.present = 'false';
-    for (const key of ['direction', 'firstStart', 'lastStart', 'extremeStart', 'reactionStart', 'firstIndex', 'lastIndex', 'high', 'low']) {
-      delete this.reactionOverlay.dataset[key];
-    }
+    this.reactionOverlays.forEach((overlay) => {
+      this.hideReactionOverlay(overlay);
+      overlay.dataset.present = 'false';
+      for (const key of ['direction', 'firstStart', 'lastStart', 'extremeStart', 'reactionStart', 'firstIndex', 'lastIndex', 'high', 'low']) {
+        delete overlay.dataset[key];
+      }
+    });
   }
   private updateReactionRangeDiagnostics() {
-    const range = this.selection?.kind === 'entry' ? this.selection.reactionRange : undefined;
-    if (!this.reactionOverlay || !range) {
-      this.clearReactionOverlay();
+    if (this.selection?.kind !== 'entry') {
+      this.clearReactionOverlays();
       return;
     }
-    const firstIndex = this.indexByStart.get(range.extremeBar.startMs);
-    const lastIndex = this.indexByStart.get(range.reactionBar.startMs);
-    this.reactionOverlay.dataset.present = 'true';
-    this.reactionOverlay.dataset.direction = range.direction;
-    this.reactionOverlay.dataset.firstStart = String(range.extremeBar.startMs);
-    this.reactionOverlay.dataset.lastStart = String(range.reactionBar.startMs);
-    this.reactionOverlay.dataset.extremeStart = String(range.extremeBar.startMs);
-    this.reactionOverlay.dataset.reactionStart = String(range.reactionBar.startMs);
-    this.reactionOverlay.dataset.firstIndex = String(firstIndex ?? -1);
-    this.reactionOverlay.dataset.lastIndex = String(lastIndex ?? -1);
-    this.reactionOverlay.dataset.high = String(range.high);
-    this.reactionOverlay.dataset.low = String(range.low);
+    this.reactionOverlays.forEach((overlay, index) => {
+      const range = this.selection?.kind === 'entry'
+        ? this.selection.attempts[index]?.reactionRange
+        : undefined;
+      if (!range) {
+        this.hideReactionOverlay(overlay);
+        overlay.dataset.present = 'false';
+        for (const key of ['direction', 'firstStart', 'lastStart', 'extremeStart', 'reactionStart', 'firstIndex', 'lastIndex', 'high', 'low']) {
+          delete overlay.dataset[key];
+        }
+        return;
+      }
+      const firstIndex = this.indexByStart.get(range.extremeBar.startMs);
+      const lastIndex = this.indexByStart.get(range.reactionBar.startMs);
+      overlay.dataset.present = 'true';
+      overlay.dataset.direction = range.direction;
+      overlay.dataset.firstStart = String(range.extremeBar.startMs);
+      overlay.dataset.lastStart = String(range.reactionBar.startMs);
+      overlay.dataset.extremeStart = String(range.extremeBar.startMs);
+      overlay.dataset.reactionStart = String(range.reactionBar.startMs);
+      overlay.dataset.firstIndex = String(firstIndex ?? -1);
+      overlay.dataset.lastIndex = String(lastIndex ?? -1);
+      overlay.dataset.high = String(range.high);
+      overlay.dataset.low = String(range.low);
+    });
     this.scheduleReactionRangeRender();
   }
   highlight(bars: Bar[], focused?: Bar) {
@@ -958,21 +1163,43 @@ class MarketChart {
     const lifecycle = Array.isArray(lifecycleOrBars)
       ? (() => {
           const bars = lifecycleOrBars;
-          const reactionRange = bars.length ? entryReactionRange(entry.direction, bars) : undefined;
-          const quarterSignal = reactionRange ? entryQuarterSignal(reactionRange, bars, MARKET_PRICE_TICK) : undefined;
-          const stopLossSignal = reactionRange ? entryStopLossSignal(reactionRange, MARKET_PRICE_TICK) : undefined;
+          const reactionRange = bars.length
+            ? entryReactionRange(entry.direction, bars, this.definition.priceTick, entryStrategySettings)
+            : undefined;
+          const quarterSignal = reactionRange
+            ? entryQuarterSignal(
+                reactionRange,
+                bars,
+                this.definition.priceTick,
+                Number.POSITIVE_INFINITY,
+                entryStrategySettings,
+              )
+            : undefined;
+          const stopLossSignal = reactionRange ? entryStopLossSignal(reactionRange, this.definition.priceTick) : undefined;
           const takeProfitSignal = reactionRange && quarterSignal
-            ? entryTakeProfitSignal(reactionRange, bars, quarterSignal, MARKET_PRICE_TICK)
+            ? entryTakeProfitSignal(reactionRange, bars, quarterSignal, this.definition.priceTick)
             : undefined;
           const exitAnalysis = reactionRange && quarterSignal && stopLossSignal && takeProfitSignal
             ? analyzeEntryExit(reactionRange, bars, minutes, quarterSignal, stopLossSignal, takeProfitSignal)
             : undefined;
+          const attempt: EntryLifecycleAttempt = {
+            number: 1,
+            triggerBar: bars[0],
+            analysisBars: bars,
+            reactionRange,
+            quarterSignal,
+            stopLossSignal,
+            takeProfitSignal,
+            exitAnalysis,
+            endReason: exitAnalysis?.exitSignal?.type ?? 'data-end',
+          };
           return {
             analysisBars: bars,
             focusBars: bars.slice(0, 16),
             entryCutoff: Number.POSITIVE_INFINITY,
             sessionEnd: Number.POSITIVE_INFINITY,
             forcedExitBar: undefined,
+            attempts: [attempt],
             reactionRange,
             quarterSignal,
             stopLossSignal,
@@ -990,6 +1217,7 @@ class MarketChart {
       sessionEnd: lifecycle.sessionEnd,
       forcedExitBar: lifecycle.forcedExitBar,
       endReason: lifecycle.endReason,
+      attempts: lifecycle.attempts,
       reactionRange: lifecycle.reactionRange,
       quarterSignal: lifecycle.quarterSignal,
       stopLossSignal: lifecycle.stopLossSignal,
@@ -1003,11 +1231,118 @@ class MarketChart {
     this.drawMarkers();
     this.details(this.selectionOrLast());
   }
+  private updateAttemptDiagnostics(attempts?: readonly EntryLifecycleAttempt[]) {
+    const suffixes = [
+      'Present',
+      'Number',
+      'TriggerStart',
+      'TriggerIndex',
+      'AnalysisCount',
+      'AnalysisFirstStart',
+      'AnalysisLastStart',
+      'AnalysisFirstIndex',
+      'AnalysisLastIndex',
+      'EndReason',
+      'ReactionRangePresent',
+      'ReactionRangeHigh',
+      'ReactionRangeLow',
+      'ReactionStart',
+      'ReactionIndex',
+      'QuarterSignalPresent',
+      'EntryRangePercent',
+      'EntryDistanceTicks',
+      'EntryPrice',
+      'EntryStart',
+      'EntryIndex',
+      'StopLossSignalPresent',
+      'StopLossPrice',
+      'TakeProfitSignalPresent',
+      'TakeProfitDefaultPrice',
+      'TakeProfitAdjustedPrice',
+      'RiskTouchSignalPresent',
+      'RiskTouchStart',
+      'RiskTouchIndex',
+      'ExitSignalPresent',
+      'ExitType',
+      'ExitPrice',
+      'ExitStart',
+      'ExitIndex',
+    ];
+    if (attempts) this.element.dataset.attemptCount = String(attempts.length);
+    else delete this.element.dataset.attemptCount;
+
+    for (let index = 0; index < 2; index += 1) {
+      const prefix = `attempt${index + 1}`;
+      for (const suffix of suffixes) delete this.element.dataset[`${prefix}${suffix}`];
+      const attempt = attempts?.[index];
+      if (!attempt) continue;
+
+      const firstBar = attempt.analysisBars[0];
+      const lastBar = attempt.analysisBars.at(-1);
+      const range = attempt.reactionRange;
+      const entrySignal = attempt.quarterSignal;
+      const riskTouch = attempt.exitAnalysis?.riskTouchSignal;
+      const exit = attempt.exitAnalysis?.exitSignal;
+      this.element.dataset[`${prefix}Present`] = 'true';
+      this.element.dataset[`${prefix}Number`] = String(attempt.number);
+      this.element.dataset[`${prefix}TriggerStart`] = String(attempt.triggerBar.startMs);
+      this.element.dataset[`${prefix}TriggerIndex`] = String(this.indexByStart.get(attempt.triggerBar.startMs) ?? -1);
+      this.element.dataset[`${prefix}AnalysisCount`] = String(attempt.analysisBars.length);
+      this.element.dataset[`${prefix}AnalysisFirstStart`] = firstBar ? String(firstBar.startMs) : '';
+      this.element.dataset[`${prefix}AnalysisLastStart`] = lastBar ? String(lastBar.startMs) : '';
+      this.element.dataset[`${prefix}AnalysisFirstIndex`] = String(firstBar
+        ? this.indexByStart.get(firstBar.startMs) ?? -1
+        : -1);
+      this.element.dataset[`${prefix}AnalysisLastIndex`] = String(lastBar
+        ? this.indexByStart.get(lastBar.startMs) ?? -1
+        : -1);
+      this.element.dataset[`${prefix}EndReason`] = attempt.endReason;
+      this.element.dataset[`${prefix}ReactionRangePresent`] = String(!!range);
+      this.element.dataset[`${prefix}QuarterSignalPresent`] = String(!!entrySignal);
+      this.element.dataset[`${prefix}StopLossSignalPresent`] = String(!!attempt.stopLossSignal);
+      this.element.dataset[`${prefix}TakeProfitSignalPresent`] = String(!!attempt.takeProfitSignal);
+      this.element.dataset[`${prefix}RiskTouchSignalPresent`] = String(!!riskTouch);
+      this.element.dataset[`${prefix}ExitSignalPresent`] = String(!!exit);
+      if (range) {
+        this.element.dataset[`${prefix}ReactionRangeHigh`] = String(range.high);
+        this.element.dataset[`${prefix}ReactionRangeLow`] = String(range.low);
+        this.element.dataset[`${prefix}ReactionStart`] = String(range.reactionBar.startMs);
+        this.element.dataset[`${prefix}ReactionIndex`] = String(this.indexByStart.get(range.reactionBar.startMs) ?? -1);
+      }
+      if (entrySignal) {
+        this.element.dataset[`${prefix}EntryRangePercent`] = String(entrySignal.entryRangePercent);
+        this.element.dataset[`${prefix}EntryDistanceTicks`] = String(entrySignal.entryDistanceTicks);
+        this.element.dataset[`${prefix}EntryPrice`] = String(entrySignal.price);
+        this.element.dataset[`${prefix}EntryStart`] = entrySignal.entryBar ? String(entrySignal.entryBar.startMs) : '';
+        this.element.dataset[`${prefix}EntryIndex`] = String(entrySignal.entryBar
+          ? this.indexByStart.get(entrySignal.entryBar.startMs) ?? -1
+          : -1);
+      }
+      if (attempt.stopLossSignal) {
+        this.element.dataset[`${prefix}StopLossPrice`] = String(attempt.stopLossSignal.price);
+      }
+      if (attempt.takeProfitSignal) {
+        this.element.dataset[`${prefix}TakeProfitDefaultPrice`] = String(attempt.takeProfitSignal.defaultPrice);
+        this.element.dataset[`${prefix}TakeProfitAdjustedPrice`] = String(attempt.takeProfitSignal.adjustedPrice);
+      }
+      if (riskTouch) {
+        this.element.dataset[`${prefix}RiskTouchStart`] = String(riskTouch.bar.startMs);
+        this.element.dataset[`${prefix}RiskTouchIndex`] = String(this.indexByStart.get(riskTouch.bar.startMs) ?? -1);
+      }
+      if (exit) {
+        this.element.dataset[`${prefix}ExitType`] = exit.type;
+        this.element.dataset[`${prefix}ExitPrice`] = String(exit.price);
+        this.element.dataset[`${prefix}ExitStart`] = String(exit.bar.startMs);
+        this.element.dataset[`${prefix}ExitIndex`] = String(this.indexByStart.get(exit.bar.startMs) ?? -1);
+      }
+    }
+  }
   private updateSelectionDiagnostics() {
     const selection = this.selection;
     this.element.dataset.selectedCount = String(selection?.bars.length || 0);
     this.element.dataset.selectionKind = selection?.kind || 'none';
     if (selection?.kind === 'entry') {
+      this.updateAttemptDiagnostics(selection.attempts);
       this.element.dataset.selectionDirection = selection.direction;
       this.element.dataset.selectionTriggerStart = String(selection.triggerStart);
       this.element.dataset.selectionPullbackLine = String(selection.pullbackLine);
@@ -1055,6 +1390,8 @@ class MarketChart {
         this.element.dataset.quarterSignalPrice = String(signal.price);
         this.element.dataset.quarterSignalTick = String(signal.tick);
         this.element.dataset.quarterSignalRangeTicks = String(signal.rangeTicks);
+        this.element.dataset.quarterSignalEntryRangePercent = String(signal.entryRangePercent);
+        this.element.dataset.quarterSignalEntryDistanceTicks = String(signal.entryDistanceTicks);
         this.element.dataset.quarterSignalQuarterTicks = String(signal.quarterTicks);
         this.element.dataset.quarterSignalLineStart = String(signal.lineStartBar.startMs);
         this.element.dataset.quarterSignalReactionStart = String(signal.reactionBar.startMs);
@@ -1070,7 +1407,8 @@ class MarketChart {
           : -1);
       } else {
         for (const key of ['quarterSignalDirection', 'quarterSignalPrice', 'quarterSignalTick', 'quarterSignalRangeTicks',
-          'quarterSignalQuarterTicks', 'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
+          'quarterSignalEntryRangePercent', 'quarterSignalEntryDistanceTicks', 'quarterSignalQuarterTicks',
+          'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
           'quarterSignalEntryStart', 'quarterSignalLineStartIndex', 'quarterSignalReactionIndex',
           'quarterSignalSearchStartIndex', 'quarterSignalEntryIndex']) {
           delete this.element.dataset[key];
@@ -1169,7 +1507,8 @@ class MarketChart {
         delete this.element.dataset[key];
       }
       for (const key of ['quarterSignalDirection', 'quarterSignalPrice', 'quarterSignalTick', 'quarterSignalRangeTicks',
-        'quarterSignalQuarterTicks', 'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
+        'quarterSignalEntryRangePercent', 'quarterSignalEntryDistanceTicks', 'quarterSignalQuarterTicks',
+        'quarterSignalLineStart', 'quarterSignalReactionStart', 'quarterSignalSearchStart',
         'quarterSignalEntryStart', 'quarterSignalLineStartIndex', 'quarterSignalReactionIndex',
         'quarterSignalSearchStartIndex', 'quarterSignalEntryIndex']) {
         delete this.element.dataset[key];
@@ -1189,119 +1528,146 @@ class MarketChart {
         'exitSignalGranularity', 'exitSignalMinuteStart', 'exitSignalLineEnd']) {
         delete this.element.dataset[key];
       }
+      this.updateAttemptDiagnostics();
     }
     this.updateReactionRangeDiagnostics();
   }
   private drawEntryQuarter() {
-    if (!this.entryQuarter) return;
     const selection = this.selection;
-    const signal = selection?.kind === 'entry' ? selection.quarterSignal : undefined;
-    const lineStartIndex = selection?.kind === 'entry' && signal
-      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
-      : -1;
-    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
-      ? selection.bars.slice(lineStartIndex)
-      : [];
-    if (!signal || !lineBars.length) {
-      this.entryQuarter.setData([]);
-      this.element.dataset.quarterLineVisible = 'false';
-      for (const key of ['quarterLinePrice', 'quarterLineTick', 'quarterLineQuarterTicks', 'quarterLinePointCount',
-        'quarterLineFirstStart', 'quarterLineLastStart', 'quarterLineFirstIndex', 'quarterLineLastIndex']) {
-        delete this.element.dataset[key];
+    this.entryQuarters.forEach((series, index) => {
+      const attempt = selection?.kind === 'entry' ? selection.attempts[index] : undefined;
+      const signal = attempt?.quarterSignal;
+      const lineStartIndex = signal
+        ? attempt.analysisBars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+        : -1;
+      const lineBars = lineStartIndex >= 0 ? attempt!.analysisBars.slice(lineStartIndex) : [];
+      const prefixes = [
+        `attempt${index + 1}QuarterLine`,
+        ...(index === 0 ? ['quarterLine'] : []),
+      ];
+      const labelOptions = series.options();
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}Visible`] = String(!!signal && lineBars.length > 0);
+        this.element.dataset[`${prefix}LabelVisible`] = String(
+          !!signal && lineBars.length > 0 && labelOptions.lastValueVisible,
+        );
+        for (const suffix of ['Price', 'Tick', 'EntryRangePercent', 'EntryDistanceTicks', 'QuarterTicks',
+          'PointCount', 'FirstStart', 'LastStart', 'FirstIndex', 'LastIndex', 'LabelTitle']) {
+          delete this.element.dataset[`${prefix}${suffix}`];
+        }
       }
-      return;
-    }
+      if (!signal || !lineBars.length) {
+        series.setData([]);
+        return;
+      }
 
-    this.entryQuarter.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
-    this.element.dataset.quarterLineVisible = 'true';
-    this.element.dataset.quarterLinePrice = String(signal.price);
-    this.element.dataset.quarterLineTick = String(signal.tick);
-    this.element.dataset.quarterLineQuarterTicks = String(signal.quarterTicks);
-    this.element.dataset.quarterLinePointCount = String(lineBars.length);
-    this.element.dataset.quarterLineFirstStart = String(lineBars[0].startMs);
-    this.element.dataset.quarterLineLastStart = String(lineBars.at(-1)!.startMs);
-    this.element.dataset.quarterLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
-    this.element.dataset.quarterLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+      series.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}Price`] = String(signal.price);
+        this.element.dataset[`${prefix}Tick`] = String(signal.tick);
+        this.element.dataset[`${prefix}EntryRangePercent`] = String(signal.entryRangePercent);
+        this.element.dataset[`${prefix}EntryDistanceTicks`] = String(signal.entryDistanceTicks);
+        this.element.dataset[`${prefix}QuarterTicks`] = String(signal.quarterTicks);
+        this.element.dataset[`${prefix}LabelTitle`] = labelOptions.title;
+        this.element.dataset[`${prefix}PointCount`] = String(lineBars.length);
+        this.element.dataset[`${prefix}FirstStart`] = String(lineBars[0].startMs);
+        this.element.dataset[`${prefix}LastStart`] = String(lineBars.at(-1)!.startMs);
+        this.element.dataset[`${prefix}FirstIndex`] = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+        this.element.dataset[`${prefix}LastIndex`] = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+      }
+    });
   }
   private drawEntryStopLoss() {
-    if (!this.entryStopLoss) return;
     const selection = this.selection;
-    const signal = selection?.kind === 'entry' ? selection.stopLossSignal : undefined;
-    const lineStartIndex = selection?.kind === 'entry' && signal
-      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
-      : -1;
-    const lineEndMs = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal?.lineEndMs : undefined;
-    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
-      ? selection.bars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
-      : [];
-    if (!signal || !lineBars.length) {
-      this.entryStopLoss.setData([]);
-      this.element.dataset.stopLossLineVisible = 'false';
-      for (const key of ['stopLossLinePrice', 'stopLossLineTick', 'stopLossLineStopTicks', 'stopLossLinePointCount',
-        'stopLossLineFirstStart', 'stopLossLineLastStart', 'stopLossLineFirstIndex', 'stopLossLineLastIndex']) {
-        delete this.element.dataset[key];
+    this.entryStopLosses.forEach((series, index) => {
+      const attempt = selection?.kind === 'entry' ? selection.attempts[index] : undefined;
+      const signal = attempt?.stopLossSignal;
+      const lineStartIndex = signal
+        ? attempt.analysisBars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+        : -1;
+      const lineEndMs = attempt?.exitAnalysis?.exitSignal?.lineEndMs;
+      const lineBars = lineStartIndex >= 0
+        ? attempt!.analysisBars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
+        : [];
+      const prefixes = [
+        `attempt${index + 1}StopLossLine`,
+        ...(index === 0 ? ['stopLossLine'] : []),
+      ];
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}Visible`] = String(!!signal && lineBars.length > 0);
+        for (const suffix of ['Price', 'Tick', 'StopTicks', 'PointCount', 'FirstStart', 'LastStart', 'FirstIndex', 'LastIndex']) {
+          delete this.element.dataset[`${prefix}${suffix}`];
+        }
       }
-      return;
-    }
+      if (!signal || !lineBars.length) {
+        series.setData([]);
+        return;
+      }
 
-    this.entryStopLoss.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
-    this.element.dataset.stopLossLineVisible = 'true';
-    this.element.dataset.stopLossLinePrice = String(signal.price);
-    this.element.dataset.stopLossLineTick = String(signal.tick);
-    this.element.dataset.stopLossLineStopTicks = String(signal.stopTicks);
-    this.element.dataset.stopLossLinePointCount = String(lineBars.length);
-    this.element.dataset.stopLossLineFirstStart = String(lineBars[0].startMs);
-    this.element.dataset.stopLossLineLastStart = String(lineBars.at(-1)!.startMs);
-    this.element.dataset.stopLossLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
-    this.element.dataset.stopLossLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+      series.setData(lineBars.map(bar => ({ time: timeKey(bar), value: signal.price })));
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}Price`] = String(signal.price);
+        this.element.dataset[`${prefix}Tick`] = String(signal.tick);
+        this.element.dataset[`${prefix}StopTicks`] = String(signal.stopTicks);
+        this.element.dataset[`${prefix}PointCount`] = String(lineBars.length);
+        this.element.dataset[`${prefix}FirstStart`] = String(lineBars[0].startMs);
+        this.element.dataset[`${prefix}LastStart`] = String(lineBars.at(-1)!.startMs);
+        this.element.dataset[`${prefix}FirstIndex`] = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+        this.element.dataset[`${prefix}LastIndex`] = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+      }
+    });
   }
   private drawEntryTakeProfit() {
-    if (!this.entryTakeProfit) return;
     const selection = this.selection;
-    const signal = selection?.kind === 'entry' ? selection.takeProfitSignal : undefined;
-    const lineStartIndex = selection?.kind === 'entry' && signal
-      ? selection.bars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
-      : -1;
-    const lineEndMs = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal?.lineEndMs : undefined;
-    const lineBars = selection?.kind === 'entry' && lineStartIndex >= 0
-      ? selection.bars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
-      : [];
-    if (!signal || !lineBars.length) {
-      this.entryTakeProfit.setData([]);
-      this.element.dataset.takeProfitLineVisible = 'false';
-      for (const key of ['takeProfitLineDefaultPrice', 'takeProfitLineAdjustedPrice', 'takeProfitLineTick',
-        'takeProfitLineRangeTicks', 'takeProfitLineTargetTicks', 'takeProfitLinePointCount', 'takeProfitLineFirstStart',
-        'takeProfitLineLastStart', 'takeProfitLineFirstIndex', 'takeProfitLineLastIndex', 'takeProfitLineValues',
-        'takeProfitLineSwitchStart', 'takeProfitLineSwitchIndex']) {
-        delete this.element.dataset[key];
+    this.entryTakeProfits.forEach((series, index) => {
+      const attempt = selection?.kind === 'entry' ? selection.attempts[index] : undefined;
+      const signal = attempt?.takeProfitSignal;
+      const lineStartIndex = signal
+        ? attempt.analysisBars.findIndex(bar => bar.startMs === signal.lineStartBar.startMs)
+        : -1;
+      const lineEndMs = attempt?.exitAnalysis?.exitSignal?.lineEndMs;
+      const lineBars = lineStartIndex >= 0
+        ? attempt!.analysisBars.slice(lineStartIndex).filter(bar => lineEndMs === undefined || bar.endMs <= lineEndMs)
+        : [];
+      const prefixes = [
+        `attempt${index + 1}TakeProfitLine`,
+        ...(index === 0 ? ['takeProfitLine'] : []),
+      ];
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}Visible`] = String(!!signal && lineBars.length > 0);
+        for (const suffix of ['DefaultPrice', 'AdjustedPrice', 'Tick', 'RangeTicks', 'TargetTicks', 'PointCount',
+          'FirstStart', 'LastStart', 'FirstIndex', 'LastIndex', 'Values', 'SwitchStart', 'SwitchIndex']) {
+          delete this.element.dataset[`${prefix}${suffix}`];
+        }
       }
-      return;
-    }
+      if (!signal || !lineBars.length) {
+        series.setData([]);
+        return;
+      }
 
-    const riskTouchBar = selection?.kind === 'entry' ? selection.exitAnalysis?.riskTouchSignal?.bar : undefined;
-    const values = lineBars.map(bar => riskTouchBar && bar.startMs >= riskTouchBar.startMs
-      ? signal.adjustedPrice
-      : signal.defaultPrice);
-    this.entryTakeProfit.setData(lineBars.map((bar, index) => ({ time: timeKey(bar), value: values[index] })));
-    this.element.dataset.takeProfitLineVisible = 'true';
-    this.element.dataset.takeProfitLineDefaultPrice = String(signal.defaultPrice);
-    this.element.dataset.takeProfitLineAdjustedPrice = String(signal.adjustedPrice);
-    this.element.dataset.takeProfitLineTick = String(signal.tick);
-    this.element.dataset.takeProfitLineRangeTicks = String(signal.rangeTicks);
-    this.element.dataset.takeProfitLineTargetTicks = String(signal.targetTicks);
-    this.element.dataset.takeProfitLinePointCount = String(lineBars.length);
-    this.element.dataset.takeProfitLineFirstStart = String(lineBars[0].startMs);
-    this.element.dataset.takeProfitLineLastStart = String(lineBars.at(-1)!.startMs);
-    this.element.dataset.takeProfitLineFirstIndex = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
-    this.element.dataset.takeProfitLineLastIndex = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
-    this.element.dataset.takeProfitLineValues = JSON.stringify(values);
-    if (riskTouchBar) {
-      this.element.dataset.takeProfitLineSwitchStart = String(riskTouchBar.startMs);
-      this.element.dataset.takeProfitLineSwitchIndex = String(this.indexByStart.get(riskTouchBar.startMs) ?? -1);
-    } else {
-      delete this.element.dataset.takeProfitLineSwitchStart;
-      delete this.element.dataset.takeProfitLineSwitchIndex;
-    }
+      const riskTouchBar = attempt?.exitAnalysis?.riskTouchSignal?.bar;
+      const values = lineBars.map(bar => riskTouchBar && bar.startMs >= riskTouchBar.startMs
+        ? signal.adjustedPrice
+        : signal.defaultPrice);
+      series.setData(lineBars.map((bar, lineIndex) => ({ time: timeKey(bar), value: values[lineIndex] })));
+      for (const prefix of prefixes) {
+        this.element.dataset[`${prefix}DefaultPrice`] = String(signal.defaultPrice);
+        this.element.dataset[`${prefix}AdjustedPrice`] = String(signal.adjustedPrice);
+        this.element.dataset[`${prefix}Tick`] = String(signal.tick);
+        this.element.dataset[`${prefix}RangeTicks`] = String(signal.rangeTicks);
+        this.element.dataset[`${prefix}TargetTicks`] = String(signal.targetTicks);
+        this.element.dataset[`${prefix}PointCount`] = String(lineBars.length);
+        this.element.dataset[`${prefix}FirstStart`] = String(lineBars[0].startMs);
+        this.element.dataset[`${prefix}LastStart`] = String(lineBars.at(-1)!.startMs);
+        this.element.dataset[`${prefix}FirstIndex`] = String(this.indexByStart.get(lineBars[0].startMs) ?? -1);
+        this.element.dataset[`${prefix}LastIndex`] = String(this.indexByStart.get(lineBars.at(-1)!.startMs) ?? -1);
+        this.element.dataset[`${prefix}Values`] = JSON.stringify(values);
+        if (riskTouchBar) {
+          this.element.dataset[`${prefix}SwitchStart`] = String(riskTouchBar.startMs);
+          this.element.dataset[`${prefix}SwitchIndex`] = String(this.indexByStart.get(riskTouchBar.startMs) ?? -1);
+        }
+      }
+    });
   }
   private drawEntryPullback() {
     if (!this.entryPullback) return;
@@ -1345,7 +1711,8 @@ class MarketChart {
     if (!window.market.testMode || this.period !== 5) return;
     const firstIndex = this.indexByStart.get(startMs);
     if (firstIndex === undefined) return;
-    const source = this.bars.slice(firstIndex, firstIndex + 16);
+    const sourceCount = scenario === 'two-attempts' ? 10 : 16;
+    const source = this.bars.slice(firstIndex, firstIndex + sourceCount);
     if (!source.length) return;
     const directional = (bar: Bar, target: 'reaction' | 'opposite' | 'doji'): Bar => {
       const midpoint = (bar.high + bar.low) / 2;
@@ -1517,6 +1884,40 @@ class MarketChart {
       };
     };
     const bars = source.map((bar, index) => {
+      if (scenario === 'two-attempts') {
+        const longPrices = [
+          [3, 4, 0, 1],
+          [2, 8, 1, 7],
+          [3, 4, 2, 3],
+          [3, 4, 0, 2],
+          [4, 8, 1, 7],
+          [3, 3, -2, 1],
+          [0, 6, -1, 5],
+          [1, 2, 0, 1],
+          [1, 2, -2, 0],
+          [2, 6, -1, 5],
+        ] as const;
+        const shortPrices = [
+          [5, 8, 4, 7],
+          [6, 7, 0, 1],
+          [5, 6, 4, 5],
+          [6, 8, 4, 5],
+          [4, 7, 0, 1],
+          [5, 10, 4, 8],
+          [8, 9, 2, 3],
+          [7, 8, 6, 7],
+          [7, 10, 6, 8],
+          [6, 9, 2, 3],
+        ] as const;
+        const prices = direction === 'long' ? longPrices[index] : shortPrices[index];
+        return {
+          ...bar,
+          open: base + prices[0],
+          high: base + prices[1],
+          low: base + prices[2],
+          close: base + prices[3],
+        };
+      }
       if (controlledQuarterScenario) return controlled(bar, index);
       if (scenario === 'immediate') return directional(bar, index === 0 ? 'reaction' : 'opposite');
       if (scenario === 'doji-then-reaction') {
@@ -1525,8 +1926,7 @@ class MarketChart {
       return directional(bar, index % 2 ? 'opposite' : 'doji');
     });
     const triggerBar = bars[0];
-    this.focusBars(source, 20);
-    this.highlightEntry(bars, {
+    const testEntry: WeeklyEntry = {
       bar: triggerBar,
       triggerBar,
       direction,
@@ -1536,7 +1936,14 @@ class MarketChart {
       ema20: this.emaByStart.get(triggerBar.startMs) ?? triggerBar.close,
       pullbackLine: triggerBar.close,
       weekStart: formatBeijing(triggerBar.startMs).slice(0, 10),
-    });
+    };
+    this.focusBars(source, 20);
+    this.highlightEntry(
+      scenario === 'two-attempts'
+        ? entryLifecycle(testEntry, bars, [], this.definition.priceTick, entryStrategySettings)
+        : bars,
+      testEntry,
+    );
   }
   drawMarkers() {
     const markers: SeriesMarker<Time>[] = [];
@@ -1575,29 +1982,41 @@ class MarketChart {
         color: long ? '#74e2a688' : '#ff9d8288', shape: 'square' as const, size: 0.45,
         id: `observation-follow-${selection.direction}-${selection.triggerStart}-${bar.startMs}`,
       })));
-      const trueEntry = selection.quarterSignal?.entryBar;
-      const riskTouch = selection.exitAnalysis?.riskTouchSignal?.bar;
-      const exit = selection.exitAnalysis?.exitSignal;
-      const showRiskTouch = !!riskTouch
-        && !(exit?.type === 'stop-loss' && exit.bar.startMs === riskTouch.startMs);
-      const sameEntryRiskTouch = showRiskTouch && !!trueEntry && trueEntry.startMs === riskTouch.startMs;
-      if (showRiskTouch) {
-        markers.push({
-          time: timeKey(riskTouch), position: long ? 'belowBar' : 'aboveBar',
-          color: '#4fc3f7', shape: 'square',
-          text: `${long ? '触底' : '触顶'}${sameEntryRiskTouch ? '·入场' : ''}`, size: 0.3,
-          id: `take-profit-risk-touch-${selection.direction}-${selection.triggerStart}-${riskTouch.startMs}`,
-        });
-      }
-      if (trueEntry) {
-        markers.push({
-          time: timeKey(trueEntry), position: long ? 'belowBar' : 'aboveBar',
-          color: '#ffffff', shape: long ? 'arrowUp' : 'arrowDown',
-          text: sameEntryRiskTouch ? undefined : '入场', size: 1.1,
-          id: `true-entry-${selection.direction}-${selection.triggerStart}-${trueEntry.startMs}`,
-        });
-      }
-      if (exit) {
+      for (const attempt of selection.attempts) {
+        if (attempt.number === 2) {
+          markers.push({
+            time: timeKey(attempt.triggerBar),
+            position: long ? 'belowBar' : 'aboveBar',
+            color: '#9aa5b1',
+            shape: 'square',
+            text: '二次触发',
+            size: 0.55,
+            id: `second-trigger-attempt-2-${selection.direction}-${attempt.triggerBar.startMs}`,
+          });
+        }
+        const trueEntry = attempt.quarterSignal?.entryBar;
+        const riskTouch = attempt.exitAnalysis?.riskTouchSignal?.bar;
+        const exit = attempt.exitAnalysis?.exitSignal;
+        const showRiskTouch = !!riskTouch
+          && !(exit?.type === 'stop-loss' && exit.bar.startMs === riskTouch.startMs);
+        const sameEntryRiskTouch = showRiskTouch && !!trueEntry && trueEntry.startMs === riskTouch.startMs;
+        if (showRiskTouch) {
+          markers.push({
+            time: timeKey(riskTouch), position: long ? 'belowBar' : 'aboveBar',
+            color: '#4fc3f7', shape: 'square',
+            text: `${long ? '触底' : '触顶'}${sameEntryRiskTouch ? '·入场' : ''}`, size: 0.3,
+            id: `take-profit-risk-touch-attempt-${attempt.number}-${selection.direction}-${selection.triggerStart}-${riskTouch.startMs}`,
+          });
+        }
+        if (trueEntry) {
+          markers.push({
+            time: timeKey(trueEntry), position: long ? 'belowBar' : 'aboveBar',
+            color: '#ffffff', shape: long ? 'arrowUp' : 'arrowDown',
+            text: sameEntryRiskTouch ? undefined : '入场', size: 1.1,
+            id: `true-entry-attempt-${attempt.number}-${selection.direction}-${selection.triggerStart}-${trueEntry.startMs}`,
+          });
+        }
+        if (!exit) continue;
         const takeProfit = exit.type === 'take-profit';
         const sessionClose = exit.type === 'session-close';
         const above = sessionClose ? long : long ? takeProfit : !takeProfit;
@@ -1609,7 +2028,7 @@ class MarketChart {
           shape: long ? 'arrowDown' : 'arrowUp',
           text,
           size: 1.15,
-          id: `actual-exit-${exit.type}-${selection.direction}-${selection.triggerStart}-${exit.bar.startMs}`,
+          id: `actual-exit-attempt-${attempt.number}-${exit.type}-${selection.direction}-${selection.triggerStart}-${exit.bar.startMs}`,
         });
       }
     }
@@ -1648,29 +2067,50 @@ class MarketChart {
     this.element.dataset.linkedMarkerCount = String(markers.filter(marker => marker.id?.startsWith('selected-')).length);
     this.element.dataset.observationTriggerCount = String(markers.filter(marker => marker.id?.startsWith('observation-trigger-')).length);
     this.element.dataset.observationFollowCount = String(markers.filter(marker => marker.id?.startsWith('observation-follow-')).length);
-    const trueEntryMarkers = markers.filter(marker => marker.id?.startsWith('true-entry-'));
+    const secondTriggerMarkers = markers.filter(marker => marker.id?.startsWith('second-trigger-attempt-'));
+    this.element.dataset.secondTriggerMarkerCount = String(secondTriggerMarkers.length);
+    if (secondTriggerMarkers.length) {
+      const secondAttempt = selection?.kind === 'entry' ? selection.attempts[1] : undefined;
+      this.element.dataset.secondTriggerMarkerId = String(secondTriggerMarkers[0].id);
+      this.element.dataset.secondTriggerMarkerStart = String(secondAttempt?.triggerBar.startMs ?? '');
+      this.element.dataset.secondTriggerMarkerDirection = String(selection?.kind === 'entry' ? selection.direction : '');
+      this.element.dataset.secondTriggerMarkerPosition = String(secondTriggerMarkers[0].position);
+      this.element.dataset.secondTriggerMarkerText = String(secondTriggerMarkers[0].text);
+    } else {
+      delete this.element.dataset.secondTriggerMarkerId;
+      delete this.element.dataset.secondTriggerMarkerStart;
+      delete this.element.dataset.secondTriggerMarkerDirection;
+      delete this.element.dataset.secondTriggerMarkerPosition;
+      delete this.element.dataset.secondTriggerMarkerText;
+    }
+    const trueEntryMarkers = markers.filter(marker => marker.id?.startsWith('true-entry-attempt-'));
     this.element.dataset.trueEntryMarkerCount = String(trueEntryMarkers.length);
-    if (trueEntryMarkers.length) {
-      this.element.dataset.trueEntryMarkerId = String(trueEntryMarkers[0].id);
-      this.element.dataset.trueEntryMarkerStart = String(selection?.kind === 'entry' ? selection.quarterSignal?.entryBar?.startMs : '');
+    const firstTrueEntryMarker = trueEntryMarkers.find(marker => marker.id?.startsWith('true-entry-attempt-1-'));
+    if (firstTrueEntryMarker) {
+      this.element.dataset.trueEntryMarkerId = String(firstTrueEntryMarker.id);
+      this.element.dataset.trueEntryMarkerStart = String(selection?.kind === 'entry'
+        ? selection.attempts[0]?.quarterSignal?.entryBar?.startMs ?? ''
+        : '');
       this.element.dataset.trueEntryMarkerDirection = String(selection?.kind === 'entry' ? selection.direction : '');
-      this.element.dataset.trueEntryMarkerPosition = String(trueEntryMarkers[0].position);
+      this.element.dataset.trueEntryMarkerPosition = String(firstTrueEntryMarker.position);
     } else {
       delete this.element.dataset.trueEntryMarkerId;
       delete this.element.dataset.trueEntryMarkerStart;
       delete this.element.dataset.trueEntryMarkerDirection;
       delete this.element.dataset.trueEntryMarkerPosition;
     }
-    const riskTouchMarkers = markers.filter(marker => marker.id?.startsWith('take-profit-risk-touch-'));
+    this.element.dataset.trueEntryMarkerIds = JSON.stringify(trueEntryMarkers.map(marker => marker.id));
+    const riskTouchMarkers = markers.filter(marker => marker.id?.startsWith('take-profit-risk-touch-attempt-'));
     this.element.dataset.riskTouchMarkerCount = String(riskTouchMarkers.length);
-    if (riskTouchMarkers.length) {
-      this.element.dataset.riskTouchMarkerId = String(riskTouchMarkers[0].id);
+    const firstRiskTouchMarker = riskTouchMarkers.find(marker => marker.id?.startsWith('take-profit-risk-touch-attempt-1-'));
+    if (firstRiskTouchMarker) {
+      this.element.dataset.riskTouchMarkerId = String(firstRiskTouchMarker.id);
       this.element.dataset.riskTouchMarkerStart = String(selection?.kind === 'entry'
-        ? selection.exitAnalysis?.riskTouchSignal?.bar.startMs
+        ? selection.attempts[0]?.exitAnalysis?.riskTouchSignal?.bar.startMs
         : '');
       this.element.dataset.riskTouchMarkerDirection = String(selection?.kind === 'entry' ? selection.direction : '');
-      this.element.dataset.riskTouchMarkerPosition = String(riskTouchMarkers[0].position);
-      this.element.dataset.riskTouchMarkerText = String(riskTouchMarkers[0].text);
+      this.element.dataset.riskTouchMarkerPosition = String(firstRiskTouchMarker.position);
+      this.element.dataset.riskTouchMarkerText = String(firstRiskTouchMarker.text);
     } else {
       delete this.element.dataset.riskTouchMarkerId;
       delete this.element.dataset.riskTouchMarkerStart;
@@ -1678,21 +2118,80 @@ class MarketChart {
       delete this.element.dataset.riskTouchMarkerPosition;
       delete this.element.dataset.riskTouchMarkerText;
     }
-    const exitMarkers = markers.filter(marker => marker.id?.startsWith('actual-exit-'));
+    this.element.dataset.riskTouchMarkerIds = JSON.stringify(riskTouchMarkers.map(marker => marker.id));
+    const exitMarkers = markers.filter(marker => marker.id?.startsWith('actual-exit-attempt-'));
     this.element.dataset.exitMarkerCount = String(exitMarkers.length);
-    if (exitMarkers.length) {
-      const exit = selection?.kind === 'entry' ? selection.exitAnalysis?.exitSignal : undefined;
-      this.element.dataset.exitMarkerId = String(exitMarkers[0].id);
-      this.element.dataset.exitMarkerText = String(exitMarkers[0].text);
+    const firstExitMarker = exitMarkers.find(marker => marker.id?.startsWith('actual-exit-attempt-1-'));
+    if (firstExitMarker) {
+      const exit = selection?.kind === 'entry' ? selection.attempts[0]?.exitAnalysis?.exitSignal : undefined;
+      this.element.dataset.exitMarkerId = String(firstExitMarker.id);
+      this.element.dataset.exitMarkerText = String(firstExitMarker.text);
       this.element.dataset.exitMarkerStart = String(exit?.bar.startMs ?? '');
-      this.element.dataset.exitMarkerPosition = String(exitMarkers[0].position);
+      this.element.dataset.exitMarkerPosition = String(firstExitMarker.position);
     } else {
       delete this.element.dataset.exitMarkerId;
       delete this.element.dataset.exitMarkerText;
       delete this.element.dataset.exitMarkerStart;
       delete this.element.dataset.exitMarkerPosition;
     }
+    this.element.dataset.exitMarkerIds = JSON.stringify(exitMarkers.map(marker => marker.id));
   }
+}
+
+function lifecycleFingerprint(lifecycle: EntryLifecycle): string {
+  const barSpan = (bars: readonly Bar[]) => ({
+    count: bars.length,
+    firstStart: bars[0]?.startMs,
+    lastStart: bars.at(-1)?.startMs,
+  });
+  return JSON.stringify({
+    analysis: barSpan(lifecycle.analysisBars),
+    endReason: lifecycle.endReason,
+    attempts: lifecycle.attempts.map(attempt => ({
+      number: attempt.number,
+      triggerStart: attempt.triggerBar.startMs,
+      analysis: barSpan(attempt.analysisBars),
+      reactionRange: attempt.reactionRange ? {
+        direction: attempt.reactionRange.direction,
+        high: attempt.reactionRange.high,
+        low: attempt.reactionRange.low,
+        extremeStart: attempt.reactionRange.extremeBar.startMs,
+        reactionStart: attempt.reactionRange.reactionBar.startMs,
+      } : undefined,
+      entry: attempt.quarterSignal ? {
+        price: attempt.quarterSignal.price,
+        lineStart: attempt.quarterSignal.lineStartBar.startMs,
+        reactionStart: attempt.quarterSignal.reactionBar.startMs,
+        searchStart: attempt.quarterSignal.searchStartBar?.startMs,
+        entryStart: attempt.quarterSignal.entryBar?.startMs,
+      } : undefined,
+      stopLoss: attempt.stopLossSignal ? {
+        price: attempt.stopLossSignal.price,
+        lineStart: attempt.stopLossSignal.lineStartBar.startMs,
+      } : undefined,
+      takeProfit: attempt.takeProfitSignal ? {
+        defaultPrice: attempt.takeProfitSignal.defaultPrice,
+        adjustedPrice: attempt.takeProfitSignal.adjustedPrice,
+        lineStart: attempt.takeProfitSignal.lineStartBar.startMs,
+        entryStart: attempt.takeProfitSignal.entryBar?.startMs,
+        riskTouchStart: attempt.takeProfitSignal.riskTouchBar?.startMs,
+      } : undefined,
+      riskTouch: attempt.exitAnalysis?.riskTouchSignal ? {
+        start: attempt.exitAnalysis.riskTouchSignal.bar.startMs,
+        minuteStart: attempt.exitAnalysis.riskTouchSignal.minute?.startMs,
+        granularity: attempt.exitAnalysis.riskTouchSignal.granularity,
+      } : undefined,
+      exit: attempt.exitAnalysis?.exitSignal ? {
+        type: attempt.exitAnalysis.exitSignal.type,
+        price: attempt.exitAnalysis.exitSignal.price,
+        start: attempt.exitAnalysis.exitSignal.bar.startMs,
+        minuteStart: attempt.exitAnalysis.exitSignal.minute?.startMs,
+        granularity: attempt.exitAnalysis.exitSignal.granularity,
+        lineEnd: attempt.exitAnalysis.exitSignal.lineEndMs,
+      } : undefined,
+      endReason: attempt.endReason,
+    })),
+  });
 }
 
 const charts = { 60: new MarketChart(60), 5: new MarketChart(5) };
@@ -1704,6 +2203,66 @@ if (window.market.testMode) {
       dataset = undefined;
       renderProfitLossReview();
       if (!reviewDialog.open) reviewDialog.showModal();
+    },
+    selectThresholdComparisonEntry: () => {
+      if (!dataset) return false;
+      const currentDataset = dataset;
+      const entry = charts[60].getWeeklyEntries().find(candidate => {
+        const minimum = entryLifecycle(
+          candidate,
+          currentDataset.bars5,
+          currentDataset.bars1,
+          currentDataset.definition.priceTick,
+          {
+            ...entryStrategySettings,
+            reactionBodyTicks: MIN_REACTION_BODY_TICKS,
+          },
+        );
+        const maximum = entryLifecycle(
+          candidate,
+          currentDataset.bars5,
+          currentDataset.bars1,
+          currentDataset.definition.priceTick,
+          {
+            ...entryStrategySettings,
+            reactionBodyTicks: MAX_REACTION_BODY_TICKS,
+          },
+        );
+        return lifecycleFingerprint(minimum) !== lifecycleFingerprint(maximum);
+      });
+      if (!entry) return false;
+      selectBar(60, entry.bar, false, weeklyEntryMarkerId(entry));
+      return true;
+    },
+    selectPercentageComparisonEntry: () => {
+      if (!dataset) return false;
+      const currentDataset = dataset;
+      const entry = charts[60].getWeeklyEntries().find(candidate => {
+        const minimum = entryLifecycle(
+          candidate,
+          currentDataset.bars5,
+          currentDataset.bars1,
+          currentDataset.definition.priceTick,
+          {
+            ...entryStrategySettings,
+            entryRangePercent: MIN_ENTRY_RANGE_PERCENT,
+          },
+        );
+        const maximum = entryLifecycle(
+          candidate,
+          currentDataset.bars5,
+          currentDataset.bars1,
+          currentDataset.definition.priceTick,
+          {
+            ...entryStrategySettings,
+            entryRangePercent: MAX_ENTRY_RANGE_PERCENT,
+          },
+        );
+        return lifecycleFingerprint(minimum) !== lifecycleFingerprint(maximum);
+      });
+      if (!entry) return false;
+      selectBar(60, entry.bar, false, weeklyEntryMarkerId(entry));
+      return true;
     },
   };
 }
@@ -1738,24 +2297,47 @@ function clearRootLifecycleDiagnostics(): void {
   for (const key of rootLifecycleDiagnosticKeys) delete document.documentElement.dataset[key];
 }
 
-function selectBar(period: Period, bar: Bar, moveBoth = false, hoveredObjectId?: string) {
+function selectBar(
+  period: Period,
+  bar: Bar,
+  moveBoth = false,
+  hoveredObjectId?: string,
+  preserveViewport = false,
+  selectionSourceOverride?: 'marker' | 'default',
+) {
   if (!dataset) return;
+  const viewport60 = preserveViewport ? charts[60].logicalRange() : undefined;
+  const viewport5 = preserveViewport ? charts[5].logicalRange() : undefined;
   const sourceSpan = period === 60 ? charts[60].visibleLogicalSpan() ?? 120 : undefined;
   clearToast();
   clearCrosshairs();
-  selected = { period, bar };
   const parent = period === 60 ? bar : parentFor(bar, dataset.bars60);
   const children = parent ? childrenFor(parent, dataset.bars5) : [bar];
   const entry = period === 60 ? charts[60].entryFor(bar, hoveredObjectId) : undefined;
-  const lifecycle = entry ? entryLifecycle(entry, dataset.bars5, dataset.bars1) : undefined;
+  const entrySelectionSource = entry
+    ? selectionSourceOverride ?? (hoveredObjectId === weeklyEntryMarkerId(entry) ? 'marker' : 'default')
+    : undefined;
+  selected = {
+    period,
+    bar,
+    entryMarkerId: entry ? weeklyEntryMarkerId(entry) : undefined,
+    entrySelectionSource,
+  };
+  const lifecycle = entry
+    ? entryLifecycle(entry, dataset.bars5, dataset.bars1, dataset.definition.priceTick, entryStrategySettings)
+    : undefined;
   charts[60].highlight(parent ? [parent] : []);
   if (entry && lifecycle?.analysisBars.length) charts[5].highlightEntry(lifecycle, entry);
   else charts[5].highlight(children, period === 5 ? bar : undefined);
-  if (parent && (period === 5 || moveBoth)) charts[60].focus(parent);
+  if (!preserveViewport && parent && (period === 5 || moveBoth)) charts[60].focus(parent);
   const focusBars = entry ? lifecycle?.focusBars ?? [] : children;
-  if (focusBars.length && (period === 60 || moveBoth)) {
+  if (!preserveViewport && focusBars.length && (period === 60 || moveBoth)) {
     if (period === 60) charts[5].focusBars(focusBars, sourceSpan, true);
     else charts[5].focus(bar);
+  }
+  if (preserveViewport) {
+    charts[60].restoreLogicalRange(viewport60);
+    charts[5].restoreLogicalRange(viewport5);
   }
   const expected = parent ? parent.expectedMinutes / 5 : 0;
   const complete = !!parent && children.length === expected && children.every(child => child.complete);
@@ -1781,7 +2363,7 @@ function selectBar(period: Period, bar: Bar, moveBoth = false, hoveredObjectId?:
     document.documentElement.dataset.entryTriggerStart = String(entry.triggerBar.startMs);
     document.documentElement.dataset.entryPullbackLine = String(entry.pullbackLine);
     document.documentElement.dataset.observationCount = String(lifecycle.analysisBars.length);
-    document.documentElement.dataset.entrySelectionSource = hoveredObjectId === weeklyEntryMarkerId(entry) ? 'marker' : 'default';
+    document.documentElement.dataset.entrySelectionSource = entrySelectionSource!;
     document.documentElement.dataset.entryLifecycleEndReason = lifecycle.endReason;
     document.documentElement.dataset.entryLifecycleFirstStart = lifecycle.analysisBars.length
       ? String(lifecycle.analysisBars[0].startMs)
@@ -1820,9 +2402,44 @@ function setMode(next: typeof mode) {
   requestAnimationFrame(() => { charts[60].layoutPanes(); charts[5].layoutPanes(); });
 }
 
+function clearInstrumentTransientState(): void {
+  clearToast();
+  clearCrosshairs();
+  selected = undefined;
+  charts[60].highlight([]);
+  charts[5].highlight([]);
+  charts[5].clearHoverRange();
+  latestProfitLossReview = undefined;
+  renderStrategySummary(undefined);
+  if (reviewDialog.open) reviewDialog.close();
+  $('#review-content').replaceChildren();
+  $('.selection-label').textContent = '双周期联动';
+  $('#selection-text').textContent = '点击任意 K 线，查看两个周期的对应区间';
+  $('#selected-anomaly').hidden = true;
+  $('#selection-bar').classList.remove('incomplete');
+  const dateInput = $('#date-input') as HTMLInputElement;
+  dateInput.classList.remove('invalid');
+  dateInput.removeAttribute('aria-invalid');
+  for (const key of [
+    'selectedStart',
+    'selectedEnd',
+    'childCount',
+    'selectionKind',
+    'entryDirection',
+    'entryTriggerStart',
+    'entryPullbackLine',
+    'observationCount',
+    'entrySelectionSource',
+  ]) delete document.documentElement.dataset[key];
+  clearRootLifecycleDiagnostics();
+}
+
 function renderDataset(next: Dataset, focusTime?: number) {
   clearCrosshairs();
   dataset = next; selected = undefined;
+  latestProfitLossReview = undefined;
+  $('#exchange-english').textContent = exchangeEnglishNames[next.definition.exchange];
+  $('#exchange-name').textContent = next.definition.exchangeName;
   $('#instrument-name').textContent = next.name;
   $('#instrument-symbol').textContent = next.symbol;
   $('#subtitle').textContent = '主力连续合约 · 源价格展示，未自行复权';
@@ -1836,8 +2453,10 @@ function renderDataset(next: Dataset, focusTime?: number) {
   $('#last-change').textContent = `${signed(last.close - last.open)}  (${signed((last.close - last.open) / last.open * 100)}%)`;
   $('#last-change').className = last.close >= last.open ? 'up' : 'down';
   $('#last-time').textContent = `${shortTime(last.endMs)} · 较末根开盘`;
+  charts[60].setInstrumentDefinition(next.definition);
+  charts[5].setInstrumentDefinition(next.definition);
   charts[60].setData(next.bars60, next.anomalies, next.bars5, next.rollovers); charts[5].setData(next.bars5, next.anomalies, [], next.rollovers);
-  if (reviewDialog.open) renderProfitLossReview();
+  refreshStrategyResults();
   $('.selection-label').textContent = '双周期联动';
   $('#selection-text').textContent = '点击任意 K 线，查看两个周期的对应区间'; $('#selected-anomaly').hidden = true;
   $('#selection-bar').classList.remove('incomplete');
@@ -1855,30 +2474,56 @@ function renderDataset(next: Dataset, focusTime?: number) {
   ($('#date-input') as HTMLInputElement).value = formatBeijing((selected as { bar: Bar } | undefined)?.bar.startMs || last.startMs).slice(0, 10);
   document.documentElement.dataset.instrument = next.instrument;
   document.documentElement.dataset.ready = 'true';
-  renderMarketUpdateState();
+  renderMarketUpdateState(marketUpdateAllStates.get(next.instrument) ?? {
+    instrument: next.instrument,
+    phase: 'idle',
+  });
 }
 
 async function loadInstrument(instrument: Instrument, reload = false) {
-  clearToast();
-  charts[5].clearHoverRange();
   const currentRequest = ++requestId;
-  requestedInstrument = instrument;
-  const focusTime = selected?.bar.startMs ?? (dataset ? charts[mode === '60' ? 60 : 5].centerTime() : undefined);
+  const previousInstrument = dataset?.instrument;
+  const sameInstrument = previousInstrument === instrument;
+  const focusTime = sameInstrument
+    ? selected?.bar.startMs ?? charts[mode === '60' ? 60 : 5].centerTime()
+    : undefined;
+  clearInstrumentTransientState();
   $('#loading').hidden = false;
   $('#error').hidden = true;
   try {
     const result = await window.market.load(instrument, reload);
     if (currentRequest !== requestId) return;
     if (!result.ok) throw new Error(result.error);
+    if (result.data.instrument !== instrument || result.data.definition.id !== instrument) {
+      throw new Error(`行情响应品种不匹配：请求 ${instrument}，收到 ${result.data.instrument}`);
+    }
+    requestedInstrument = instrument;
+    retryInstrument = undefined;
     renderDataset(result.data, focusTime);
-    $('#instrument').setAttribute('data-loaded', instrument);
-    $('#instrument').querySelector<HTMLOptionElement>(`option[value="${instrument}"]`)!.selected = true;
+    if (!sameInstrument) {
+      charts[60].resetPriceScale();
+      charts[5].resetPriceScale();
+    }
+    const selector = $('#instrument') as HTMLSelectElement;
+    selector.value = instrument;
+    selector.setAttribute('data-loaded', instrument);
+    void window.market.getUpdateState(instrument)
+      .then(state => acceptMarketUpdateState(state))
+      .catch(() => renderMarketUpdateState({
+        instrument,
+        phase: 'failed',
+        error: { code: 'unexpected', message: '无法读取行情更新状态' },
+      }));
   } catch (error) {
     if (currentRequest !== requestId) return;
-    $('#error-text').textContent = `豆粕主连加载失败：${error instanceof Error ? error.message : String(error)}${dataset ? `。当前仍显示${dataset.name}。` : ''}`;
+    retryInstrument = instrument;
+    requestedInstrument = dataset?.instrument ?? DEFAULT_INSTRUMENT.id;
+    const target = instrumentDefinition(instrument);
+    $('#error-text').textContent = `${target.name}加载失败：${error instanceof Error ? error.message : String(error)}${dataset ? `。当前仍显示${dataset.name}。` : ''}`;
     $('#error').hidden = false;
-    if (dataset) $('#instrument').querySelector<HTMLOptionElement>(`option[value="${dataset.instrument}"]`)!.selected = true;
-    else $('#coverage').textContent = '行情未加载 · 请检查 EXE 同级 data 文件夹后重试';
+    const selector = $('#instrument') as HTMLSelectElement;
+    selector.value = requestedInstrument;
+    if (!dataset) $('#coverage').textContent = '行情未加载 · 请检查 EXE 同级 data 文件夹后重试';
   } finally {
     if (currentRequest === requestId) $('#loading').hidden = true;
   }
@@ -1918,6 +2563,33 @@ async function showEntryRules() {
   if (!dialog.open) dialog.showModal();
 }
 
+function renderReactionRules(): void {
+  const ticks = entryStrategySettings.reactionBodyTicks;
+  const content = $('#reaction-rules-content');
+  content.dataset.reactionBodyTicks = String(ticks);
+  content.innerHTML = `
+    <section class="reaction-rules-current">
+      <span>当前最小实体浮动</span>
+      <strong data-testid="reaction-rules-current-ticks">${ticks} tick</strong>
+      <p>方向实体达到或超过 ${ticks} tick 后，才进入方向侧影线判断。</p>
+    </section>
+    <dl class="reaction-rules-definitions">
+      <div><dt>做多</dt><dd>实体 = 收盘价 - 开盘价；只计算上影线 = 最高价 - 收盘价。</dd></div>
+      <div><dt>做空</dt><dd>实体 = 开盘价 - 收盘价；只计算下影线 = 收盘价 - 最低价。</dd></div>
+    </dl>
+    <ol class="reaction-rules-bands">
+      <li><strong>方向侧影线 &lt; 实体 × 2</strong><span>这根K线有效，白色入场线继续使用当前设置的百分比。</span></li>
+      <li><strong>实体 × 2 ≤ 方向侧影线 &lt; 实体 × 3</strong><span>这根K线有效，但该轮白色入场线改到红框风险侧边界：做多在底部，做空在顶部。</span></li>
+      <li><strong>方向侧影线 ≥ 实体 × 3</strong><span>跳过这根K线，并按时间继续寻找下一根合格K线。</span></li>
+    </ol>
+    <p class="reaction-rules-note">被跳过的K线仍参与红框风险侧极值计算。首轮和第二轮分别独立应用以上识别规则。</p>`;
+}
+
+function showReactionRules(): void {
+  renderReactionRules();
+  if (!reactionRulesDialog.open) reactionRulesDialog.showModal();
+}
+
 const reviewMoney = (value: number) => `${number(value)} 元`;
 const reviewSignedMoney = (value: number) => `${signed(value)} 元`;
 const reviewPercent = (value: number) => `${(value * 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`;
@@ -1934,14 +2606,164 @@ function reviewMetric(label: string, value: string, testid?: string, tone?: stri
   return `<div class="review-metric"${tone ? ` data-tone="${tone}"` : ''}><span>${label}</span><strong${testid ? ` data-testid="${testid}"` : ''}>${value}</strong></div>`;
 }
 
-function renderProfitLossReview(): void {
+function renderEntryStrategyControls(): void {
+  const panel = $('#entry-settings-panel');
+  const ticksInput = $('#reaction-ticks-input') as HTMLInputElement;
+  const ticksDecrease = $('#reaction-ticks-decrease') as HTMLButtonElement;
+  const ticksIncrease = $('#reaction-ticks-increase') as HTMLButtonElement;
+  const percentInput = $('#entry-percent-input') as HTMLInputElement;
+  const percentDecrease = $('#entry-percent-decrease') as HTMLButtonElement;
+  const percentIncrease = $('#entry-percent-increase') as HTMLButtonElement;
+  const ticks = entryStrategySettings.reactionBodyTicks;
+  const percent = entryStrategySettings.entryRangePercent;
+  panel.hidden = !mondayVisible;
+  panel.dataset.visible = String(mondayVisible);
+  ticksInput.value = String(ticks);
+  ticksInput.removeAttribute('aria-invalid');
+  ticksDecrease.disabled = ticks <= MIN_REACTION_BODY_TICKS;
+  ticksIncrease.disabled = ticks >= MAX_REACTION_BODY_TICKS;
+  percentInput.value = String(percent);
+  percentInput.removeAttribute('aria-invalid');
+  percentDecrease.disabled = percent <= MIN_ENTRY_RANGE_PERCENT;
+  percentIncrease.disabled = percent >= MAX_ENTRY_RANGE_PERCENT;
+  document.documentElement.dataset.reactionBodyTicks = String(ticks);
+  document.documentElement.dataset.entryRangePercent = String(percent);
+}
+
+function calculateProfitLossReview(): ProfitLossReviewResult | undefined {
+  if (!dataset) {
+    latestProfitLossReview = undefined;
+    return undefined;
+  }
+  latestProfitLossReview = reviewProfitLoss(
+    charts[60].getWeeklyEntries(),
+    dataset.bars5,
+    dataset.bars1,
+    dataset.definition,
+    entryStrategySettings,
+  );
+  return latestProfitLossReview;
+}
+
+function renderStrategySummary(result: ProfitLossReviewResult | undefined = latestProfitLossReview): void {
+  const panel = $('#entry-settings-panel');
+  if (!result) {
+    $('#settings-final-capital').textContent = '—';
+    $('#settings-return-rate').textContent = '—';
+    $('#settings-completed-trades').textContent = '—';
+    panel.dataset.reviewState = 'empty';
+    delete panel.dataset.finalCapital;
+    delete panel.dataset.returnRate;
+    delete panel.dataset.completedTrades;
+    return;
+  }
+  $('#settings-final-capital').textContent = reviewMoney(result.finalCapital);
+  $('#settings-return-rate').textContent = reviewPercent(result.returnRate);
+  $('#settings-completed-trades').textContent = `${number(result.statistics.completedTradeCount)} 笔`;
+  panel.dataset.reviewState = 'ready';
+  panel.dataset.finalCapital = String(result.finalCapital);
+  panel.dataset.returnRate = String(result.returnRate);
+  panel.dataset.completedTrades = String(result.statistics.completedTradeCount);
+}
+
+function refreshStrategyResults(): void {
+  strategyRefreshCount += 1;
+  document.documentElement.dataset.strategyRefreshCount = String(strategyRefreshCount);
+  if (selected?.period === 60 && selected.entryMarkerId) {
+    selectBar(
+      selected.period,
+      selected.bar,
+      false,
+      selected.entryMarkerId,
+      true,
+      selected.entrySelectionSource,
+    );
+  }
+  const result = calculateProfitLossReview();
+  renderStrategySummary(result);
+  if (reviewDialog.open) renderProfitLossReview(result);
+}
+
+function validIntegerSetting(value: string, minimum: number, maximum: number): number | undefined {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed)
+    && parsed >= minimum
+    && parsed <= maximum
+    ? parsed
+    : undefined;
+}
+
+function setReactionBodyTicks(ticks: number): boolean {
+  if (!Number.isInteger(ticks)
+    || ticks < MIN_REACTION_BODY_TICKS
+    || ticks > MAX_REACTION_BODY_TICKS) return false;
+  if (ticks === entryStrategySettings.reactionBodyTicks) {
+    renderEntryStrategyControls();
+    return false;
+  }
+  entryStrategySettings = {
+    ...entryStrategySettings,
+    reactionBodyTicks: ticks,
+  };
+  persistEntryStrategySettings(entryStrategySettings);
+  renderEntryStrategyControls();
+  refreshStrategyResults();
+  return true;
+}
+
+function commitReactionTicksInput(restoreInvalid: boolean): void {
+  const input = $('#reaction-ticks-input') as HTMLInputElement;
+  const ticks = validIntegerSetting(input.value, MIN_REACTION_BODY_TICKS, MAX_REACTION_BODY_TICKS);
+  if (ticks === undefined) {
+    input.setAttribute('aria-invalid', 'true');
+    if (restoreInvalid) renderEntryStrategyControls();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  setReactionBodyTicks(ticks);
+}
+
+function setEntryRangePercent(percent: number): boolean {
+  if (!Number.isInteger(percent)
+    || percent < MIN_ENTRY_RANGE_PERCENT
+    || percent > MAX_ENTRY_RANGE_PERCENT) return false;
+  if (percent === entryStrategySettings.entryRangePercent) {
+    renderEntryStrategyControls();
+    return false;
+  }
+  entryStrategySettings = {
+    ...entryStrategySettings,
+    entryRangePercent: percent,
+  };
+  persistEntryStrategySettings(entryStrategySettings);
+  renderEntryStrategyControls();
+  refreshStrategyResults();
+  return true;
+}
+
+function commitEntryRangePercentInput(restoreInvalid: boolean): void {
+  const input = $('#entry-percent-input') as HTMLInputElement;
+  const percent = validIntegerSetting(input.value, MIN_ENTRY_RANGE_PERCENT, MAX_ENTRY_RANGE_PERCENT);
+  if (percent === undefined) {
+    input.setAttribute('aria-invalid', 'true');
+    if (restoreInvalid) renderEntryStrategyControls();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  setEntryRangePercent(percent);
+}
+
+function renderProfitLossReview(result: ProfitLossReviewResult | undefined = latestProfitLossReview): void {
   const content = $('#review-content');
   if (!dataset) {
     content.innerHTML = '<div class="review-empty" data-testid="review-empty"><strong>行情数据尚未加载</strong><p>请先等待行情加载完成，或点击“重试”后再打开盈亏情况。</p></div>';
     return;
   }
 
-  const result = reviewProfitLoss(charts[60].getWeeklyEntries(), dataset.bars5, dataset.bars1);
+  result ??= calculateProfitLossReview();
+  if (!result) return;
   const stats = result.statistics;
   const tradeRows = result.completedTrades.map((trade, index) => {
     const resultClass = trade.cashPnl > 0 ? 'win' : trade.cashPnl < 0 ? 'loss' : 'flat';
@@ -1949,18 +2771,19 @@ function renderProfitLossReview(): void {
       <div class="review-trade-heading"><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-${resultClass}">${reviewExitLabel(trade.exitType)}</span></div>
       <div class="review-trade-grid">
         <span>入场时间 <b>${shortTime(trade.entryTimeMs)}</b></span><span>入场价 <b>${number(trade.entryPrice)}</b></span>
+        <span>入场前资金 <b>${reviewMoney(trade.capitalBefore)}</b></span><span>整数手数 <b>${number(trade.lots)} 手</b></span>
         <span>出场时间 <b>${shortTime(trade.exitTimeMs)}</b></span><span>出场价 <b>${number(trade.exitPrice)}</b></span>
         <span>判定来源 <b>${reviewGranularityLabel(trade.granularity)}</b></span><span>价格盈亏 <b>${reviewSignedMoney(trade.pricePnl)}</b></span>
       </div>
-      <div class="review-trade-pnl"><span>资金盈亏</span><strong>${reviewSignedMoney(trade.cashPnl)}</strong><small>累计资金 ${reviewMoney(trade.capitalAfter)}</small></div>
+      <div class="review-trade-pnl"><span>资金盈亏</span><strong>${reviewSignedMoney(trade.cashPnl)}</strong><small>出场后资金 ${reviewMoney(trade.capitalAfter)}</small></div>
     </li>`;
   }).join('');
   const incompleteRows = result.incompleteTrades.map((trade, index) =>
-    `<li class="review-incomplete" data-testid="review-incomplete-trade"><div><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-incomplete">未完成</span></div><p>入场 ${shortTime(trade.entryTimeMs)} · 价格 ${number(trade.entryPrice)} · ${trade.lifecycleEndReason === 'data-end' ? '数据到达末尾，尚未出现出场信号' : '生命周期尚未完成'}</p></li>`,
+    `<li class="review-incomplete" data-testid="review-incomplete-trade"><div><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-incomplete">未完成</span></div><p>入场 ${shortTime(trade.entryTimeMs)} · 价格 ${number(trade.entryPrice)} · 入场前资金 ${reviewMoney(trade.capitalBefore)} · 整数手数 ${number(trade.lots)} 手 · ${trade.lifecycleEndReason === 'data-end' ? '数据到达末尾，尚未出现出场信号' : '生命周期尚未完成'}</p></li>`,
   ).join('');
 
   content.innerHTML = `<div class="review-summary">
-    <div class="review-summary-heading"><div><span class="eyebrow">CURRENT DATASET</span><h3>复盘结果</h3><p>基于 ${number(stats.candidateCount)} 个历史入场候选，${number(dataset.bars5.length)} 根 5 分钟 K 线和 ${number(dataset.bars1.length)} 根 1 分钟 K 线。</p></div><span class="review-capital-result" data-testid="review-final-capital"><small>最终资金</small><strong>${reviewMoney(result.finalCapital)}</strong><em>${reviewSignedMoney(result.totalPnl)} · ${reviewPercent(result.returnRate)}</em></span></div>
+    <div class="review-summary-heading"><div><span class="eyebrow">CURRENT DATASET</span><h3>${result.instrumentName}复盘结果</h3><p>基于 ${number(stats.candidateCount)} 个历史入场候选，${number(dataset.bars5.length)} 根 5 分钟 K 线和 ${number(dataset.bars1.length)} 根后台 1 分钟 K 线。</p></div><span class="review-capital-result" data-testid="review-final-capital"><small>最终资金</small><strong>${reviewMoney(result.finalCapital)}</strong><em>${reviewSignedMoney(result.totalPnl)} · ${reviewPercent(result.returnRate)}</em></span></div>
     <div class="review-metrics review-capital-metrics">
       ${reviewMetric('初始资金', reviewMoney(result.initialCapital), 'review-initial-capital')}
       ${reviewMetric('最终资金', reviewMoney(result.finalCapital), 'review-final-capital-metric', result.totalPnl >= 0 ? 'positive' : 'negative')}
@@ -1970,7 +2793,7 @@ function renderProfitLossReview(): void {
   </div>
   <section class="review-section"><h3>交易统计</h3><div class="review-metrics">
     ${reviewMetric('有效入场', number(stats.validEntryCount))}
-    ${reviewMetric('已完成交易', number(stats.completedTradeCount))}
+    ${reviewMetric('已完成交易', number(stats.completedTradeCount), 'review-completed-trades')}
     ${reviewMetric('盈利交易', number(stats.winningTradeCount), undefined, 'positive')}
     ${reviewMetric('亏损交易', number(stats.losingTradeCount), undefined, 'negative')}
     ${reviewMetric('持平交易', number(stats.flatTradeCount), undefined, 'flat')}
@@ -1997,11 +2820,13 @@ function renderProfitLossReview(): void {
   <section class="review-section" data-testid="review-incomplete-section"><div class="review-section-heading"><h3>未完成交易</h3><span>${number(stats.incompleteTradeCount)} 笔</span></div>
     ${incompleteRows ? `<ul class="review-incomplete-list">${incompleteRows}</ul>` : '<p class="review-empty review-empty-inline" data-testid="review-no-incomplete">没有未完成交易。</p>'}
   </section>
-  <div class="review-note"><strong>判定口径</strong><span>每个有效入场独立按 1 手计算，豆粕合约乘数为 10；不计算手续费和滑点。止盈、止损优先使用完整的 1 分钟 K 线判定，缺少完整分钟时回退到 5 分钟 K 线。</span></div>`;
+  <div class="review-note"><strong>判定口径</strong><span>当前品种：${result.instrumentName}；100 万元初始资金（${reviewMoney(result.initialCapital)}）；${number(result.leverage)} 倍理论名义杠杆；合约乘数 ${number(result.contractMultiplier)}；整数手数 = floor(入场前资金 × ${number(result.leverage)} ÷ (入场价 × ${number(result.contractMultiplier)}))。上一笔出场后的资金会用于后续入场，重叠入场仍分别复盘。不计算手续费和滑点。止盈、止损优先使用完整的后台 1 分钟 K 线判定，缺少完整分钟时回退到 5 分钟 K 线。</span></div>`;
 }
 
 function showProfitLossReview(): void {
-  renderProfitLossReview();
+  const result = latestProfitLossReview ?? calculateProfitLossReview();
+  renderStrategySummary(result);
+  renderProfitLossReview(result);
   if (!reviewDialog.open) reviewDialog.showModal();
 }
 
@@ -2011,6 +2836,35 @@ $('#toggle-monday').addEventListener('click', () => {
   charts[60].updateMondayVisibility();
   $('#toggle-monday').setAttribute('aria-pressed', String(mondayVisible));
   $('#toggle-monday').classList.toggle('primary', mondayVisible);
+  renderEntryStrategyControls();
+});
+$('#reaction-ticks-decrease').addEventListener('click', () => {
+  setReactionBodyTicks(entryStrategySettings.reactionBodyTicks - 1);
+});
+$('#reaction-ticks-increase').addEventListener('click', () => {
+  setReactionBodyTicks(entryStrategySettings.reactionBodyTicks + 1);
+});
+$('#reaction-ticks-input').addEventListener('input', () => commitReactionTicksInput(false));
+$('#reaction-ticks-input').addEventListener('blur', () => commitReactionTicksInput(true));
+$('#reaction-ticks-input').addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  commitReactionTicksInput(true);
+  ($('#reaction-ticks-input') as HTMLInputElement).blur();
+});
+$('#entry-percent-decrease').addEventListener('click', () => {
+  setEntryRangePercent(entryStrategySettings.entryRangePercent - 1);
+});
+$('#entry-percent-increase').addEventListener('click', () => {
+  setEntryRangePercent(entryStrategySettings.entryRangePercent + 1);
+});
+$('#entry-percent-input').addEventListener('input', () => commitEntryRangePercentInput(false));
+$('#entry-percent-input').addEventListener('blur', () => commitEntryRangePercentInput(true));
+$('#entry-percent-input').addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  commitEntryRangePercentInput(true);
+  ($('#entry-percent-input') as HTMLInputElement).blur();
 });
 $('#toggle-subcharts').addEventListener('click', () => {
   subchartsVisible = !subchartsVisible;
@@ -2050,26 +2904,60 @@ $('#latest').addEventListener('click', () => {
   clearRootLifecycleDiagnostics();
   ($('#date-input') as HTMLInputElement).value = formatBeijing(dataset.bars5.at(-1)!.startMs).slice(0, 10);
 });
-$('#retry').addEventListener('click', () => void loadInstrument(requestedInstrument, true));
+$('#retry').addEventListener('click', () => void loadInstrument(retryInstrument ?? requestedInstrument, true));
 $('#dismiss-error').addEventListener('click', () => { $('#error').hidden = true; });
 $('#source-info').addEventListener('click', () => showDetails());
 $('#entry-rules').addEventListener('click', () => void showEntryRules());
+$('#reaction-rules-info').addEventListener('click', () => showReactionRules());
 reviewButton.addEventListener('click', () => showProfitLossReview());
 $('#attribution').addEventListener('click', () => void window.market.openAttribution());
 $('#market-update').addEventListener('click', () => {
-  if (marketUpdateRequestRunning || ['fetching', 'validating', 'saving'].includes(marketUpdateState.phase)) return;
+  const instrument = dataset?.instrument;
+  if (!instrument
+    || marketUpdateRequestRunning
+    || marketUpdateAllRequestRunning
+    || ['fetching', 'validating', 'saving'].includes(marketUpdateState.phase)) return;
   marketUpdateRequestRunning = true;
   renderMarketUpdateState();
-  void window.market.update()
+  renderMarketUpdateAllState();
+  void window.market.update(instrument)
     .then(state => acceptMarketUpdateState(state))
     .catch(() => acceptMarketUpdateState({
       ...marketUpdateState,
+      instrument,
       phase: 'failed',
       completedAt: new Date().toISOString(),
       error: { code: 'unexpected', message: '更新请求未完成，请稍后重试' },
     }))
     .finally(() => {
       marketUpdateRequestRunning = false;
+      renderMarketUpdateState();
+      renderMarketUpdateAllState();
+    });
+});
+$('#market-update-all-entry').addEventListener('click', () => {
+  renderMarketUpdateAllState();
+  if (!marketUpdateAllDialog.open) marketUpdateAllDialog.showModal();
+});
+$('#market-update-all').addEventListener('click', () => {
+  if (marketUpdateAllRequestRunning || marketUpdateRequestRunning) return;
+  marketUpdateAllRequestRunning = true;
+  marketUpdateAllError = undefined;
+  marketUpdateAllStates.clear();
+  renderMarketUpdateAllState();
+  renderMarketUpdateState();
+  void window.market.updateAll()
+    .then(async result => {
+      for (const state of result.results) await acceptMarketUpdateState(state);
+    })
+    .catch(error => {
+      marketUpdateAllError = error instanceof Error
+        ? error.message
+        : '全部品种更新请求未完成，请稍后重试';
+    })
+    .finally(() => {
+      marketUpdateAllRequestRunning = false;
+      renderMarketUpdateAllState();
       renderMarketUpdateState();
     });
 });
@@ -2101,6 +2989,12 @@ for (const selector of ['#close-rules', '#rules-done']) $(selector).addEventList
 $('#rules-dialog').addEventListener('click', event => { if (event.target === $('#rules-dialog')) ($('#rules-dialog') as HTMLDialogElement).close(); });
 for (const selector of ['#close-review', '#review-done']) $(selector).addEventListener('click', () => reviewDialog.close());
 reviewDialog.addEventListener('click', event => { if (event.target === reviewDialog) reviewDialog.close(); });
+for (const selector of ['#close-reaction-rules', '#reaction-rules-done']) $(selector).addEventListener('click', () => reactionRulesDialog.close());
+reactionRulesDialog.addEventListener('click', event => { if (event.target === reactionRulesDialog) reactionRulesDialog.close(); });
+$('#close-market-update-all').addEventListener('click', () => marketUpdateAllDialog.close());
+marketUpdateAllDialog.addEventListener('click', event => {
+  if (event.target === marketUpdateAllDialog) marketUpdateAllDialog.close();
+});
 const unsubscribeUpdates = window.updates.onState(renderUpdateState);
 const unsubscribeMarketUpdates = window.market.onUpdateState(state => {
   void acceptMarketUpdateState(state);
@@ -2113,11 +3007,15 @@ void window.updates.getState().then(renderUpdateState).catch(() => {
   $('#app-version').textContent = 'v—';
   $('#update-entry-label').textContent = '更新不可用';
 });
-void window.market.getUpdateState().then(state => acceptMarketUpdateState(state)).catch(() => {
+void window.market.getUpdateState(requestedInstrument).then(state => acceptMarketUpdateState(state)).catch(() => {
   renderMarketUpdateState({
+    instrument: requestedInstrument,
     phase: 'failed',
     error: { code: 'unexpected', message: '无法读取行情更新状态' },
   });
 });
+renderEntryStrategyControls();
+renderStrategySummary();
+renderMarketUpdateAllState();
 setMode('dual');
 void loadInstrument('main_continuous');

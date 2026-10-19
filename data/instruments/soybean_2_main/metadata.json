@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-soybean_2_main",
+  "instrumentId": "soybean_2_main",
+  "mainSymbol": "KQ.m@DCE.b",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@DCE.b"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "424fed90146a87325193597d9ac908df61c1fea77f331a0fa48bf828aff5eafa",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "c61068f6f332b8a27408340c25c83390747e8ff4c3703f5b628bbd63bacdac70",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "e25dbfc057c9f563d111e48dd58710ad9eae124fefeb61a1e9d2cd03f9637159",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "ec8c7da4b0bfc6a20c0a2df4b35b8465ccb11150f901d560fef919fca18aeaaa",
+      "rows": 5
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "defc53fc78a2f573d47a18c5818729f6fc2c41366bc2e89387700e6196425a68",
+      "rows": 241
+    }
+  }
+}

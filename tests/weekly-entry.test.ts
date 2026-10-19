@@ -2,31 +2,75 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import {
+  DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  DEFAULT_ENTRY_RANGE_PERCENT,
   ENTRY_SESSION_POLICIES,
+  MAX_ENTRY_RANGE_PERCENT,
+  MAX_REACTION_BODY_TICKS,
+  MIN_ENTRY_RANGE_PERCENT,
+  MIN_REACTION_BODY_TICKS,
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryExitDecisionUnits,
-  entryLifecycle,
+  entryLifecycle as entryLifecycleWithTick,
   entryObservationLine,
   entryObservationWindow,
-  entryQuarterSignal,
-  entryReactionRange,
-  entryStopLossSignal,
-  entryTakeProfitSignal,
+  entryQuarterSignal as entryQuarterSignalWithTick,
+  entryReactionRange as entryReactionRangeWithTick,
+  entryStopLossSignal as entryStopLossSignalWithTick,
+  entryTakeProfitSignal as entryTakeProfitSignalWithTick,
   selectWeeklyEntry,
+  validateEntryStrategySettings,
   weeklyEntryMarkerId,
+  type EntryStrategySettings,
   type EntryQuarterSignal,
   type EntryReactionRange,
   type WeeklyEntry,
 } from '../src/domain/weekly-entry';
 import { exponentialMovingAverage } from '../src/domain/ema';
 import { parseBars } from '../src/domain/data';
-import { MARKET_PRICE_TICK } from '../src/shared/market';
 import { formatBeijing } from '../src/domain/time';
 import type { Bar, EdbMinuteRecord } from '../src/shared/types';
 import type { EmaPoint } from '../src/domain/ema';
 
 const H = 3_600_000; const M = 5 * 60_000;
+const TEST_PRICE_TICK = 1;
+const TWO_TICK_REACTION = { reactionBodyTicks: 2, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT };
+
+const entryReactionRange = (
+  direction: WeeklyEntry['direction'],
+  bars: Bar[],
+  tick = TEST_PRICE_TICK,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+) => entryReactionRangeWithTick(direction, bars, tick, settings);
+
+const entryQuarterSignal = (
+  range: EntryReactionRange,
+  bars: readonly Bar[],
+  tick = TEST_PRICE_TICK,
+  entryCutoff = Number.POSITIVE_INFINITY,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+) => entryQuarterSignalWithTick(range, bars, tick, entryCutoff, settings);
+
+const entryStopLossSignal = (
+  range: EntryReactionRange,
+  tick = TEST_PRICE_TICK,
+) => entryStopLossSignalWithTick(range, tick);
+
+const entryTakeProfitSignal = (
+  range: EntryReactionRange,
+  bars: readonly Bar[],
+  quarterSignal: EntryQuarterSignal,
+  tick = TEST_PRICE_TICK,
+) => entryTakeProfitSignalWithTick(range, bars, quarterSignal, tick);
+
+const entryLifecycle = (
+  entry: WeeklyEntry,
+  bars: readonly Bar[],
+  minutes: readonly EdbMinuteRecord[] = [],
+  tick = TEST_PRICE_TICK,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+) => entryLifecycleWithTick(entry, bars, minutes, tick, settings);
 function bar(startMs: number, high: number, low: number, duration = H, expectedMinutes = 60): Bar {
   return { startMs, endMs: startMs + duration, start: '', end: '', open: (high + low) / 2, high, low, close: (high + low) / 2,
     volume: 1, openOi: 1, closeOi: 1, session: 'day', observedMinutes: expectedMinutes, expectedMinutes, complete: true };
@@ -439,17 +483,538 @@ describe('session-bounded entry lifecycle', () => {
     expect(waiting.endReason).toBe('data-end');
     expect(waiting.analysisBars).toEqual(waitingBars);
   });
+
+  it('replaces the complete lifecycle when the reaction threshold changes', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 102, 90, 101),
+      sessionCandle('13:35', 101, 104, 95, 103),
+      sessionCandle('13:40', 103, 105, 93, 104),
+      sessionCandle('13:45', 104, 128, 95, 127),
+    ];
+    const entry = lifecycleEntry(bars[0], 'long');
+    const oneTick = entryLifecycle(entry, bars, [], 1, {
+      reactionBodyTicks: 1,
+      entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+    });
+    const twoTicks = entryLifecycle(entry, bars, [], 1, TWO_TICK_REACTION);
+
+    expect(oneTick.reactionRange).toMatchObject({
+      reactionBar: bars[0],
+      high: 102,
+      low: 90,
+    });
+    expect(oneTick.quarterSignal).toMatchObject({ price: 93, entryBar: bars[2] });
+    expect(oneTick.stopLossSignal?.price).toBe(81);
+    expect(oneTick.takeProfitSignal?.defaultPrice).toBe(126);
+    expect(oneTick.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 126,
+      bar: bars[3],
+    });
+
+    expect(twoTicks.reactionRange).toMatchObject({
+      reactionBar: bars[1],
+      high: 104,
+      low: 90,
+    });
+    expect(twoTicks.quarterSignal).toMatchObject({ price: 94, entryBar: bars[2] });
+    expect(twoTicks.stopLossSignal?.price).toBe(79);
+    expect(twoTicks.takeProfitSignal?.defaultPrice).toBe(132);
+    expect(twoTicks.exitAnalysis?.exitSignal).toBeUndefined();
+  });
+
+  it('continues past a three-times-wick first candidate and rebuilds the full lifecycle from the later reaction', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 108, 90, 102),
+      sessionCandle('13:35', 102, 105, 95, 104),
+      sessionCandle('13:40', 104, 104, 94, 95),
+      sessionCandle('13:45', 95, 135, 95, 134),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars);
+
+    expect(bars[0].high - bars[0].close).toBe((bars[0].close - bars[0].open) * 3);
+    expect(result.reactionRange).toMatchObject({
+      reactionBar: bars[1],
+      extremeBar: bars[0],
+      pricingMode: 'configured-percent',
+      high: 105,
+      low: 90,
+    });
+    expect(result.quarterSignal).toMatchObject({
+      reactionBar: bars[1],
+      pricingMode: 'configured-percent',
+      price: 94,
+      entryBar: bars[2],
+    });
+    expect(result.stopLossSignal?.price).toBe(78);
+    expect(result.takeProfitSignal?.defaultPrice).toBe(135);
+    expect(result.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 135,
+      bar: bars[3],
+    });
+  });
+
+  it.each([
+    {
+      label: 'adjusted take profit',
+      secondMinute: [100, 106, 100, 105] as [number, number, number, number],
+      exitType: 'take-profit' as const,
+      exitPrice: 106,
+    },
+    {
+      label: 'stop loss wins a same-minute collision',
+      secondMinute: [100, 106, 95, 101] as [number, number, number, number],
+      exitType: 'stop-loss' as const,
+      exitPrice: 95,
+    },
+  ])('feeds risk-edge entry pricing through stop, target, and one-minute exit ordering: $label', ({
+    secondMinute,
+    exitType,
+    exitPrice,
+  }) => {
+    const trigger = sessionCandle('09:00', 100, 106, 100, 102);
+    const entered = minuteBackedCandle(1, [
+      [102, 102, 100, 100],
+      secondMinute,
+      [101, 102, 100, 101],
+      [101, 102, 100, 101],
+      [101, 102, 100, 101],
+    ]);
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [trigger, entered.bar],
+      entered.minutes,
+    );
+
+    expect(result.reactionRange).toMatchObject({
+      reactionBar: trigger,
+      pricingMode: 'risk-edge',
+      high: 106,
+      low: 100,
+    });
+    expect(result.quarterSignal).toMatchObject({
+      pricingMode: 'risk-edge',
+      entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+      entryDistanceTicks: 0,
+      price: 100,
+      entryBar: entered.bar,
+    });
+    expect(result.stopLossSignal?.price).toBe(95);
+    expect(result.takeProfitSignal).toMatchObject({
+      defaultPrice: 118,
+      adjustedPrice: 106,
+      riskTouchBar: entered.bar,
+    });
+    expect(result.exitAnalysis?.riskTouchSignal).toMatchObject({
+      bar: entered.bar,
+      minute: entered.minutes[0],
+      granularity: 'one-minute',
+    });
+    expect(result.exitAnalysis?.exitSignal).toMatchObject({
+      type: exitType,
+      price: exitPrice,
+      bar: entered.bar,
+      minute: entered.minutes[1],
+      granularity: 'one-minute',
+    });
+  });
+});
+
+describe('second entry attempt trigger', () => {
+  it('classifies a normal first attempt and a risk-edge second attempt independently and never starts a third', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 106, 100, 102),
+      sessionCandle('13:50', 102, 103, 100, 102),
+      sessionCandle('13:55', 102, 106, 101, 105),
+      sessionCandle('14:00', 100, 101, 90, 91),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars);
+
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[0].reactionRange).toMatchObject({
+      reactionBar: bars[0],
+      pricingMode: 'configured-percent',
+    });
+    expect(result.attempts[0].quarterSignal).toMatchObject({
+      pricingMode: 'configured-percent',
+      price: 101,
+    });
+    expect(result.attempts[1].triggerBar).toBe(bars[3]);
+    expect(result.attempts[1].reactionRange).toMatchObject({
+      reactionBar: bars[3],
+      pricingMode: 'risk-edge',
+      high: 106,
+      low: 100,
+    });
+    expect(result.attempts[1].quarterSignal).toMatchObject({
+      pricingMode: 'risk-edge',
+      entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+      entryDistanceTicks: 0,
+      price: 100,
+      entryBar: bars[4],
+    });
+    expect(result.attempts[1].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 106,
+      bar: bars[5],
+    });
+    expect(result.analysisBars).toEqual(bars.slice(0, 6));
+    expect(result.endReason).toBe('take-profit');
+  });
+
+  it.each([
+    {
+      label: 'long equality touch',
+      direction: 'long' as const,
+      values: [
+        [100, 104, 100, 103],
+        [103, 103, 101, 102],
+        [102, 112, 102, 111],
+        [100, 105, 100, 104],
+        [104, 104, 102, 103],
+        [103, 115, 103, 114],
+      ] as const,
+      firstBoundary: 100,
+      secondTriggerExtreme: 100,
+      secondRange: { high: 105, low: 100 },
+    },
+    {
+      label: 'short crossing touch',
+      direction: 'short' as const,
+      values: [
+        [104, 104, 100, 101],
+        [101, 103, 101, 102],
+        [102, 102, 92, 93],
+        [105, 105, 99, 100],
+        [100, 103, 100, 101],
+        [101, 101, 87, 88],
+      ] as const,
+      firstBoundary: 104,
+      secondTriggerExtreme: 105,
+      secondRange: { high: 105, low: 99 },
+    },
+  ])('starts a mirrored second attempt when the post-exit wick reaches the first risk edge: $label', ({
+    direction,
+    values,
+    firstBoundary,
+    secondTriggerExtreme,
+    secondRange,
+  }) => {
+    const bars = values.map((value, index) =>
+      sessionCandle(
+        `13:${String(30 + index * 5).padStart(2, '0')}`,
+        value[0],
+        value[1],
+        value[2],
+        value[3],
+      ));
+    const result = entryLifecycle(lifecycleEntry(bars[0], direction), bars, [], 1);
+
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[0].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      bar: bars[2],
+    });
+    expect(direction === 'long'
+      ? result.attempts[0].reactionRange?.low
+      : result.attempts[0].reactionRange?.high).toBe(firstBoundary);
+    expect(result.attempts[1].triggerBar).toBe(bars[3]);
+    expect(direction === 'long' ? bars[3].low : bars[3].high).toBe(secondTriggerExtreme);
+    expect(result.attempts[1].reactionRange).toMatchObject({
+      reactionBar: bars[3],
+      extremeBar: bars[3],
+      ...secondRange,
+    });
+    expect(result.attempts[1].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      bar: bars[5],
+    });
+  });
+
+  it('excludes the first exit candle itself from the second-trigger scan', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 103, 97, 98),
+      sessionCandle('13:45', 102, 104, 101, 103),
+      sessionCandle('13:50', 103, 105, 101, 104),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, TWO_TICK_REACTION);
+
+    expect(result.attempts[0].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'stop-loss',
+      bar: bars[2],
+    });
+    expect(bars[2].low).toBeLessThan(result.attempts[0].reactionRange!.low);
+    expect(result.attempts).toHaveLength(1);
+    expect(result.analysisBars).toEqual(bars);
+    expect(result.endReason).toBe('data-end');
+  });
+
+  it('skips a one-tick second trigger reaction, keeps inclusive extremes, and never rebuilds the range', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 104, 100, 101),
+      sessionCandle('13:50', 101, 103, 98, 99),
+      sessionCandle('13:55', 99, 106, 99, 105),
+      sessionCandle('14:00', 98, 99, 97, 98),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, TWO_TICK_REACTION);
+    const second = result.attempts[1];
+
+    expect(second.triggerBar).toBe(bars[3]);
+    expect(bars[3].close - bars[3].open).toBe(1);
+    expect(second.reactionRange).toMatchObject({
+      reactionBar: bars[5],
+      extremeBar: bars[4],
+      high: 106,
+      low: 98,
+    });
+    expect(second.quarterSignal).toMatchObject({
+      price: 100,
+      searchStartBar: bars[6],
+      entryBar: undefined,
+    });
+    expect(bars[5].low).toBeLessThanOrEqual(second.quarterSignal!.price);
+    expect(bars[6].low).toBeLessThan(second.reactionRange!.low);
+    expect(second.reactionRange?.low).toBe(98);
+    expect(second.endReason).toBe('data-end');
+  });
+
+  it('keeps a second true entry unfinished at the current data end', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 105, 100, 104),
+      sessionCandle('13:50', 104, 104, 102, 103),
+      sessionCandle('13:55', 103, 104, 103, 104),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1);
+    const second = result.attempts[1];
+
+    expect(second.quarterSignal?.entryBar).toBe(bars[4]);
+    expect(second.exitAnalysis?.exitSignal).toBeUndefined();
+    expect(second.analysisBars).toEqual(bars.slice(3));
+    expect(second.endReason).toBe('data-end');
+    expect(result.endReason).toBe('data-end');
+  });
+
+  it('ends at the second actual exit and never creates a third attempt', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 105, 100, 104),
+      sessionCandle('13:50', 104, 104, 102, 103),
+      sessionCandle('13:55', 103, 115, 103, 114),
+      sessionCandle('14:00', 100, 101, 90, 91),
+      sessionCandle('14:05', 91, 108, 91, 107),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1);
+
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[0].analysisBars).toEqual(bars.slice(0, 3));
+    expect(result.attempts[1].analysisBars).toEqual(bars.slice(3, 6));
+    expect(result.attempts[1].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      bar: bars[5],
+    });
+    expect(result.analysisBars).toEqual(bars.slice(0, 6));
+    expect(result.endReason).toBe('take-profit');
+  });
+
+  it('shares one entry percentage across both attempts without changing signals or reaction ranges', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 105, 100, 104),
+      sessionCandle('13:50', 104, 104, 102, 103),
+      sessionCandle('13:55', 103, 115, 103, 114),
+    ];
+    const candidate = lifecycleEntry(bars[0], 'long');
+    const candidateSnapshot = structuredClone(candidate);
+    const twentyFive = entryLifecycle(candidate, bars, [], 1, {
+      reactionBodyTicks: 1,
+      entryRangePercent: 25,
+    });
+    const fifty = entryLifecycle(candidate, bars, [], 1, {
+      reactionBodyTicks: 1,
+      entryRangePercent: 50,
+    });
+    const hundred = entryLifecycle(candidate, bars, [], 1, {
+      reactionBodyTicks: 1,
+      entryRangePercent: 100,
+    });
+
+    expect(twentyFive.attempts).toHaveLength(2);
+    expect(fifty.attempts).toHaveLength(2);
+    expect(twentyFive.attempts.map(attempt => attempt.quarterSignal?.entryRangePercent)).toEqual([25, 25]);
+    expect(fifty.attempts.map(attempt => attempt.quarterSignal?.entryRangePercent)).toEqual([50, 50]);
+    expect(twentyFive.attempts.map(attempt => attempt.quarterSignal?.price)).toEqual([101, 102]);
+    expect(fifty.attempts.map(attempt => attempt.quarterSignal?.price)).toEqual([102, 103]);
+    expect(fifty.attempts.map(attempt => attempt.quarterSignal?.entryBar)).toEqual([bars[1], bars[4]]);
+    expect(fifty.attempts.map(attempt => attempt.stopLossSignal?.price)).toEqual(
+      twentyFive.attempts.map(attempt => attempt.stopLossSignal?.price),
+    );
+    expect(fifty.attempts.map(attempt => attempt.takeProfitSignal?.defaultPrice)).toEqual(
+      twentyFive.attempts.map(attempt => attempt.takeProfitSignal?.defaultPrice),
+    );
+    expect(fifty.attempts.map(attempt => attempt.exitAnalysis?.exitSignal)).toEqual(
+      twentyFive.attempts.map(attempt => attempt.exitAnalysis?.exitSignal),
+    );
+    expect(fifty.attempts.map(attempt => attempt.reactionRange)).toEqual(
+      twentyFive.attempts.map(attempt => attempt.reactionRange),
+    );
+
+    expect(hundred.attempts).toHaveLength(1);
+    expect(hundred.attempts[0].quarterSignal).toMatchObject({
+      entryRangePercent: 100,
+      price: 104,
+      entryBar: bars[2],
+    });
+    expect(hundred.attempts[0].reactionRange).toEqual(twentyFive.attempts[0].reactionRange);
+    expect(hundred.attempts[0].takeProfitSignal).toMatchObject({
+      adjustedPrice: 104,
+      riskTouchBar: bars[3],
+    });
+    expect(hundred.attempts[0].exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 104,
+      bar: bars[4],
+    });
+    expect(candidate).toEqual(candidateSnapshot);
+  });
+
+  it('keeps a second plan formed at the cutoff but forbids its true entry', () => {
+    const bars = [
+      sessionCandle('14:20', 100, 104, 100, 103),
+      sessionCandle('14:25', 103, 103, 101, 102),
+      sessionCandle('14:30', 102, 112, 102, 111),
+      sessionCandle('14:35', 103, 105, 101, 104),
+      sessionCandle('14:40', 104, 106, 101, 105),
+      sessionCandle('14:45', 100, 105, 100, 104),
+      sessionCandle('14:50', 104, 105, 102, 103),
+      sessionCandle('14:55', 103, 105, 102, 104),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1);
+    const second = result.attempts[1];
+
+    expect(second.triggerBar).toBe(bars[5]);
+    expect(second.reactionRange?.reactionBar).toBe(bars[5]);
+    expect(second.quarterSignal).toMatchObject({
+      searchStartBar: bars[6],
+      entryBar: undefined,
+    });
+    expect(second.endReason).toBe('no-entry-session-end');
+    expect(result.analysisBars).toEqual(bars);
+    expect(result.endReason).toBe('no-entry-session-end');
+  });
+});
+
+describe('entry strategy settings', () => {
+  it('defaults to one tick and 25 percent and accepts all configured boundaries', () => {
+    expect(DEFAULT_ENTRY_STRATEGY_SETTINGS).toEqual({
+      reactionBodyTicks: 1,
+      entryRangePercent: 25,
+    });
+    expect(MIN_REACTION_BODY_TICKS).toBe(1);
+    expect(MAX_REACTION_BODY_TICKS).toBe(20);
+    expect(MIN_ENTRY_RANGE_PERCENT).toBe(0);
+    expect(MAX_ENTRY_RANGE_PERCENT).toBe(100);
+    expect(DEFAULT_ENTRY_RANGE_PERCENT).toBe(25);
+    expect(validateEntryStrategySettings({
+      reactionBodyTicks: 1,
+      entryRangePercent: 0,
+    })).toEqual({
+      reactionBodyTicks: 1,
+      entryRangePercent: 0,
+    });
+    expect(validateEntryStrategySettings({
+      reactionBodyTicks: 20,
+      entryRangePercent: 100,
+    })).toEqual({
+      reactionBodyTicks: 20,
+      entryRangePercent: 100,
+    });
+  });
+
+  it.each([0, 21, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects an invalid reaction body tick value: %s',
+    (reactionBodyTicks) => {
+      expect(() => validateEntryStrategySettings({
+        reactionBodyTicks,
+        entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+      })).toThrow(RangeError);
+    },
+  );
+
+  it.each([-1, 101, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects an invalid entry range percent: %s',
+    (entryRangePercent) => {
+      expect(() => validateEntryStrategySettings({
+        reactionBodyTicks: MIN_REACTION_BODY_TICKS,
+        entryRangePercent,
+      })).toThrow(RangeError);
+    },
+  );
+
+  it('rejects invalid settings at lifecycle entry even without matching bars', () => {
+    const trigger = sessionCandle('13:30', 100, 101, 99, 100);
+    expect(() => entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [],
+      [],
+      1,
+      { reactionBodyTicks: 0, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT },
+    )).toThrow(RangeError);
+  });
 });
 
 describe('5-minute first reaction range', () => {
+  it('treats a body exactly equal to the default one-tick threshold as a reaction', () => {
+    const rising = candle(0, 100, 102, 99, 101);
+    const falling = candle(1, 101, 102, 99, 100);
+
+    expect(entryReactionRange('long', [rising])?.reactionBar).toBe(rising);
+    expect(entryReactionRange('short', [falling])?.reactionBar).toBe(falling);
+  });
+
+  it('accepts a body exactly equal to the maximum 20-tick threshold', () => {
+    const below = candle(0, 100, 120, 80, 119);
+    const exact = candle(1, 119, 140, 79, 139);
+    const result = entryReactionRange(
+      'long',
+      [below, exact],
+      1,
+      { reactionBodyTicks: 20, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT },
+    );
+
+    expect(result).toMatchObject({
+      reactionBar: exact,
+      extremeBar: exact,
+      high: 140,
+      low: 79,
+    });
+  });
+
   it('uses the trigger candle itself for an immediate long or short reaction', () => {
     const rising = candle(0, 95, 103, 92, 101);
     const falling = candle(1, 101, 104, 91, 94);
     expect(entryReactionRange('long', [rising])).toEqual({
-      direction: 'long', reactionBar: rising, extremeBar: rising, high: 103, low: 92,
+      direction: 'long', pricingMode: 'configured-percent',
+      reactionBar: rising, extremeBar: rising, high: 103, low: 92,
     });
     expect(entryReactionRange('short', [falling])).toEqual({
-      direction: 'short', reactionBar: falling, extremeBar: falling, high: 104, low: 91,
+      direction: 'short', pricingMode: 'configured-percent',
+      reactionBar: falling, extremeBar: falling, high: 104, low: 91,
     });
   });
 
@@ -467,11 +1032,46 @@ describe('5-minute first reaction range', () => {
       candle(7, 106, 108, 92, 95),
     ];
     expect(entryReactionRange('long', longBars)).toEqual({
-      direction: 'long', reactionBar: longBars[3], extremeBar: longBars[1], high: 105, low: 91,
+      direction: 'long', pricingMode: 'configured-percent',
+      reactionBar: longBars[3], extremeBar: longBars[1], high: 105, low: 91,
     });
     expect(entryReactionRange('short', shortBars)).toEqual({
-      direction: 'short', reactionBar: shortBars[3], extremeBar: shortBars[1], high: 109, low: 92,
+      direction: 'short', pricingMode: 'configured-percent',
+      reactionBar: shortBars[3], extremeBar: shortBars[1], high: 109, low: 92,
     });
+  });
+
+  it('skips one-tick directional candles but keeps them in the inclusive extreme', () => {
+    const longBars = [
+      candle(0, 100, 102, 90, 101),
+      candle(1, 101, 104, 95, 103),
+    ];
+    const shortBars = [
+      candle(2, 100, 110, 98, 99),
+      candle(3, 99, 105, 96, 97),
+    ];
+
+    expect(entryReactionRange('long', longBars, 1, TWO_TICK_REACTION)).toEqual({
+      direction: 'long', pricingMode: 'configured-percent',
+      reactionBar: longBars[1], extremeBar: longBars[0], high: 104, low: 90,
+    });
+    expect(entryReactionRange('short', shortBars, 1, TWO_TICK_REACTION)).toEqual({
+      direction: 'short', pricingMode: 'configured-percent',
+      reactionBar: shortBars[1], extremeBar: shortBars[0], high: 110, low: 96,
+    });
+  });
+
+  it('uses the configured tick count with a non-unit market tick', () => {
+    const bars = [
+      candle(0, 100, 101, 99, 100.25),
+      candle(1, 100.25, 101.25, 100, 100.75),
+    ];
+
+    expect(entryReactionRange('long', bars, 0.25, TWO_TICK_REACTION)).toEqual({
+      direction: 'long', pricingMode: 'configured-percent',
+      reactionBar: bars[1], extremeBar: bars[0], high: 101.25, low: 99,
+    });
+    expect(() => entryReactionRange('long', bars, 0)).toThrow(RangeError);
   });
 
   it('includes the reaction candle when it sets the long low or short high', () => {
@@ -486,11 +1086,89 @@ describe('5-minute first reaction range', () => {
       candle(5, 104, 109, 92, 95),
     ];
     expect(entryReactionRange('long', longBars)).toEqual({
-      direction: 'long', reactionBar: longBars[2], extremeBar: longBars[2], high: 105, low: 91,
+      direction: 'long', pricingMode: 'configured-percent',
+      reactionBar: longBars[2], extremeBar: longBars[2], high: 105, low: 91,
     });
     expect(entryReactionRange('short', shortBars)).toEqual({
-      direction: 'short', reactionBar: shortBars[2], extremeBar: shortBars[2], high: 109, low: 92,
+      direction: 'short', pricingMode: 'configured-percent',
+      reactionBar: shortBars[2], extremeBar: shortBars[2], high: 109, low: 92,
     });
+  });
+
+  it('uses only the directional wick and mirrors long and short classification', () => {
+    const long = candle(0, 100, 103, 80, 102);
+    const short = candle(1, 102, 125, 99, 100);
+
+    expect(entryReactionRange('long', [long])).toMatchObject({
+      reactionBar: long,
+      pricingMode: 'configured-percent',
+    });
+    expect(entryReactionRange('short', [short])).toMatchObject({
+      reactionBar: short,
+      pricingMode: 'configured-percent',
+    });
+  });
+
+  it('uses inclusive two-times and three-times directional-wick boundaries', () => {
+    const longBelowTwo = candle(0, 100, 105, 98, 102);
+    const longAtTwo = candle(1, 100, 106, 98, 102);
+    const longAtThree = candle(2, 100, 108, 97, 102);
+    const longAfterReject = candle(3, 102, 105, 96, 104);
+    const shortBelowTwo = candle(4, 102, 104, 97, 100);
+    const shortAtTwo = candle(5, 102, 104, 96, 100);
+    const shortAtThree = candle(6, 102, 105, 94, 100);
+    const shortAfterReject = candle(7, 100, 106, 97, 98);
+
+    expect(entryReactionRange('long', [longBelowTwo])?.pricingMode).toBe('configured-percent');
+    expect(entryReactionRange('long', [longAtTwo])?.pricingMode).toBe('risk-edge');
+    expect(entryReactionRange('long', [longAtThree, longAfterReject])).toMatchObject({
+      reactionBar: longAfterReject,
+      pricingMode: 'configured-percent',
+    });
+    expect(entryReactionRange('short', [shortBelowTwo])?.pricingMode).toBe('configured-percent');
+    expect(entryReactionRange('short', [shortAtTwo])?.pricingMode).toBe('risk-edge');
+    expect(entryReactionRange('short', [shortAtThree, shortAfterReject])).toMatchObject({
+      reactionBar: shortAfterReject,
+      pricingMode: 'configured-percent',
+    });
+  });
+
+  it('keeps rejected candles in the risk extreme and uses the final accepted profit edge', () => {
+    const rejectedLong = candle(0, 100, 108, 80, 102);
+    const acceptedLong = candle(1, 102, 105, 95, 104);
+    const rejectedShort = candle(2, 102, 120, 94, 100);
+    const acceptedShort = candle(3, 100, 105, 97, 98);
+
+    expect(entryReactionRange('long', [rejectedLong, acceptedLong])).toEqual({
+      direction: 'long',
+      pricingMode: 'configured-percent',
+      reactionBar: acceptedLong,
+      extremeBar: rejectedLong,
+      high: 105,
+      low: 80,
+    });
+    expect(entryReactionRange('short', [rejectedShort, acceptedShort])).toEqual({
+      direction: 'short',
+      pricingMode: 'configured-percent',
+      reactionBar: acceptedShort,
+      extremeBar: rejectedShort,
+      high: 120,
+      low: 97,
+    });
+  });
+
+  it('returns no range when every body-qualified candle has a three-times wick', () => {
+    const longBars = [
+      candle(0, 100, 108, 90, 102),
+      candle(1, 102, 110, 91, 104),
+    ];
+    const shortBars = [
+      candle(2, 104, 115, 96, 102),
+      candle(3, 102, 114, 94, 100),
+    ];
+
+    expect(entryReactionRange('long', longBars)).toBeUndefined();
+    expect(entryReactionRange('short', shortBars)).toBeUndefined();
   });
 
   it('keeps the first candle when the inclusive extreme occurs more than once', () => {
@@ -545,8 +1223,10 @@ describe('5-minute quarter-range true entry', () => {
     high: number,
     reactionIndex = 1,
     extremeIndex = 0,
+    pricingMode: EntryReactionRange['pricingMode'] = 'configured-percent',
   ): EntryReactionRange => ({
     direction,
+    pricingMode,
     reactionBar: bars[reactionIndex],
     extremeBar: bars[extremeIndex],
     high,
@@ -558,9 +1238,25 @@ describe('5-minute quarter-range true entry', () => {
     const long = entryQuarterSignal(range('long', bars, 3020, 3031), bars);
     const short = entryQuarterSignal(range('short', bars, 3020, 3031), bars);
 
-    expect(MARKET_PRICE_TICK).toBe(1);
-    expect(long).toMatchObject({ direction: 'long', tick: 1, rangeTicks: 11, quarterTicks: 3, price: 3023 });
-    expect(short).toMatchObject({ direction: 'short', tick: 1, rangeTicks: 11, quarterTicks: 3, price: 3028 });
+    expect(TEST_PRICE_TICK).toBe(1);
+    expect(long).toMatchObject({
+      direction: 'long',
+      tick: 1,
+      rangeTicks: 11,
+      entryRangePercent: 25,
+      entryDistanceTicks: 3,
+      quarterTicks: 3,
+      price: 3023,
+    });
+    expect(short).toMatchObject({
+      direction: 'short',
+      tick: 1,
+      rangeTicks: 11,
+      entryRangePercent: 25,
+      entryDistanceTicks: 3,
+      quarterTicks: 3,
+      price: 3028,
+    });
     expect(long.price / long.tick).toBe(Math.round(long.price / long.tick));
     expect(short.price / short.tick).toBe(Math.round(short.price / short.tick));
   });
@@ -575,11 +1271,94 @@ describe('5-minute quarter-range true entry', () => {
     });
   });
 
+  it('places zero and one hundred percent at mirrored range edges', () => {
+    const bars = [candle(0, 100, 100, 88, 90), candle(1, 90, 100, 88, 99)];
+    const zero = { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, entryRangePercent: 0 };
+    const hundred = { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, entryRangePercent: 100 };
+
+    expect(entryQuarterSignal(
+      range('long', bars, 88, 100),
+      bars,
+      1,
+      Number.POSITIVE_INFINITY,
+      zero,
+    )).toMatchObject({ entryDistanceTicks: 0, price: 88 });
+    expect(entryQuarterSignal(
+      range('short', bars, 88, 100),
+      bars,
+      1,
+      Number.POSITIVE_INFINITY,
+      zero,
+    )).toMatchObject({ entryDistanceTicks: 0, price: 100 });
+    expect(entryQuarterSignal(
+      range('long', bars, 88, 100),
+      bars,
+      1,
+      Number.POSITIVE_INFINITY,
+      hundred,
+    )).toMatchObject({ entryDistanceTicks: 12, price: 100 });
+    expect(entryQuarterSignal(
+      range('short', bars, 88, 100),
+      bars,
+      1,
+      Number.POSITIVE_INFINITY,
+      hundred,
+    )).toMatchObject({ entryDistanceTicks: 12, price: 88 });
+  });
+
+  it('rounds a non-divisible configured percentage upward by one whole tick', () => {
+    const bars = [candle(0, 100, 100, 90, 92), candle(1, 92, 100, 90, 99)];
+    const settings = { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, entryRangePercent: 33 };
+    const signal = entryQuarterSignal(
+      range('long', bars, 90, 100),
+      bars,
+      1,
+      Number.POSITIVE_INFINITY,
+      settings,
+    );
+
+    expect(signal).toMatchObject({
+      rangeTicks: 10,
+      entryRangePercent: 33,
+      entryDistanceTicks: 4,
+      price: 94,
+    });
+  });
+
   it('supports a non-unit tick while keeping the result on its tick grid', () => {
     const bars = [candle(0, 100, 100, 97.25, 98), candle(1, 98, 100, 97.25, 99)];
     const signal = entryQuarterSignal(range('long', bars, 97.25, 100), bars, 0.25);
-    expect(signal).toMatchObject({ tick: 0.25, rangeTicks: 11, quarterTicks: 3, price: 98 });
+    expect(signal).toMatchObject({
+      tick: 0.25,
+      rangeTicks: 11,
+      entryRangePercent: 25,
+      entryDistanceTicks: 3,
+      quarterTicks: 3,
+      price: 98,
+    });
     expect(signal.price / signal.tick).toBe(Math.round(signal.price / signal.tick));
+  });
+
+  it('forces risk-edge pricing without changing the configured percentage', () => {
+    const bars = [candle(0, 100, 100, 97.25, 98), candle(1, 98, 100, 97.25, 99)];
+    const settings = { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, entryRangePercent: 67 };
+    const longRange = range('long', bars, 97.25, 100, 1, 0, 'risk-edge');
+    const shortRange = range('short', bars, 97.25, 100, 1, 0, 'risk-edge');
+
+    expect(entryQuarterSignal(longRange, bars, 0.25, Number.POSITIVE_INFINITY, settings)).toMatchObject({
+      pricingMode: 'risk-edge',
+      entryRangePercent: 67,
+      entryDistanceTicks: 0,
+      quarterTicks: 0,
+      price: 97.25,
+    });
+    expect(entryQuarterSignal(shortRange, bars, 0.25, Number.POSITIVE_INFINITY, settings)).toMatchObject({
+      pricingMode: 'risk-edge',
+      entryRangePercent: 67,
+      entryDistanceTicks: 0,
+      quarterTicks: 0,
+      price: 100,
+    });
   });
 
   it('excludes the reaction candle even when it covers the line and accepts the first later wick touch', () => {
@@ -676,6 +1455,7 @@ describe('5-minute reaction-range stop loss', () => {
     extremeIndex = 0,
   ): EntryReactionRange => ({
     direction,
+    pricingMode: 'configured-percent',
     reactionBar: bars[reactionIndex],
     extremeBar: bars[extremeIndex],
     high,
@@ -783,6 +1563,7 @@ describe('5-minute reaction-range take profit', () => {
     extremeIndex = 0,
   ): EntryReactionRange => ({
     direction,
+    pricingMode: 'configured-percent',
     reactionBar: bars[reactionIndex],
     extremeBar: bars[extremeIndex],
     high,
@@ -794,9 +1575,12 @@ describe('5-minute reaction-range take profit', () => {
     entryIndex?: number,
   ): EntryQuarterSignal => ({
     direction,
+    pricingMode: 'configured-percent',
     price: direction === 'long' ? 3023 : 3028,
     tick: 1,
     rangeTicks: 11,
+    entryRangePercent: 25,
+    entryDistanceTicks: 3,
     quarterTicks: 3,
     lineStartBar: bars[0],
     reactionBar: bars[1] || bars[0],
@@ -1003,6 +1787,7 @@ describe('minute-backed actual exit state', () => {
   ) {
     const range: EntryReactionRange = {
       direction,
+      pricingMode: 'configured-percent',
       reactionBar: bars[0],
       extremeBar: bars[0],
       high: 104,
@@ -1010,9 +1795,12 @@ describe('minute-backed actual exit state', () => {
     };
     const quarterSignal: EntryQuarterSignal = {
       direction,
+      pricingMode: 'configured-percent',
       price: direction === 'long' ? 101 : 103,
       tick: 1,
       rangeTicks: 4,
+      entryRangePercent: 25,
+      entryDistanceTicks: 1,
       quarterTicks: 1,
       lineStartBar: bars[0],
       reactionBar: bars[0],

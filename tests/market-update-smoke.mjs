@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,13 +18,91 @@ const executable = process.env.MONEYCOMING_EXE
   ? resolve(process.env.MONEYCOMING_EXE)
   : undefined;
 const fixturePath = join(sandbox, 'edb-fixture.csv');
-const source = await readFile(join(root, 'futures_investigation_20261009', 'edb_main_continuous_1m_raw.csv'), 'utf8');
+
+async function resolveBaselineDirectory() {
+  const configured = process.env.MONEYCOMING_TEST_BUILTIN_DATA
+    ? resolve(process.env.MONEYCOMING_TEST_BUILTIN_DATA)
+    : undefined;
+  const candidates = configured
+    ? [
+        join(configured, 'instruments', 'main_continuous'),
+        join(configured, 'main_continuous'),
+        configured,
+      ]
+    : [
+        executable
+          ? join(dirname(executable), 'data', 'instruments', 'main_continuous')
+          : join(root, 'data', 'instruments', 'main_continuous'),
+      ];
+
+  for (const candidate of candidates) {
+    try {
+      await access(join(candidate, 'metadata.json'));
+      return candidate;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+
+  throw new Error(
+    `未找到行情更新测试基线 metadata.json：${candidates.join(', ')}`,
+  );
+}
+
+const baselineDirectory = await resolveBaselineDirectory();
+const metadata = JSON.parse(
+  await readFile(join(baselineDirectory, 'metadata.json'), 'utf8'),
+);
+const initialBars5 = metadata.files?.bars5?.rows;
+const initialBars60 = metadata.files?.bars60?.rows;
+const rawMinuteName = metadata.files?.bars1?.name;
+assert.ok(Number.isSafeInteger(initialBars5) && initialBars5 > 0);
+assert.ok(Number.isSafeInteger(initialBars60) && initialBars60 > 0);
+assert.equal(typeof rawMinuteName, 'string');
+assert.match(metadata.sourceLatestAt, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+
+const source = await readFile(join(baselineDirectory, rawMinuteName), 'utf8');
 const [header, ...sourceRows] = source.trim().split(/\r?\n/);
-const overlapStartNano = BigInt(Date.parse('2026-10-08T00:00:00+08:00')) * 1_000_000n;
+const finalSourceFields = sourceRows.at(-1)?.split(',');
+assert.equal(finalSourceFields?.length, 8);
+const finalSourceStartMs = Number(BigInt(finalSourceFields[0]) / 1_000_000n);
+const finalSourceClose = Number(finalSourceFields[4]);
+assert.ok(Number.isFinite(finalSourceStartMs));
+assert.ok(Number.isFinite(finalSourceClose));
+
+const finalSourceDate = new Date(finalSourceStartMs + 8 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
+const overlapStartNano = BigInt(
+  Date.parse(`${finalSourceDate}T00:00:00+08:00`) - 24 * 60 * 60 * 1000,
+) * 1_000_000n;
 const overlapRows = sourceRows.filter(row => BigInt(row.split(',', 1)[0]) >= overlapStartNano);
+
+function nextWeekday(dateText) {
+  const [year, month, day] = dateText.slice(0, 10).split('-').map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  do {
+    candidate.setUTCDate(candidate.getUTCDate() + 1);
+  } while (candidate.getUTCDay() === 0 || candidate.getUTCDay() === 6);
+  return candidate.toISOString().slice(0, 10);
+}
+
+function countPattern(bars5, bars60) {
+  return new RegExp(
+    `${bars5.toLocaleString('en-US')}.*${bars60.toLocaleString('en-US')}`,
+  );
+}
+
+const syntheticDate = nextWeekday(metadata.sourceLatestAt);
+const syntheticStartMs = Date.parse(`${syntheticDate}T09:00:00+08:00`);
+const syntheticLatest = `${syntheticDate} 10:00`;
+const syntheticBase = Math.ceil(finalSourceClose) + 10;
+const expectedBars5 = initialBars5 + 12;
+const expectedBars60 = initialBars60 + 1;
+const expectedFinalClose = syntheticBase + 6;
 const syntheticRows = Array.from({ length: 60 }, (_, index) => {
-  const startMs = Date.parse('2026-10-12T09:00:00+08:00') + index * 60_000;
-  const open = 3402 + Math.floor(index / 10);
+  const startMs = syntheticStartMs + index * 60_000;
+  const open = syntheticBase + Math.floor(index / 10);
   const openOi = 2_485_615 + index * 10;
   return [
     String(BigInt(startMs) * 1_000_000n),
@@ -46,6 +124,7 @@ async function launch(mode) {
     MONEYCOMING_TEST_USER_DATA: userData,
     MONEYCOMING_TEST_EDB_MODE: mode,
     MONEYCOMING_TEST_EDB_FIXTURE: fixturePath,
+    MONEYCOMING_TEST_NOW: `${syntheticDate}T16:00:00+08:00`,
   };
   if (process.env.MONEYCOMING_TEST_APPDATA) {
     env.APPDATA = process.env.MONEYCOMING_TEST_APPDATA;
@@ -113,7 +192,10 @@ try {
     const { app, page, offscreen } = await launch('fixture');
     offscreenScenarios.push({ mode: 'fixture', ...offscreen });
     try {
-      assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+      assert.match(
+        await page.locator('#counts').innerText(),
+        countPattern(initialBars5, initialBars60),
+      );
       const initialRollovers = {
         5: await rolloverDiagnostics(page, 5),
         60: await rolloverDiagnostics(page, 60),
@@ -161,27 +243,41 @@ try {
 
       await page.getByTestId('market-update').click();
       await page.locator('html[data-market-update-phase="succeeded"]').waitFor({ timeout: 30_000 });
-      await page.locator('#counts', { hasText: '16,542' }).waitFor();
-      assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
+      await page.locator('#counts', {
+        hasText: expectedBars5.toLocaleString('en-US'),
+      }).waitFor();
+      assert.match(
+        await page.locator('#counts').innerText(),
+        countPattern(expectedBars5, expectedBars60),
+      );
       assert.match(await page.locator('#market-update-status').innerText(), /5 分钟 \+12.*60 分钟 \+1/);
-      assert.match(await page.locator('#market-update-status').innerText(), /数据源最新至 2026-10-12 10:00/);
-      assert.match(await page.locator('#coverage').innerText(), /数据源最新至 2026-10-12 10:00/);
-      assert.match(await page.locator('#last-time').innerText(), /2026-10-12 10:00/);
-      assert.equal((await page.locator('#last-close').innerText()).replaceAll(',', ''), '3408');
+      assert.ok((await page.locator('#market-update-status').innerText()).includes(syntheticLatest));
+      assert.ok((await page.locator('#coverage').innerText()).includes(syntheticLatest));
+      assert.ok((await page.locator('#last-time').innerText()).includes(syntheticLatest));
+      assert.equal(
+        Number((await page.locator('#last-close').innerText()).replaceAll(',', '')),
+        expectedFinalClose,
+      );
       assert.equal(await page.locator('html').getAttribute('data-selected-start'), historicalStart);
       assert.equal(await page.locator('html').getAttribute('data-mode'), '60');
       assert.equal(await page.getByTestId('toggle-monday').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.getByTestId('toggle-subcharts').getAttribute('aria-pressed'), 'true');
-      assert.deepEqual(await rolloverDiagnostics(page, 5), initialRollovers[5]);
-      assert.deepEqual(await rolloverDiagnostics(page, 60), initialRollovers[60]);
+      const updatedRollovers = {
+        5: await rolloverDiagnostics(page, 5),
+        60: await rolloverDiagnostics(page, 60),
+      };
+      assert.deepEqual(updatedRollovers[60], updatedRollovers[5]);
 
       await page.getByTestId('market-update').click();
       await page.locator('html[data-market-update-phase="up-to-date"]').waitFor({ timeout: 30_000 });
       assert.match(await page.locator('#market-update-status').innerText(), /已是数据源当前最新/);
-      assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
+      assert.match(
+        await page.locator('#counts').innerText(),
+        countPattern(expectedBars5, expectedBars60),
+      );
       assert.equal(await page.locator('html').getAttribute('data-selected-start'), historicalStart);
-      assert.deepEqual(await rolloverDiagnostics(page, 5), initialRollovers[5]);
-      assert.deepEqual(await rolloverDiagnostics(page, 60), initialRollovers[60]);
+      assert.deepEqual(await rolloverDiagnostics(page, 5), updatedRollovers[5]);
+      assert.deepEqual(await rolloverDiagnostics(page, 60), updatedRollovers[60]);
       if (process.env.MONEYCOMING_TEST_UPDATER === '1') {
         assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'up-to-date');
       }
@@ -189,7 +285,7 @@ try {
       await page.getByTestId('latest').click();
       await frame(page);
       assert.equal(await page.locator('html').getAttribute('data-selected-start'), null);
-      assert.equal(await page.getByTestId('date-input').inputValue(), '2026-10-12');
+      assert.equal(await page.getByTestId('date-input').inputValue(), syntheticDate);
       await page.screenshot({ path: resolve(output, 'market-update-success.png') });
     } finally {
       await app.close();
@@ -200,9 +296,15 @@ try {
     const { app, page, offscreen } = await launch('offline');
     offscreenScenarios.push({ mode: 'offline', ...offscreen });
     try {
-      assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
-      assert.match(await page.locator('#coverage').innerText(), /数据源最新至 2026-10-12 10:00/);
-      assert.equal((await page.locator('#last-close').innerText()).replaceAll(',', ''), '3408');
+      assert.match(
+        await page.locator('#counts').innerText(),
+        countPattern(expectedBars5, expectedBars60),
+      );
+      assert.ok((await page.locator('#coverage').innerText()).includes(syntheticLatest));
+      assert.equal(
+        Number((await page.locator('#last-close').innerText()).replaceAll(',', '')),
+        expectedFinalClose,
+      );
 
       await jump(page, '2026-02-05');
       const historicalStart = await page.locator('html').getAttribute('data-selected-start');
@@ -210,7 +312,10 @@ try {
       await page.locator('html[data-market-update-phase="failed"]').waitFor({ timeout: 30_000 });
       assert.match(await page.locator('#market-update-status').innerText(), /更新失败/);
       assert.match(await page.locator('#market-update-status').innerText(), /当前数据未受影响/);
-      assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
+      assert.match(
+        await page.locator('#counts').innerText(),
+        countPattern(expectedBars5, expectedBars60),
+      );
       assert.equal(await page.locator('html').getAttribute('data-selected-start'), historicalStart);
       await page.screenshot({ path: resolve(output, 'market-update-offline.png') });
     } finally {

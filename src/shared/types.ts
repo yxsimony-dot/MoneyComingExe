@@ -1,4 +1,6 @@
-export type Instrument = 'main_continuous';
+import type { Instrument, InstrumentDefinition } from './instruments';
+
+export type { Instrument, InstrumentDefinition } from './instruments';
 export type Period = 5 | 60;
 export type MinuteDecisionGranularity = 'one-minute' | 'five-minute-fallback' | 'five-minute-close';
 export interface Bar {
@@ -51,7 +53,7 @@ interface MarketSnapshotMetadataBase {
   source: {
     provider: 'EDB';
     endpoint: 'https://edb.shinnytech.com/md/kline';
-    symbol: 'KQ.m@DCE.m';
+    symbol: string;
   };
   generatedAt: string;
   requestStart: string;
@@ -82,17 +84,32 @@ export interface MarketSnapshotMetadataV3 extends MarketSnapshotMetadataBase {
     rollovers: SnapshotFileMetadata;
   };
 }
+export interface MarketSnapshotMetadataV4 extends MarketSnapshotMetadataBase {
+  schemaVersion: 4;
+  instrumentId: Instrument;
+  mainSymbol: InstrumentDefinition['mainSymbol'];
+  parameterVersion: number;
+  files: {
+    bars1: SnapshotFileMetadata;
+    bars5: SnapshotFileMetadata;
+    bars60: SnapshotFileMetadata;
+    rollovers: SnapshotFileMetadata;
+    mainContractMappings: SnapshotFileMetadata;
+  };
+}
 export type MarketSnapshotMetadata =
   | MarketSnapshotMetadataV1
   | MarketSnapshotMetadataV2
-  | MarketSnapshotMetadataV3;
+  | MarketSnapshotMetadataV3
+  | MarketSnapshotMetadataV4;
 export type SnapshotSource = 'builtin' | 'user';
 export interface Anomaly {
   timeMs: number; title: string; detail: string;
 }
 export interface Dataset {
-  instrument: Instrument; name: string; symbol: string;
-  bars1: EdbMinuteRecord[]; bars5: Bar[]; bars60: Bar[]; rollovers: ContractRollover[]; anomalies: Anomaly[];
+  instrument: Instrument; definition: InstrumentDefinition; name: string; symbol: string;
+  bars1: EdbMinuteRecord[]; bars5: Bar[]; bars60: Bar[];
+  mainContractMappings: MainContractMapping[]; rollovers: ContractRollover[]; anomalies: Anomaly[];
   auditAvailable: boolean; dataDirectory: string;
   snapshotSource: SnapshotSource;
   sourceLatestAt: string;
@@ -126,6 +143,7 @@ export interface PublicMarketUpdateError {
   message: string;
 }
 export interface MarketUpdateState {
+  instrument: Instrument;
   phase: MarketUpdatePhase;
   startedAt?: string;
   completedAt?: string;
@@ -135,12 +153,18 @@ export interface MarketUpdateState {
   counts?: MarketUpdateCounts;
   error?: PublicMarketUpdateError;
 }
+export interface MarketUpdateAllResult {
+  startedAt: string;
+  completedAt: string;
+  results: MarketUpdateState[];
+}
 export interface MarketAPI {
   load: (instrument: Instrument, reload?: boolean) => Promise<LoadResult>;
   readEntryRules: () => Promise<EntryRulesResult>;
   openAttribution: () => Promise<void>;
-  getUpdateState: () => Promise<MarketUpdateState>;
-  update: () => Promise<MarketUpdateState>;
+  getUpdateState: (instrument: Instrument) => Promise<MarketUpdateState>;
+  update: (instrument: Instrument) => Promise<MarketUpdateState>;
+  updateAll: () => Promise<MarketUpdateAllResult>;
   onUpdateState: (listener: (state: MarketUpdateState) => void) => () => void;
   testMode: boolean;
 }
@@ -210,11 +234,14 @@ export type ReactionTestScenario =
   | 'exit-take-profit'
   | 'exit-stop-loss'
   | 'exit-stop-risk-same-bar'
-  | 'exit-no-touch';
+  | 'exit-no-touch'
+  | 'two-attempts';
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;
   clearReactionScenario: () => void;
   showEmptyProfitLossReview: () => void;
+  selectThresholdComparisonEntry: () => boolean;
+  selectPercentageComparisonEntry: () => boolean;
 }
 export type WeeklyDirection = 'long' | 'short';
 export interface EntryRulesResult {

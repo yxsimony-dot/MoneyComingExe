@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-10-19",
+  "sources": {
+    "edb-symbols": {
+      "title": "EDB market history symbol format",
+      "url": "https://doc.shinnytech.com/edb/latest/md_server.html"
+    },
+    "dce-contract-rules": {
+      "title": "DCE consolidated contract rules",
+      "url": "https://www.dce.com.cn/dceg/file/2025-05-29/1748480861759ff80808197162e7117301971994a63f12f6.pdf"
+    },
+    "dce-night-session": {
+      "title": "DCE night-session product and time notice",
+      "url": "https://www.dce.com.cn/dalianshangpin/resource/cms/2019/04/2019042612023697006.pdf"
+    },
+    "czce-rapeseed-meal": {
+      "title": "CZCE rapeseed meal futures rules",
+      "url": "https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/pzxz/2026/5/338bbcd6027246f792a776ca7c59f5f4.pdf"
+    },
+    "czce-glass": {
+      "title": "CZCE flat glass futures rules",
+      "url": "https://www.czce.com.cn/cn/uploadfile/2024/02/07/20240207103949576.pdf"
+    },
+    "czce-rapeseed-oil": {
+      "title": "CZCE rapeseed oil futures rules",
+      "url": "https://www.czce.com.cn/cn/uploadfile/2024/02/07/20240207144928864.pdf"
+    },
+    "czce-soda-ash": {
+      "title": "CZCE soda ash futures rules",
+      "url": "https://www.czce.com.cn/cn/uploadfile/2024/02/07/20240207112556986.pdf"
+    },
+    "czce-methanol": {
+      "title": "CZCE methanol futures rules",
+      "url": "https://www.czce.com.cn/cn/uploadfile/2024/02/07/20240207154824122.pdf"
+    },
+    "czce-sugar": {
+      "title": "CZCE white sugar futures rules",
+      "url": "https://www.czce.com.cn/cn/uploadfile/2024/06/26/20240626165544343.pdf"
+    },
+    "shfe-rebar": {
+      "title": "SHFE rebar futures rules",
+      "url": "https://www.shfe.com.cn/regulation/exchangerules/productrules/202512/t20251231_829962.html"
+    },
+    "shfe-pulp": {
+      "title": "SHFE bleached softwood pulp futures contract",
+      "url": "https://www.shfe.com.cn/products/futures/energyandchemical/sp_f/standard_sp_f/202312/t20231205_327335.html"
+    },
+    "shfe-trading-hours": {
+      "title": "SHFE trading hours",
+      "url": "https://www.shfe.com.cn/services/calenderandholidays/tradinghours/"
+    }
+  },
+  "sessionProfiles": {
+    "standard-day-night": [
+      {
+        "id": "day",
+        "segments": [
+          {
+            "startMinute": 540,
+            "endMinute": 615
+          },
+          {
+            "startMinute": 630,
+            "endMinute": 690
+          },
+          {
+            "startMinute": 810,
+            "endMinute": 900
+          }
+        ]
+      },
+      {
+        "id": "night",
+        "segments": [
+          {
+            "startMinute": 1260,
+            "endMinute": 1380
+          }
+        ]
+      }
+    ]
+  },
+  "instruments": {
+    "main_continuous": {
+      "exchange": "DCE",
+      "productCode": "m",
+      "mainSymbol": "KQ.m@DCE.m",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 3, 5, 7, 8, 9, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "rapeseed_meal_main": {
+      "exchange": "CZCE",
+      "productCode": "RM",
+      "mainSymbol": "KQ.m@CZCE.RM",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 3, 5, 7, 8, 9, 11],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-rapeseed-meal"]
+    },
+    "pvc_main": {
+      "exchange": "DCE",
+      "productCode": "v",
+      "mainSymbol": "KQ.m@DCE.v",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 5,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "rebar_main": {
+      "exchange": "SHFE",
+      "productCode": "rb",
+      "mainSymbol": "KQ.m@SHFE.rb",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "shfe-rebar", "shfe-trading-hours"]
+    },
+    "glass_main": {
+      "exchange": "CZCE",
+      "productCode": "FG",
+      "mainSymbol": "KQ.m@CZCE.FG",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 20,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-glass"]
+    },
+    "rapeseed_oil_main": {
+      "exchange": "CZCE",
+      "productCode": "OI",
+      "mainSymbol": "KQ.m@CZCE.OI",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 3, 5, 7, 9, 11],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-rapeseed-oil"]
+    },
+    "palm_oil_main": {
+      "exchange": "DCE",
+      "productCode": "p",
+      "mainSymbol": "KQ.m@DCE.p",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 2,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "soybean_oil_main": {
+      "exchange": "DCE",
+      "productCode": "y",
+      "mainSymbol": "KQ.m@DCE.y",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 3, 5, 7, 8, 9, 11, 12],
+      "priceTick": 2,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "pulp_main": {
+      "exchange": "SHFE",
+      "productCode": "sp",
+      "mainSymbol": "KQ.m@SHFE.sp",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 2,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "shfe-pulp", "shfe-trading-hours"]
+    },
+    "corn_main": {
+      "exchange": "DCE",
+      "productCode": "c",
+      "mainSymbol": "KQ.m@DCE.c",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 3, 5, 7, 9, 11],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "soda_ash_main": {
+      "exchange": "CZCE",
+      "productCode": "SA",
+      "mainSymbol": "KQ.m@CZCE.SA",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 20,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-soda-ash"]
+    },
+    "soybean_1_main": {
+      "exchange": "DCE",
+      "productCode": "a",
+      "mainSymbol": "KQ.m@DCE.a",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 3, 5, 7, 9, 11],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    },
+    "methanol_main": {
+      "exchange": "CZCE",
+      "productCode": "MA",
+      "mainSymbol": "KQ.m@CZCE.MA",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-methanol"]
+    },
+    "sugar_main": {
+      "exchange": "CZCE",
+      "productCode": "SR",
+      "mainSymbol": "KQ.m@CZCE.SR",
+      "expiryDigits": 3,
+      "productCase": "upper",
+      "candidateMonths": [1, 3, 5, 7, 9, 11],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "czce-sugar"]
+    },
+    "soybean_2_main": {
+      "exchange": "DCE",
+      "productCode": "b",
+      "mainSymbol": "KQ.m@DCE.b",
+      "expiryDigits": 4,
+      "productCase": "lower",
+      "candidateMonths": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "priceTick": 1,
+      "contractMultiplier": 10,
+      "sessionProfile": "standard-day-night",
+      "sourceIds": ["edb-symbols", "dce-contract-rules", "dce-night-session"]
+    }
+  }
+}

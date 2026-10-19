@@ -4,8 +4,9 @@ const api: MarketAPI = {
   load: (instrument: Instrument, reload = false) => ipcRenderer.invoke('market:load', instrument, reload),
   readEntryRules: () => ipcRenderer.invoke('market:entry-rules'),
   openAttribution: () => ipcRenderer.invoke('market:attribution'),
-  getUpdateState: () => ipcRenderer.invoke('market:update-state'),
-  update: () => ipcRenderer.invoke('market:update'),
+  getUpdateState: instrument => ipcRenderer.invoke('market:update-state', instrument),
+  update: instrument => ipcRenderer.invoke('market:update', instrument),
+  updateAll: () => ipcRenderer.invoke('market:update-all'),
   onUpdateState: listener => {
     const handler = (_event: Electron.IpcRendererEvent, state: MarketUpdateState) => listener(state);
     ipcRenderer.on('market:update-state-changed', handler);

@@ -1,19 +1,31 @@
-import type { Bar, EdbMinuteRecord, MinuteDecisionGranularity } from '../shared/types';
+import type {
+  Bar,
+  EdbMinuteRecord,
+  Instrument,
+  InstrumentDefinition,
+  MinuteDecisionGranularity,
+} from '../shared/types';
 import {
+  DEFAULT_ENTRY_STRATEGY_SETTINGS,
   entryLifecycle,
+  validateEntryStrategySettings,
   type EntryExitType,
   type EntryLifecycle,
+  type EntryLifecycleAttempt,
+  type EntryReactionPricingMode,
+  type EntryStrategySettings,
   type WeeklyEntry,
 } from './weekly-entry';
 
 export const REVIEW_INITIAL_CAPITAL = 1_000_000;
-export const REVIEW_CONTRACTS_PER_TRADE = 1;
-export const REVIEW_CONTRACT_MULTIPLIER = 10;
+export const REVIEW_FUTURES_LEVERAGE = 10;
 
 export interface ProfitLossReviewTrade {
   id: string;
   sourceIndex: number;
   direction: WeeklyEntry['direction'];
+  reactionBar: Bar;
+  pricingMode: EntryReactionPricingMode;
   entryTimeMs: number;
   entryPrice: number;
   entryBar: Bar;
@@ -23,6 +35,8 @@ export interface ProfitLossReviewTrade {
   exitType: EntryExitType;
   granularity: MinuteDecisionGranularity;
   exitMinuteStartMs?: number;
+  lots: number;
+  capitalBefore: number;
   pricePnl: number;
   cashPnl: number;
   capitalAfter: number;
@@ -32,9 +46,13 @@ export interface ProfitLossReviewIncompleteTrade {
   id: string;
   sourceIndex: number;
   direction: WeeklyEntry['direction'];
+  reactionBar: Bar;
+  pricingMode: EntryReactionPricingMode;
   entryTimeMs: number;
   entryPrice: number;
   entryBar: Bar;
+  lots: number;
+  capitalBefore: number;
   lifecycleEndReason: EntryLifecycle['endReason'];
 }
 
@@ -73,6 +91,11 @@ export interface ProfitLossReviewStatistics {
 }
 
 export interface ProfitLossReviewResult {
+  instrument: Instrument;
+  instrumentName: string;
+  priceTick: number;
+  contractMultiplier: number;
+  leverage: number;
   initialCapital: number;
   finalCapital: number;
   totalPnl: number;
@@ -83,8 +106,12 @@ export interface ProfitLossReviewResult {
   statistics: ProfitLossReviewStatistics;
 }
 
-function entryId(sourceIndex: number, entry: WeeklyEntry): string {
-  return `review-${sourceIndex}-${entry.direction}-${entry.triggerBar.startMs}`;
+function entryId(
+  sourceIndex: number,
+  attempt: EntryLifecycleAttempt,
+  entry: WeeklyEntry,
+): string {
+  return `review-${sourceIndex}-attempt-${attempt.number}-${entry.direction}-${entry.triggerBar.startMs}`;
 }
 
 function exitEventTime(exitBar: Bar, minute?: EdbMinuteRecord): number {
@@ -125,80 +152,195 @@ function maxStreak(values: readonly boolean[]): number {
   return longest;
 }
 
+type CompletedTradeDraft = Omit<
+  ProfitLossReviewTrade,
+  'lots' | 'capitalBefore' | 'cashPnl' | 'capitalAfter'
+> & {
+  pricePnl: number;
+  lots?: number;
+  capitalBefore?: number;
+};
+
+type IncompleteTradeDraft = Omit<
+  ProfitLossReviewIncompleteTrade,
+  'lots' | 'capitalBefore'
+> & {
+  lots?: number;
+  capitalBefore?: number;
+};
+
+type ReplayEvent =
+  | {
+    kind: 'entry';
+    eventTimeMs: number;
+    sourceIndex: number;
+    trade: CompletedTradeDraft | IncompleteTradeDraft;
+  }
+  | {
+    kind: 'exit';
+    eventTimeMs: number;
+    sourceIndex: number;
+    trade: CompletedTradeDraft;
+  };
+
+export function calculateMaxLots(
+  capital: number,
+  entryPrice: number,
+  contractMultiplier: number,
+): number {
+  if (capital <= 0 || entryPrice <= 0 || contractMultiplier <= 0) return 0;
+  return Math.floor(
+    capital * REVIEW_FUTURES_LEVERAGE / (entryPrice * contractMultiplier),
+  );
+}
+
 /**
- * Replays each historical weekly entry as an independent one-lot trade.
+ * Replays each historical weekly entry as an independent fully funded trade.
  * Candidates without a true entry are ignored; entered lifecycles without an
- * exit remain visible separately and never affect realized capital.
+ * exit remain visible separately and never affect realized capital. Each entry
+ * uses the maximum whole number of lots allowed by the fixed 10x theoretical
+ * notional leverage and the current instrument contract multiplier.
  */
 export function reviewProfitLoss(
   entries: readonly WeeklyEntry[],
   bars5: readonly Bar[],
   bars1: readonly EdbMinuteRecord[] = [],
+  definition: InstrumentDefinition,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): ProfitLossReviewResult {
-  const completedTrades: Array<Omit<ProfitLossReviewTrade, 'capitalAfter'>> = [];
-  const incompleteTrades: ProfitLossReviewIncompleteTrade[] = [];
+  validateEntryStrategySettings(settings);
+  const completedDrafts: CompletedTradeDraft[] = [];
+  const incompleteDrafts: IncompleteTradeDraft[] = [];
   let ignoredNoEntryCount = 0;
 
   entries.forEach((entry, sourceIndex) => {
-    const lifecycle = entryLifecycle(entry, bars5, bars1);
-    const entryBar = lifecycle.quarterSignal?.entryBar;
-    const id = entryId(sourceIndex, entry);
-    if (!entryBar) {
-      ignoredNoEntryCount += 1;
-      return;
-    }
+    const lifecycle = entryLifecycle(entry, bars5, bars1, definition.priceTick, settings);
+    let hasTrueEntry = false;
 
-    const exit = lifecycle.exitAnalysis?.exitSignal;
-    if (!exit) {
-      incompleteTrades.push({
+    lifecycle.attempts.forEach(attempt => {
+      const entryBar = attempt.quarterSignal?.entryBar;
+      if (!entryBar) return;
+
+      hasTrueEntry = true;
+      const id = entryId(sourceIndex, attempt, entry);
+      const entryPrice = attempt.quarterSignal!.price;
+      const reactionBar = attempt.reactionRange!.reactionBar;
+      const pricingMode = attempt.quarterSignal!.pricingMode;
+      const exit = attempt.exitAnalysis?.exitSignal;
+      if (!exit) {
+        incompleteDrafts.push({
+          id,
+          sourceIndex,
+          direction: entry.direction,
+          reactionBar,
+          pricingMode,
+          entryTimeMs: entryBar.startMs,
+          entryPrice,
+          entryBar,
+          lifecycleEndReason: attempt.endReason,
+        });
+        return;
+      }
+
+      completedDrafts.push({
         id,
         sourceIndex,
         direction: entry.direction,
+        reactionBar,
+        pricingMode,
         entryTimeMs: entryBar.startMs,
-        entryPrice: lifecycle.quarterSignal!.price,
+        entryPrice,
         entryBar,
-        lifecycleEndReason: lifecycle.endReason,
+        exitTimeMs: exitEventTime(exit.bar, exit.minute),
+        exitPrice: exit.price,
+        exitBar: exit.bar,
+        exitType: exit.type,
+        granularity: exit.granularity,
+        exitMinuteStartMs: exit.minute?.startMs,
+        pricePnl: priceProfit(entry.direction, entryPrice, exit.price),
       });
-      return;
-    }
-
-    const pricePnl = priceProfit(entry.direction, lifecycle.quarterSignal!.price, exit.price);
-    completedTrades.push({
-      id,
-      sourceIndex,
-      direction: entry.direction,
-      entryTimeMs: entryBar.startMs,
-      entryPrice: lifecycle.quarterSignal!.price,
-      entryBar,
-      exitTimeMs: exitEventTime(exit.bar, exit.minute),
-      exitPrice: exit.price,
-      exitBar: exit.bar,
-      exitType: exit.type,
-      granularity: exit.granularity,
-      exitMinuteStartMs: exit.minute?.startMs,
-      pricePnl,
-      cashPnl: pricePnl * REVIEW_CONTRACT_MULTIPLIER * REVIEW_CONTRACTS_PER_TRADE,
     });
+
+    if (!hasTrueEntry) ignoredNoEntryCount += 1;
   });
 
-  const ordered = [...completedTrades].sort((left, right) =>
-    left.exitTimeMs - right.exitTimeMs
-    || left.entryTimeMs - right.entryTimeMs
-    || left.sourceIndex - right.sourceIndex);
+  const replayEvents: ReplayEvent[] = [
+    ...completedDrafts.flatMap((trade): ReplayEvent[] => [
+      {
+        kind: 'entry',
+        eventTimeMs: trade.entryTimeMs,
+        sourceIndex: trade.sourceIndex,
+        trade,
+      },
+      {
+        kind: 'exit',
+        eventTimeMs: trade.exitTimeMs,
+        sourceIndex: trade.sourceIndex,
+        trade,
+      },
+    ]),
+    ...incompleteDrafts.map((trade): ReplayEvent => ({
+      kind: 'entry',
+      eventTimeMs: trade.entryTimeMs,
+      sourceIndex: trade.sourceIndex,
+      trade,
+    })),
+  ].sort((left, right) => {
+    if (left.eventTimeMs !== right.eventTimeMs) {
+      return left.eventTimeMs - right.eventTimeMs;
+    }
+    if (left.trade.id === right.trade.id) {
+      return left.kind === 'entry' ? -1 : 1;
+    }
+    if (left.kind !== right.kind) {
+      return left.kind === 'exit' ? -1 : 1;
+    }
+    return left.sourceIndex - right.sourceIndex;
+  });
+
   let capital = REVIEW_INITIAL_CAPITAL;
   const equityCurve: ProfitLossReviewEquityPoint[] = [];
-  const completedWithCapital: ProfitLossReviewTrade[] = ordered.map(trade => {
-    capital += trade.cashPnl;
-    const completed = { ...trade, capitalAfter: capital };
+  const completedWithCapital: ProfitLossReviewTrade[] = [];
+  const incompleteTrades: ProfitLossReviewIncompleteTrade[] = [];
+
+  for (const event of replayEvents) {
+    if (event.kind === 'entry') {
+      const lots = calculateMaxLots(
+        capital,
+        event.trade.entryPrice,
+        definition.contractMultiplier,
+      );
+      event.trade.lots = lots;
+      event.trade.capitalBefore = capital;
+      if ('lifecycleEndReason' in event.trade) {
+        incompleteTrades.push({
+          ...event.trade,
+          lots,
+          capitalBefore: capital,
+        });
+      }
+      continue;
+    }
+
+    const lots = event.trade.lots ?? 0;
+    const cashPnl = event.trade.pricePnl * definition.contractMultiplier * lots;
+    capital += cashPnl;
+    const completed: ProfitLossReviewTrade = {
+      ...event.trade,
+      lots,
+      capitalBefore: event.trade.capitalBefore ?? REVIEW_INITIAL_CAPITAL,
+      cashPnl,
+      capitalAfter: capital,
+    };
+    completedWithCapital.push(completed);
     equityCurve.push({
-      tradeId: trade.id,
-      sourceIndex: trade.sourceIndex,
-      eventTimeMs: trade.exitTimeMs,
+      tradeId: event.trade.id,
+      sourceIndex: event.trade.sourceIndex,
+      eventTimeMs: event.trade.exitTimeMs,
       capital,
-      cashPnl: trade.cashPnl,
+      cashPnl,
     });
-    return completed;
-  });
+  }
 
   const winning = completedWithCapital.filter(trade => trade.cashPnl > 0);
   const losing = completedWithCapital.filter(trade => trade.cashPnl < 0);
@@ -211,8 +353,13 @@ export function reviewProfitLoss(
   const lossValues = completedWithCapital.map(trade => trade.cashPnl < 0);
 
   return {
+    instrument: definition.id,
+    instrumentName: definition.name,
+    priceTick: definition.priceTick,
+    contractMultiplier: definition.contractMultiplier,
+    leverage: REVIEW_FUTURES_LEVERAGE,
     initialCapital: REVIEW_INITIAL_CAPITAL,
-    finalCapital: REVIEW_INITIAL_CAPITAL + totalPnl,
+    finalCapital: capital,
     totalPnl,
     returnRate: totalPnl / REVIEW_INITIAL_CAPITAL,
     completedTrades: completedWithCapital,

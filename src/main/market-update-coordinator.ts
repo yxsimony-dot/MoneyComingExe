@@ -7,12 +7,22 @@ import {
   reconcileBars,
   updateCounts,
 } from '../domain/market-data';
-import { detectContractRollovers } from '../domain/contract-rollover';
+import {
+  detectContractRollovers,
+  mergeMainContractMappings,
+} from '../domain/contract-rollover';
 import { formatBeijing, parseBeijing } from '../domain/time';
+import {
+  INSTRUMENT_IDS,
+  instrumentDefinition,
+  type InstrumentDefinition,
+} from '../shared/instruments';
 import type {
   ContractRollover,
   EdbMinuteRecord,
+  Instrument,
   MainContractMapping,
+  MarketUpdateAllResult,
   MarketUpdateCounts,
   MarketUpdateState,
   PublicMarketUpdateError,
@@ -25,11 +35,22 @@ const MINUTE_MS = 60_000;
 const EMPTY_MINUTE_HISTORY_LOOKBACK_MS = 366 * DAY_MS;
 
 export interface MarketUpdateCoordinatorOptions {
-  loadSnapshot: () => Promise<LoadedMarketSnapshot>;
-  fetchMinutes: (startMs: number, endMs: number) => Promise<EdbMinuteRecord[]>;
-  fetchContractMappings: (startMs: number, endMs: number) => Promise<MainContractMapping[]>;
-  saveSnapshot: (candidate: SnapshotCandidate) => Promise<LoadedMarketSnapshot>;
-  invalidate: () => void;
+  loadSnapshot: (definition: InstrumentDefinition) => Promise<LoadedMarketSnapshot>;
+  fetchMinutes: (
+    definition: InstrumentDefinition,
+    startMs: number,
+    endMs: number,
+  ) => Promise<EdbMinuteRecord[]>;
+  fetchContractMappings: (
+    definition: InstrumentDefinition,
+    startMs: number,
+    endMs: number,
+  ) => Promise<MainContractMapping[]>;
+  saveSnapshot: (
+    definition: InstrumentDefinition,
+    candidate: SnapshotCandidate,
+  ) => Promise<LoadedMarketSnapshot>;
+  invalidate: (instrument: Instrument) => void;
   publish: (state: MarketUpdateState) => void;
   now?: () => Date;
 }
@@ -66,10 +87,15 @@ function latestAt(snapshot: LoadedMarketSnapshot): number {
   );
 }
 
-export function requestStartFor(snapshot: LoadedMarketSnapshot, requestEndMs = Date.now()): number {
+export function requestStartFor(
+  snapshot: LoadedMarketSnapshot,
+  requestEndMs = Date.now(),
+): number {
   const lastMinute = snapshot.bars1.at(-1);
   if (!lastMinute) {
-    return Math.floor((requestEndMs - EMPTY_MINUTE_HISTORY_LOOKBACK_MS) / MINUTE_MS) * MINUTE_MS;
+    return Math.floor(
+      (requestEndMs - EMPTY_MINUTE_HISTORY_LOOKBACK_MS) / MINUTE_MS,
+    ) * MINUTE_MS;
   }
   const date = formatBeijing(lastMinute.startMs).slice(0, 10);
   return parseBeijing(`${date} 00:00:00`) - DAY_MS;
@@ -77,6 +103,16 @@ export function requestStartFor(snapshot: LoadedMarketSnapshot, requestEndMs = D
 
 function changed(counts: MarketUpdateCounts): boolean {
   return Object.values(counts).some(value => value > 0);
+}
+
+function sameMappings(
+  left: readonly MainContractMapping[],
+  right: readonly MainContractMapping[],
+): boolean {
+  return left.length === right.length && left.every((mapping, index) => (
+    mapping.tradingDate === right[index]?.tradingDate
+    && mapping.contract === right[index]?.contract
+  ));
 }
 
 function sameRollover(left: ContractRollover, right: ContractRollover): boolean {
@@ -103,34 +139,54 @@ function rolloverCounts(
 }
 
 export class MarketUpdateCoordinator {
-  private state: MarketUpdateState = { phase: 'idle' };
-  private running?: Promise<MarketUpdateState>;
+  private readonly states = new Map<Instrument, MarketUpdateState>();
+  private readonly running = new Map<Instrument, Promise<MarketUpdateState>>();
   private readonly now: () => Date;
 
   constructor(private readonly options: MarketUpdateCoordinatorOptions) {
     this.now = options.now ?? (() => new Date());
   }
 
-  getState(): MarketUpdateState {
-    return structuredClone(this.state);
+  getState(instrument: Instrument): MarketUpdateState {
+    return structuredClone(
+      this.states.get(instrument) ?? { instrument, phase: 'idle' },
+    );
   }
 
-  update(): Promise<MarketUpdateState> {
-    if (this.running) return this.running;
-    this.running = this.run().finally(() => {
-      this.running = undefined;
+  update(instrument: Instrument): Promise<MarketUpdateState> {
+    const active = this.running.get(instrument);
+    if (active) return active;
+    const operation = this.run(instrumentDefinition(instrument)).finally(() => {
+      this.running.delete(instrument);
     });
-    return this.running;
+    this.running.set(instrument, operation);
+    return operation;
   }
 
-  private async run(): Promise<MarketUpdateState> {
+  async updateAll(
+    instruments: readonly Instrument[] = INSTRUMENT_IDS,
+  ): Promise<MarketUpdateAllResult> {
+    const startedAt = this.now().toISOString();
+    const results: MarketUpdateState[] = [];
+    for (const instrument of instruments) {
+      results.push(await this.update(instrument));
+    }
+    return {
+      startedAt,
+      completedAt: this.now().toISOString(),
+      results,
+    };
+  }
+
+  private async run(definition: InstrumentDefinition): Promise<MarketUpdateState> {
+    const instrument = definition.id;
     const startedAt = this.now().toISOString();
     try {
-      const current = await this.options.loadSnapshot();
+      const current = await this.options.loadSnapshot(definition);
       const requestStartMs = requestStartFor(current);
       const requestEndMs = Math.floor(this.now().getTime() / MINUTE_MS) * MINUTE_MS;
       const localLatestMs = latestAt(current);
-      this.transition({
+      this.transition(instrument, {
         phase: 'fetching',
         startedAt,
         completedAt: undefined,
@@ -140,12 +196,16 @@ export class MarketUpdateCoordinator {
         counts: undefined,
         error: undefined,
       });
-      const minutes = await this.options.fetchMinutes(requestStartMs, requestEndMs);
+      const minutes = await this.options.fetchMinutes(
+        definition,
+        requestStartMs,
+        requestEndMs,
+      );
       if (!minutes.length) throw new Error('EDB 未返回可验证的重叠分钟数据');
-      assertMinuteRecordsValid(minutes);
+      assertMinuteRecordsValid(minutes, definition.tradingSessions);
       const sourceLatestMs = minutes.at(-1)!.startMs + MINUTE_MS;
       const sourceLatestAt = formatBeijing(sourceLatestMs);
-      this.transition({ phase: 'validating', sourceLatestAt });
+      this.transition(instrument, { phase: 'validating', sourceLatestAt });
       if (current.bars1.length) {
         const localMinuteStarts = new Set(current.bars1.map(record => record.startMs));
         if (!minutes.some(record => localMinuteStarts.has(record.startMs))) {
@@ -153,50 +213,67 @@ export class MarketUpdateCoordinator {
         }
       }
       const minuteMerge = mergeMinuteHistory(current.bars1, minutes);
-      const rebuilt5 = aggregateMinutes(minuteMerge.records, 5, sourceLatestMs);
-      const rebuilt60 = aggregateMinutes(minuteMerge.records, 60, sourceLatestMs);
+      const rebuilt5 = aggregateMinutes(
+        minuteMerge.records,
+        5,
+        sourceLatestMs,
+        definition.tradingSessions,
+      );
+      const rebuilt60 = aggregateMinutes(
+        minuteMerge.records,
+        60,
+        sourceLatestMs,
+        definition.tradingSessions,
+      );
       const five = mergeBars(current.bars5, rebuilt5, requestStartMs);
       const sixty = mergeBars(current.bars60, rebuilt60, requestStartMs);
-      assertMinuteRecordsValid(minuteMerge.records);
-      assertBarsValid(five.bars, 5);
-      assertBarsValid(sixty.bars, 60);
+      assertMinuteRecordsValid(minuteMerge.records, definition.tradingSessions);
+      assertBarsValid(five.bars, 5, definition.tradingSessions);
+      assertBarsValid(sixty.bars, 60, definition.tradingSessions);
       reconcileBars(five.bars, sixty.bars);
       if ((five.bars.at(-1)?.endMs ?? 0) < (current.bars5.at(-1)?.endMs ?? 0)
         || (sixty.bars.at(-1)?.endMs ?? 0) < (current.bars60.at(-1)?.endMs ?? 0)) {
         throw new Error('候选行情时间倒退，已拒绝覆盖当前快照');
       }
-      const firstDate = formatBeijing(five.bars[0].startMs).slice(0, 10);
-      const mappings = await this.options.fetchContractMappings(
-        parseBeijing(`${firstDate} 00:00:00`),
+      const remoteMappings = await this.options.fetchContractMappings(
+        definition,
+        requestStartMs,
         requestEndMs,
       );
-      const rollovers = detectContractRollovers(mappings, five.bars);
+      const mappings = mergeMainContractMappings(
+        current.mainContractMappings,
+        remoteMappings,
+        definition,
+      );
+      const rollovers = detectContractRollovers(mappings, five.bars, definition);
       const counts = {
         ...updateCounts(minuteMerge, five, sixty),
         ...rolloverCounts(current.rollovers, rollovers),
       };
-      if (!changed(counts)) {
-        this.transition({
+      if (!changed(counts)
+        && sameMappings(current.mainContractMappings, mappings)) {
+        this.transition(instrument, {
           phase: 'up-to-date',
           completedAt: this.now().toISOString(),
           sourceLatestAt,
           counts,
           error: undefined,
         });
-        return this.getState();
+        return this.getState(instrument);
       }
-      this.transition({ phase: 'saving', counts });
-      const saved = await this.options.saveSnapshot({
+      this.transition(instrument, { phase: 'saving', counts });
+      const saved = await this.options.saveSnapshot(definition, {
         bars1: minuteMerge.records,
         bars5: five.bars,
         bars60: sixty.bars,
+        mainContractMappings: mappings,
         rollovers,
         requestStart: formatBeijing(requestStartMs),
         requestEnd: formatBeijing(requestEndMs),
         sourceLatestAt,
       });
-      this.options.invalidate();
-      this.transition({
+      this.options.invalidate(instrument);
+      this.transition(instrument, {
         phase: 'succeeded',
         completedAt: this.now().toISOString(),
         localLatestAt: formatBeijing(latestAt(saved)),
@@ -206,17 +283,25 @@ export class MarketUpdateCoordinator {
         error: undefined,
       });
     } catch (error) {
-      this.transition({
+      this.transition(instrument, {
         phase: 'failed',
         completedAt: this.now().toISOString(),
         error: publicError(error),
       });
     }
-    return this.getState();
+    return this.getState(instrument);
   }
 
-  private transition(patch: Partial<MarketUpdateState>): void {
-    this.state = { ...this.state, ...patch };
-    this.options.publish(this.getState());
+  private transition(
+    instrument: Instrument,
+    patch: Partial<Omit<MarketUpdateState, 'instrument'>>,
+  ): void {
+    const state: MarketUpdateState = {
+      ...this.getState(instrument),
+      ...patch,
+      instrument,
+    };
+    this.states.set(instrument, state);
+    this.options.publish(structuredClone(state));
   }
 }

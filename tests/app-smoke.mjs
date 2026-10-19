@@ -68,7 +68,7 @@ try {
   assert.equal(compactLayout.updateTextFits, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: resolve(output, 'default-1440.png') });
-  assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+  assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
   const expectedRolloverLabels = [
     '主力换月：m2601 -> m2605',
     '主力换月：m2605 -> m2609',
@@ -77,7 +77,7 @@ try {
   const expectedRolloverStarts = [
     '2025-12-03 21:00',
     '2026-04-08 21:00',
-    '2026-08-07 21:00',
+    '2026-08-10 21:00',
   ];
   const rolloverDiagnostics = async period => ({
     count: await page.locator(`#card-${period}`).getAttribute('data-rollover-count'),
@@ -121,6 +121,7 @@ try {
   await reviewButton.click();
   await frame();
   assert.ok(await page.getByTestId('review-final-capital').isVisible());
+  assert.match(await page.locator('.review-note').innerText(), /10 倍理论名义杠杆/);
   assert.ok((await page.locator('[data-testid="review-trade"], [data-testid="review-no-completed"]').count()) > 0);
   assert.equal(await page.getByTestId('review-incomplete-section').count(), 1);
   assert.ok((await page.locator('.review-status').count()) > 0);
@@ -192,10 +193,19 @@ try {
   if (process.env.MONEYCOMING_INSTALLER_SMOKE === '1') {
     assert.equal(executablePath ? true : false, true);
     assert.deepEqual(errors, []);
+    const offscreenBeforeClose = await assertElectronWindowOffscreen(
+      app,
+      'app-smoke-before-close',
+    );
     await writeFile(resolve(output, 'installer-app-smoke.json'), JSON.stringify({
       packaged: true,
       startupMs,
       errors,
+      offscreen: {
+        beforeShow: offscreenBeforeShow,
+        afterShow: offscreenAfterShow,
+        beforeClose: offscreenBeforeClose,
+      },
       passed: true,
     }, null, 2));
     console.log(JSON.stringify({ packaged: true, installerSmoke: true, startupMs, passed: true }));
@@ -220,8 +230,11 @@ try {
   })), { pointerEvents: 'none', position: 'absolute', parentClass: 'chart-container', borderStyle: 'solid' });
   await jump('2020-01-01');
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2025-10-09T21:00:00+08:00')));
-  assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
-  assert.deepEqual(await page.getByTestId('instrument').locator('option').allTextContents(), ['豆粕主连']);
+  assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
+  assert.deepEqual(
+    await page.getByTestId('instrument').locator('option').allTextContents(),
+    ['豆粕主连', '菜粕主连', 'PVC主连', '螺纹钢主连', '玻璃主连', '菜油主连', '棕榈油主连', '豆油主连', '纸浆主连', '玉米主连', '纯碱主连', '豆一主连', '甲醇主连', '白糖主连', '豆二主连'],
+  );
   await page.getByTestId('source-info').click();
   assert.equal(await page.locator('[data-anomaly-index]').count(), 0);
   await page.screenshot({ path: resolve(output, 'source-details.png') });
@@ -247,8 +260,8 @@ try {
   // Locate real candles through the visible crosshair, not a test-only chart API.
   await page.setViewportSize({ width: 1440, height: 900 });
   await jump('2026-02-05');
-  const sourceRows = readFileSync('futures_investigation_20261009/edb_main_continuous_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
-  const sourceRows5 = readFileSync('futures_investigation_20261009/edb_main_continuous_5m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
+  const sourceRows = readFileSync('data/instruments/main_continuous/edb_main_continuous_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
+  const sourceRows5 = readFileSync('data/instruments/main_continuous/edb_main_continuous_5m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
   const chartRange = async period => ({
     from: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-from')),
     to: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-to')),
@@ -519,7 +532,7 @@ try {
   const lastPoint = await hoverParent(lastStart);
   await page.mouse.click(lastPoint.x, lastPoint.y);
   await frame();
-  assert.ok(Math.abs((await chartRange(5)).to - 16530) < .05);
+  assert.ok(Math.abs((await chartRange(5)).to - 16899) < .05);
 
   await jump('2026-02-05');
   for (const [time, count] of [['10:00:00', 12], ['11:15:00', 12], ['14:15:00', 9]]) {

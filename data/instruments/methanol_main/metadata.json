@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-methanol_main",
+  "instrumentId": "methanol_main",
+  "mainSymbol": "KQ.m@CZCE.MA",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@CZCE.MA"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "961813887a99158e8d14c5ec881419a14ca8d9d93dc049d425505cf530221404",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "b5af99b4b849b8c3008090e139ac1da7c757bad7d79bfb746da47563239e7c80",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "877b5045358ba56fbe2c0d28ce030672060d6269007eeb3f92c14895554cd4a0",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "066c0cd15f536718821134a67e207bf3aeb86ab4616b3694e552e8f9019792fb",
+      "rows": 4
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "e97879f8850bfb5a123f32c3b1d193cd931f4612ca83d4762486fcbac1872c4f",
+      "rows": 241
+    }
+  }
+}

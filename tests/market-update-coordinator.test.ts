@@ -2,7 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { aggregateMinutes, parseEdbMinuteCsv } from '../src/domain/market-data';
 import { parseBeijing } from '../src/domain/time';
 import { MarketUpdateCoordinator, requestStartFor } from '../src/main/market-update-coordinator';
-import type { EdbMinuteRecord, MainContractMapping } from '../src/shared/types';
+import {
+  DEFAULT_INSTRUMENT,
+  INSTRUMENT_DEFINITIONS,
+  type InstrumentDefinition,
+} from '../src/shared/instruments';
+import type { LoadedMarketSnapshot, SnapshotCandidate } from '../src/main/market-snapshot';
+import type {
+  EdbMinuteRecord,
+  MainContractMapping,
+  MarketUpdateState,
+} from '../src/shared/types';
 
 const HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
 const nano = (time: string) => String(BigInt(parseBeijing(time)) * 1_000_000n);
@@ -29,6 +39,7 @@ const initial = {
   bars1: minutes.slice(0, 60),
   bars5: aggregateMinutes(minutes.slice(0, 60), 5),
   bars60: aggregateMinutes(minutes.slice(0, 60), 60),
+  mainContractMappings: [{ tradingDate: '2026-10-09', contract: 'm2701' }],
   rollovers: [],
   sourceLatestAt: '2026-10-09 10:00:00',
 };
@@ -38,16 +49,30 @@ function setup(
   mappings: MainContractMapping[] = [{ tradingDate: '2026-10-09', contract: 'm2701' }],
 ) {
   const published: string[] = [];
-  const loadSnapshot = vi.fn(async () => initial);
-  const fetchMinutes = vi.fn(async () => remote);
-  const fetchContractMappings = vi.fn(async () => mappings);
+  const loadSnapshot = vi.fn(async (
+    _definition: InstrumentDefinition,
+  ): Promise<LoadedMarketSnapshot> => initial);
+  const fetchMinutes = vi.fn(async (
+    _definition: InstrumentDefinition,
+    _startMs: number,
+    _endMs: number,
+  ) => remote);
+  const fetchContractMappings = vi.fn(async (
+    _definition: InstrumentDefinition,
+    _startMs: number,
+    _endMs: number,
+  ) => mappings);
   const invalidate = vi.fn();
-  const saveSnapshot = vi.fn(async candidate => ({
+  const saveSnapshot = vi.fn(async (
+    _definition: InstrumentDefinition,
+    candidate: SnapshotCandidate,
+  ): Promise<LoadedMarketSnapshot> => ({
     source: 'user' as const,
     directory: 'snapshot',
     bars1: candidate.bars1,
     bars5: candidate.bars5,
     bars60: candidate.bars60,
+    mainContractMappings: candidate.mainContractMappings,
     rollovers: candidate.rollovers,
     sourceLatestAt: candidate.sourceLatestAt,
     snapshotUpdatedAt: '2026-10-15T04:00:00.000Z',
@@ -58,7 +83,7 @@ function setup(
     fetchContractMappings,
     saveSnapshot,
     invalidate,
-    publish: state => published.push(state.phase),
+    publish: state => published.push(`${state.instrument}:${state.phase}`),
     now: () => new Date('2026-10-15T04:00:00.000Z'),
   });
   return {
@@ -99,8 +124,8 @@ describe('market update coordinator', () => {
     fixture.fetchMinutes.mockImplementation(() => new Promise(resolve => {
       release = () => resolve(minutes);
     }));
-    const first = fixture.coordinator.update();
-    const second = fixture.coordinator.update();
+    const first = fixture.coordinator.update('main_continuous');
+    const second = fixture.coordinator.update('main_continuous');
     await Promise.resolve();
     expect(fixture.fetchMinutes).toHaveBeenCalledTimes(1);
     expect(first).toBe(second);
@@ -110,8 +135,19 @@ describe('market update coordinator', () => {
       counts: { added1: 60, added5: 12, added60: 1 },
       sourceLatestAt: '2026-10-09 11:15:00',
     });
-    expect(fixture.published).toEqual(['fetching', 'validating', 'saving', 'succeeded']);
-    expect(fixture.invalidate).toHaveBeenCalledOnce();
+    expect(fixture.published).toEqual([
+      'main_continuous:fetching',
+      'main_continuous:validating',
+      'main_continuous:saving',
+      'main_continuous:succeeded',
+    ]);
+    expect(fixture.invalidate).toHaveBeenCalledWith('main_continuous');
+    expect(fixture.loadSnapshot).toHaveBeenCalledWith(DEFAULT_INSTRUMENT);
+    expect(fixture.fetchMinutes).toHaveBeenCalledWith(
+      DEFAULT_INSTRUMENT,
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 
   it('saves when only the reconstructed rollover mapping changes', async () => {
@@ -119,7 +155,8 @@ describe('market update coordinator', () => {
       { tradingDate: '2026-10-08', contract: 'm2609' },
       { tradingDate: '2026-10-09', contract: 'm2701' },
     ]);
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
+      instrument: 'main_continuous',
       phase: 'succeeded',
       counts: {
         added1: 0,
@@ -130,20 +167,59 @@ describe('market update coordinator', () => {
         removedRollovers: 0,
       },
     });
-    expect(fixture.saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+    expect(fixture.saveSnapshot).toHaveBeenCalledWith(
+      DEFAULT_INSTRUMENT,
+      expect.objectContaining({
+      mainContractMappings: [
+        { tradingDate: '2026-10-08', contract: 'm2609' },
+        { tradingDate: '2026-10-09', contract: 'm2701' },
+      ],
       rollovers: [expect.objectContaining({
         tradingDate: '2026-10-09',
         time: '2026-10-09 09:00:00',
         fromContract: 'm2609',
         toContract: 'm2701',
       })],
-    }));
+      }),
+    );
   });
 
   it('reports up-to-date without writing a duplicate snapshot', async () => {
     const fixture = setup(minutes.slice(0, 60));
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({ phase: 'up-to-date' });
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
+      instrument: 'main_continuous',
+      phase: 'up-to-date',
+    });
     expect(fixture.saveSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('preserves historical contract mappings outside the fetched overlap', async () => {
+    const fixture = setup(minutes.slice(0, 60), [
+      { tradingDate: '2026-10-09', contract: 'm2701' },
+      { tradingDate: '2026-10-10', contract: 'm2701' },
+    ]);
+    fixture.loadSnapshot.mockResolvedValue({
+      ...initial,
+      mainContractMappings: [
+        { tradingDate: '2026-09-30', contract: 'm2701' },
+        { tradingDate: '2026-10-09', contract: 'm2701' },
+      ],
+    });
+
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
+      phase: 'succeeded',
+    });
+
+    expect(fixture.saveSnapshot).toHaveBeenCalledWith(
+      DEFAULT_INSTRUMENT,
+      expect.objectContaining({
+        mainContractMappings: [
+          { tradingDate: '2026-09-30', contract: 'm2701' },
+          { tradingDate: '2026-10-09', contract: 'm2701' },
+          { tradingDate: '2026-10-10', contract: 'm2701' },
+        ],
+      }),
+    );
   });
 
   it('preserves minutes outside the remote rolling window while revising overlap and appending', async () => {
@@ -157,11 +233,11 @@ describe('market update coordinator', () => {
       ...initial,
       bars1: local,
     });
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
       phase: 'succeeded',
       counts: { added1: 60, replaced1: 1, removed1: 0 },
     });
-    const saved = fixture.saveSnapshot.mock.calls[0][0];
+    const saved = fixture.saveSnapshot.mock.calls[0][1];
     expect(saved.bars1[0]).toEqual(old[0]);
     expect(saved.bars1.at(-1)?.start).toBe(minutes.at(-1)?.start);
   });
@@ -169,7 +245,7 @@ describe('market update coordinator', () => {
   it('rejects a non-overlapping remote minute window and preserves the current snapshot', async () => {
     const fixture = setup(minutes.slice(0, 30));
     fixture.fetchMinutes.mockResolvedValue(records(['2026-10-15 09:00:00']));
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
       phase: 'failed',
       error: { code: 'validation' },
     });
@@ -183,7 +259,7 @@ describe('market update coordinator', () => {
       minutes[0],
       { ...minutes[1], startMs: minutes[0].startMs },
     ]);
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
       phase: 'failed',
       error: { code: 'validation' },
     });
@@ -193,7 +269,7 @@ describe('market update coordinator', () => {
   it('does not save when contract mapping validation fails', async () => {
     const fixture = setup();
     fixture.fetchContractMappings.mockRejectedValue(new Error('主连日线具体合约匹配存在歧义'));
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
       phase: 'failed',
       error: { code: 'validation' },
     });
@@ -206,7 +282,7 @@ describe('market update coordinator', () => {
     const error = new Error('EDB response body: secret-token at C:\\Users\\name\\secret.txt https://edb.shinnytech.com/private');
     error.stack = 'STACK C:\\Users\\name\\source.ts:99 secret-token';
     fixture.fetchMinutes.mockRejectedValue(error);
-    const state = await fixture.coordinator.update();
+    const state = await fixture.coordinator.update('main_continuous');
     expect(state.phase).toBe('failed');
     expect(state.error).toEqual({
       code: 'validation',
@@ -218,11 +294,124 @@ describe('market update coordinator', () => {
   it('does not save or invalidate when the EDB history boundary interrupts a later chunk', async () => {
     const fixture = setup();
     fixture.fetchMinutes.mockRejectedValue(new Error('EDB history boundary'));
-    await expect(fixture.coordinator.update()).resolves.toMatchObject({
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
       phase: 'failed',
       error: { code: 'validation' },
     });
     expect(fixture.saveSnapshot).not.toHaveBeenCalled();
     expect(fixture.invalidate).not.toHaveBeenCalled();
+  });
+
+  it('reports storage failure and keeps the current cache active when saving fails', async () => {
+    const fixture = setup();
+    fixture.saveSnapshot.mockRejectedValue(new Error('快照目录写入失败'));
+    await expect(fixture.coordinator.update('main_continuous')).resolves.toMatchObject({
+      instrument: 'main_continuous',
+      phase: 'failed',
+      error: { code: 'storage' },
+    });
+    expect(fixture.invalidate).not.toHaveBeenCalled();
+  });
+
+  it('keeps different instrument operations, phases, errors, and cutoffs isolated', async () => {
+    const fixture = setup();
+    let releaseSoymeal!: () => void;
+    fixture.loadSnapshot.mockImplementation(async definition => ({
+      ...initial,
+      mainContractMappings: definition.id === 'main_continuous'
+        ? initial.mainContractMappings
+        : [],
+    }));
+    fixture.fetchMinutes.mockImplementation(definition => {
+      if (definition.id === 'rebar_main') {
+        return Promise.reject(new Error('EDB 螺纹钢行情校验失败'));
+      }
+      return new Promise(resolve => {
+        releaseSoymeal = () => resolve(minutes);
+      });
+    });
+
+    const soymeal = fixture.coordinator.update('main_continuous');
+    const rebar = fixture.coordinator.update('rebar_main');
+    await expect(rebar).resolves.toMatchObject({
+      instrument: 'rebar_main',
+      phase: 'failed',
+      error: { code: 'validation' },
+    });
+    expect(fixture.coordinator.getState('main_continuous')).toMatchObject({
+      instrument: 'main_continuous',
+      phase: 'fetching',
+      sourceLatestAt: undefined,
+    });
+    expect(fixture.coordinator.getState('rebar_main').error).toBeDefined();
+
+    releaseSoymeal();
+    await expect(soymeal).resolves.toMatchObject({
+      instrument: 'main_continuous',
+      phase: 'succeeded',
+      sourceLatestAt: '2026-10-09 11:15:00',
+    });
+    expect(fixture.coordinator.getState('rebar_main')).toMatchObject({
+      instrument: 'rebar_main',
+      phase: 'failed',
+    });
+  });
+
+  it('updates all instruments serially and continues after a failed result', async () => {
+    const fixture = setup();
+    let active = 0;
+    let maximumActive = 0;
+    const order: string[] = [];
+    vi.spyOn(fixture.coordinator, 'update').mockImplementation(async instrument => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      order.push(instrument);
+      await Promise.resolve();
+      active -= 1;
+      return {
+        instrument,
+        phase: instrument === 'rebar_main' ? 'failed' : 'succeeded',
+        error: instrument === 'rebar_main'
+          ? { code: 'validation', message: '校验失败' }
+          : undefined,
+      } as MarketUpdateState;
+    });
+
+    const result = await fixture.coordinator.updateAll([
+      'main_continuous',
+      'rebar_main',
+      'pvc_main',
+    ]);
+    expect(maximumActive).toBe(1);
+    expect(order).toEqual(['main_continuous', 'rebar_main', 'pvc_main']);
+    expect(result.results.map(state => [state.instrument, state.phase])).toEqual([
+      ['main_continuous', 'succeeded'],
+      ['rebar_main', 'failed'],
+      ['pvc_main', 'succeeded'],
+    ]);
+    expect(result.startedAt).toBe('2026-10-15T04:00:00.000Z');
+    expect(result.completedAt).toBe('2026-10-15T04:00:00.000Z');
+  });
+
+  it('passes the selected definition to storage and EDB operations', async () => {
+    const fixture = setup(minutes.slice(0, 60), []);
+    fixture.loadSnapshot.mockResolvedValue({
+      ...initial,
+      mainContractMappings: [],
+    });
+    await fixture.coordinator.update('rebar_main');
+    expect(fixture.loadSnapshot).toHaveBeenCalledWith(
+      INSTRUMENT_DEFINITIONS.rebar_main,
+    );
+    expect(fixture.fetchMinutes).toHaveBeenCalledWith(
+      INSTRUMENT_DEFINITIONS.rebar_main,
+      expect.any(Number),
+      expect.any(Number),
+    );
+    expect(fixture.fetchContractMappings).toHaveBeenCalledWith(
+      INSTRUMENT_DEFINITIONS.rebar_main,
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 });

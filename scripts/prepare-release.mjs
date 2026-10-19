@@ -10,7 +10,8 @@ export const removableReleaseFile = name =>
   name === 'latest.yml' ||
   /^MoneyComing-Setup-.*-x64\.exe(?:\.blockmap)?$/.test(name);
 
-export const removableReleaseDirectory = name => name === 'win-unpacked';
+export const removableReleaseDirectory = name =>
+  name === 'win-unpacked' || name === 'win-unpacked.tmp';
 
 function checkedChild(directory, name) {
   const target = resolve(directory, name);
@@ -33,9 +34,21 @@ export async function prepareRelease(directory = releaseDirectory) {
     (entry.isFile() && removableReleaseFile(entry.name))
     || (entry.isDirectory() && removableReleaseDirectory(entry.name)),
   );
-  await Promise.all(oldArtifacts.map(entry =>
-    rm(checkedChild(targetDirectory, entry.name), { recursive: entry.isDirectory(), force: true }),
-  ));
+  for (const entry of oldArtifacts) {
+    const target = checkedChild(targetDirectory, entry.name);
+    const deadline = Date.now() + 30_000;
+    while (true) {
+      try {
+        await rm(target, { recursive: entry.isDirectory(), force: true });
+        break;
+      } catch (error) {
+        if (!['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error?.code) || Date.now() >= deadline) {
+          throw error;
+        }
+        await new Promise(resolvePromise => setTimeout(resolvePromise, 250));
+      }
+    }
+  }
 
   console.log(`Prepared release directory: removed ${oldArtifacts.length} old artifact(s).`);
   return oldArtifacts.map(entry => entry.name);

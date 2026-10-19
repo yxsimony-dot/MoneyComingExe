@@ -3,23 +3,32 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   mkdtemp,
+  mkdir,
   readFile,
   readdir,
   rm,
   stat,
+  writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchElectronTest } from './electron-test-launch.mjs';
+import semver from 'semver';
 import { parse } from 'yaml';
 import { assetName } from '../scripts/release-utils.mjs';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const oldReleaseDirectory = resolve(process.env.MONEYCOMING_OLD_RELEASE_DIR || join(root, 'release'));
-const newReleaseDirectory = resolve(process.env.MONEYCOMING_NEW_RELEASE_DIR || join(root, 'release-upgrade-1.0.1'));
+const oldReleaseDirectory = resolve(
+  process.env.MONEYCOMING_OLD_RELEASE_DIR || join(root, 'release-upgrade-old'),
+);
+const newReleaseDirectory = resolve(
+  process.env.MONEYCOMING_NEW_RELEASE_DIR || join(root, 'release'),
+);
 const sandbox = await mkdtemp(join(tmpdir(), 'moneycoming-nsis-upgrade-'));
+const output = join(root, 'artifacts');
+await mkdir(output, { recursive: true });
 const installDirectory = join(sandbox, 'installed');
 const appData = join(sandbox, 'appdata');
 const localAppData = join(sandbox, 'localappdata');
@@ -99,15 +108,23 @@ async function removeTreeWithRetry(path, timeout = 30_000) {
 }
 
 async function snapshotFingerprint() {
-  const marketDirectory = join(userData, 'market-data');
+  const marketDirectory = join(
+    userData,
+    'market-data',
+    'instruments',
+    'main_continuous',
+  );
   const pointerText = await readFile(join(marketDirectory, 'current.json'), 'utf8');
   const pointer = JSON.parse(pointerText);
   const snapshotDirectory = join(marketDirectory, 'snapshots', pointer.snapshotId);
   const files = {};
   for (const name of [
     'activated.json',
+    'edb_main_continuous_1m_raw.csv',
     'edb_main_continuous_5m.csv',
     'edb_main_continuous_60m.csv',
+    'edb_main_continuous_rollovers.csv',
+    'edb_main_contract_mapping.csv',
     'metadata.json',
   ]) {
     files[name] = sha256(await readFile(join(snapshotDirectory, name)));
@@ -122,11 +139,15 @@ async function snapshotFingerprint() {
 
 let app;
 let uninstaller;
+let result = { passed: false };
 try {
   const oldInstaller = await installerFrom(oldReleaseDirectory);
   const newInstaller = await installerFrom(newReleaseDirectory);
-  assert.equal(oldInstaller.version, '1.0.0');
-  assert.equal(newInstaller.version, '1.0.1');
+  assert.equal(
+    semver.gt(newInstaller.version, oldInstaller.version),
+    true,
+    `新版本 ${newInstaller.version} 必须高于旧版本 ${oldInstaller.version}`,
+  );
 
   await run(oldInstaller.path, ['/S', `/D=${installDirectory}`]);
   assert.equal((await stat(executable)).isFile(), true);
@@ -139,9 +160,13 @@ try {
     MONEYCOMING_TEST_USER_DATA: userData,
   };
   delete baseEnvironment.ELECTRON_RUN_AS_NODE;
+  delete baseEnvironment.MONEYCOMING_TEST_BUILTIN_DATA;
   await run(process.execPath, [join(root, 'tests', 'market-update-smoke.mjs')], {
     cwd: sandbox,
-    env: baseEnvironment,
+    env: {
+      ...baseEnvironment,
+      MONEYCOMING_TEST_BUILTIN_DATA: join(root, 'futures_investigation_20261009'),
+    },
     timeout: 240_000,
   });
   const beforeUpgrade = await snapshotFingerprint();
@@ -173,7 +198,7 @@ try {
   const offscreenAfterShow = await assertElectronWindowOffscreen(app, 'nsis-upgrade-after-show');
   await page.locator('html[data-ready="true"]').waitFor({ timeout: 30_000 });
   await page.locator('html[data-update-phase="up-to-date"]').waitFor({ timeout: 30_000 });
-  assert.equal(await page.locator('#app-version').innerText(), 'v1.0.1');
+  assert.equal(await page.locator('#app-version').innerText(), `v${newInstaller.version}`);
   assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
   assert.match(await page.locator('#coverage').innerText(), /数据源最新至 2026-10-12 10:00/);
 
@@ -182,6 +207,10 @@ try {
   assert.match(await page.locator('#market-update-status').innerText(), /更新失败/);
   assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'up-to-date');
   assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
+  const offscreenBeforeClose = await assertElectronWindowOffscreen(
+    app,
+    'nsis-upgrade-before-close',
+  );
   await app.close();
   app = undefined;
   await stopInstalledProcesses();
@@ -195,16 +224,21 @@ try {
   await run(uninstaller, ['/S'], { timeout: 180_000 });
   await waitForMissing(executable);
 
-  console.log(JSON.stringify({
+  result = {
     passed: true,
     oldVersion: oldInstaller.version,
     newVersion: newInstaller.version,
     snapshotId: beforeUpgrade.snapshotId,
     snapshotPreserved: true,
     updateStatesIndependent: true,
-    offscreen: { beforeShow: offscreenBeforeShow, afterShow: offscreenAfterShow },
+    offscreen: {
+      beforeShow: offscreenBeforeShow,
+      afterShow: offscreenAfterShow,
+      beforeClose: offscreenBeforeClose,
+    },
     uninstalled: true,
-  }));
+  };
+  console.log(JSON.stringify(result));
 } finally {
   if (app) await app.close().catch(() => undefined);
   await stopInstalledProcesses().catch(() => undefined);
@@ -218,4 +252,9 @@ try {
   } else {
     console.log(`保留升级冒烟目录：${sandbox}`);
   }
+  await writeFile(
+    join(output, 'nsis-upgrade-smoke.json'),
+    `${JSON.stringify(result, null, 2)}\n`,
+    'utf8',
+  );
 }

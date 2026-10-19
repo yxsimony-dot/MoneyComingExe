@@ -1,5 +1,4 @@
 import type { Bar, EdbMinuteRecord, MinuteDecisionGranularity } from '../shared/types';
-import { MARKET_PRICE_TICK } from '../shared/market';
 import type { EmaPoint } from './ema';
 import { completeMinutesForFiveMinuteBar, tradingMinuteAt } from './market-data';
 
@@ -18,6 +17,45 @@ export interface WeeklyEntry {
 export interface WeeklyEntryAnalysis { entries: WeeklyEntry[]; incompleteHours: number; }
 
 export const ENTRY_OBSERVATION_BAR_COUNT = 16;
+export const MIN_REACTION_BODY_TICKS = 1;
+export const MAX_REACTION_BODY_TICKS = 20;
+export const MIN_ENTRY_RANGE_PERCENT = 0;
+export const MAX_ENTRY_RANGE_PERCENT = 100;
+export const DEFAULT_ENTRY_RANGE_PERCENT = 25;
+
+export interface EntryStrategySettings {
+  reactionBodyTicks: number;
+  entryRangePercent: number;
+}
+
+export const DEFAULT_ENTRY_STRATEGY_SETTINGS: Readonly<EntryStrategySettings> = Object.freeze({
+  reactionBodyTicks: MIN_REACTION_BODY_TICKS,
+  entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+});
+
+export function validateEntryStrategySettings(
+  settings: EntryStrategySettings,
+): EntryStrategySettings {
+  const reactionBodyTicks = settings?.reactionBodyTicks;
+  if (!Number.isFinite(reactionBodyTicks)
+    || !Number.isInteger(reactionBodyTicks)
+    || reactionBodyTicks < MIN_REACTION_BODY_TICKS
+    || reactionBodyTicks > MAX_REACTION_BODY_TICKS) {
+    throw new RangeError(
+      `Reaction body ticks must be an integer from ${MIN_REACTION_BODY_TICKS} to ${MAX_REACTION_BODY_TICKS}.`,
+    );
+  }
+  const entryRangePercent = settings?.entryRangePercent;
+  if (!Number.isFinite(entryRangePercent)
+    || !Number.isInteger(entryRangePercent)
+    || entryRangePercent < MIN_ENTRY_RANGE_PERCENT
+    || entryRangePercent > MAX_ENTRY_RANGE_PERCENT) {
+    throw new RangeError(
+      `Entry range percent must be an integer from ${MIN_ENTRY_RANGE_PERCENT} to ${MAX_ENTRY_RANGE_PERCENT}.`,
+    );
+  }
+  return settings;
+}
 
 export interface EntryObservationLinePoint {
   bar: Bar;
@@ -25,8 +63,11 @@ export interface EntryObservationLinePoint {
   value: number;
 }
 
+export type EntryReactionPricingMode = 'configured-percent' | 'risk-edge';
+
 export interface EntryReactionRange {
   direction: WeeklyEntry['direction'];
+  pricingMode: EntryReactionPricingMode;
   reactionBar: Bar;
   extremeBar: Bar;
   high: number;
@@ -35,9 +76,13 @@ export interface EntryReactionRange {
 
 export interface EntryQuarterSignal {
   direction: WeeklyEntry['direction'];
+  pricingMode: EntryReactionPricingMode;
   price: number;
   tick: number;
   rangeTicks: number;
+  entryRangePercent: number;
+  entryDistanceTicks: number;
+  /** Compatibility alias for existing consumers. */
   quarterTicks: number;
   lineStartBar: Bar;
   reactionBar: Bar;
@@ -135,12 +180,26 @@ export type EntryLifecycleEndReason =
   | 'no-entry-session-end'
   | 'data-end';
 
+export interface EntryLifecycleAttempt {
+  number: 1 | 2;
+  triggerBar: Bar;
+  analysisBars: Bar[];
+  reactionRange?: EntryReactionRange;
+  quarterSignal?: EntryQuarterSignal;
+  stopLossSignal?: EntryStopLossSignal;
+  takeProfitSignal?: EntryTakeProfitSignal;
+  exitAnalysis?: EntryExitAnalysis;
+  endReason: EntryLifecycleEndReason;
+}
+
 export interface EntryLifecycle {
   analysisBars: Bar[];
   focusBars: Bar[];
   entryCutoff: number;
   sessionEnd: number;
   forcedExitBar?: Bar;
+  attempts: EntryLifecycleAttempt[];
+  /** First-attempt compatibility aliases for existing consumers. */
   reactionRange?: EntryReactionRange;
   quarterSignal?: EntryQuarterSignal;
   stopLossSignal?: EntryStopLossSignal;
@@ -171,8 +230,32 @@ export function entryObservationWindow(triggerBar: Bar, bars5: Bar[]): Bar[] {
 export function entryReactionRange(
   direction: WeeklyEntry['direction'],
   bars: Bar[],
+  tick: number,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): EntryReactionRange | undefined {
-  const reactionIndex = bars.findIndex(bar => direction === 'long' ? bar.close > bar.open : bar.close < bar.open);
+  if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Reaction price tick must be positive.');
+  const { reactionBodyTicks } = validateEntryStrategySettings(settings);
+  const minimumBody = tick * reactionBodyTicks;
+  let reactionIndex = -1;
+  let pricingMode: EntryReactionPricingMode = 'configured-percent';
+  for (let index = 0; index < bars.length; index += 1) {
+    const bar = bars[index];
+    const body = direction === 'long'
+      ? bar.close - bar.open
+      : bar.open - bar.close;
+    if (body < minimumBody) continue;
+
+    const directionalWick = direction === 'long'
+      ? bar.high - bar.close
+      : bar.close - bar.low;
+    if (directionalWick >= body * 3) continue;
+
+    reactionIndex = index;
+    pricingMode = directionalWick >= body * 2
+      ? 'risk-edge'
+      : 'configured-percent';
+    break;
+  }
   if (reactionIndex < 0) return undefined;
 
   const reactionBar = bars[reactionIndex];
@@ -183,35 +266,42 @@ export function entryReactionRange(
   });
 
   return direction === 'long'
-    ? { direction, reactionBar, extremeBar, high: reactionBar.high, low: extremeBar.low }
-    : { direction, reactionBar, extremeBar, high: extremeBar.high, low: reactionBar.low };
+    ? { direction, pricingMode, reactionBar, extremeBar, high: reactionBar.high, low: extremeBar.low }
+    : { direction, pricingMode, reactionBar, extremeBar, high: extremeBar.high, low: reactionBar.low };
 }
 
-/** Quarter-range entry price plus the first later touch inside the original observation window. */
+/** Classified entry price plus the first later touch inside the supplied lifecycle bars. */
 export function entryQuarterSignal(
   range: EntryReactionRange,
   bars: readonly Bar[],
-  tick = MARKET_PRICE_TICK,
+  tick: number,
   entryCutoff = Number.POSITIVE_INFINITY,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): EntryQuarterSignal {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Entry price tick must be positive.');
   if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
     throw new RangeError('Entry reaction range must have finite prices with high >= low.');
   }
+  const { entryRangePercent } = validateEntryStrategySettings(settings);
 
   const rangeTicks = Math.round((range.high - range.low) / tick);
-  const quarterTicks = Math.ceil(rangeTicks / 4);
-  const distance = quarterTicks * tick;
+  const entryDistanceTicks = range.pricingMode === 'risk-edge'
+    ? 0
+    : Math.ceil(rangeTicks * entryRangePercent / 100);
+  const distance = entryDistanceTicks * tick;
   const price = range.direction === 'long' ? range.low + distance : range.high - distance;
   const reactionIndex = bars.findIndex(bar => bar.startMs === range.reactionBar.startMs);
   const candidates = reactionIndex < 0 ? [] : bars.slice(reactionIndex + 1);
 
   return {
     direction: range.direction,
+    pricingMode: range.pricingMode,
     price,
     tick,
     rangeTicks,
-    quarterTicks,
+    entryRangePercent,
+    entryDistanceTicks,
+    quarterTicks: entryDistanceTicks,
     lineStartBar: range.extremeBar,
     reactionBar: range.reactionBar,
     searchStartBar: candidates[0],
@@ -223,7 +313,7 @@ export function entryQuarterSignal(
 /** Planned stop-loss price at 75% of the reaction range beyond its risk-side edge. */
 export function entryStopLossSignal(
   range: EntryReactionRange,
-  tick = MARKET_PRICE_TICK,
+  tick: number,
 ): EntryStopLossSignal {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Stop-loss price tick must be positive.');
   if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
@@ -251,7 +341,7 @@ export function entryTakeProfitSignal(
   range: EntryReactionRange,
   bars: readonly Bar[],
   quarterSignal: EntryQuarterSignal,
-  tick = MARKET_PRICE_TICK,
+  tick: number,
 ): EntryTakeProfitSignal {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Take-profit price tick must be positive.');
   if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
@@ -489,42 +579,29 @@ function lifecycleSessionBars(triggerBar: Bar, bars5: readonly Bar[]): {
   return { bars, policy, entryCutoff, sessionEnd };
 }
 
-/** Complete entry lifecycle constrained to the trigger's Beijing trading session. */
-export function entryLifecycle(
-  entry: WeeklyEntry,
-  bars5: readonly Bar[],
-  minutes: readonly EdbMinuteRecord[] = [],
-  tick = MARKET_PRICE_TICK,
-): EntryLifecycle {
-  const session = lifecycleSessionBars(entry.triggerBar, bars5);
-  const candidateBars = session.bars;
-  const focusFor = (bars: readonly Bar[]) => bars.slice(0, ENTRY_OBSERVATION_BAR_COUNT);
-  if (!candidateBars.length) {
-    return {
-      analysisBars: [],
-      focusBars: [],
-      entryCutoff: session.entryCutoff,
-      sessionEnd: session.sessionEnd,
-      endReason: 'data-end',
-    };
-  }
-
-  const indexedBars = candidateBars.map(bar => ({ bar, minute: tradingMinuteAt(bar.startMs) }));
-  const forcedExitBar = indexedBars.find(({ bar, minute }) =>
-    minute.index === session.policy.forcedExitBarStartIndex && bar.complete)?.bar;
-  const sessionEndBar = indexedBars.find(({ bar, minute }) =>
-    minute.index === session.policy.sessionEndIndex - 5 && bar.complete)?.bar;
-  const reactionRange = entryReactionRange(entry.direction, candidateBars);
+function buildEntryLifecycleAttempt(
+  number: EntryLifecycleAttempt['number'],
+  direction: WeeklyEntry['direction'],
+  bars: readonly Bar[],
+  minutes: readonly EdbMinuteRecord[],
+  tick: number,
+  settings: EntryStrategySettings,
+  entryCutoff: number,
+  forcedExitBar?: Bar,
+  sessionEndBar?: Bar,
+): EntryLifecycleAttempt {
+  const analysisBars = [...bars];
+  const reactionRange = entryReactionRange(direction, analysisBars, tick, settings);
   const quarterSignal = reactionRange
-    ? entryQuarterSignal(reactionRange, candidateBars, tick, session.entryCutoff)
+    ? entryQuarterSignal(reactionRange, analysisBars, tick, entryCutoff, settings)
     : undefined;
   const stopLossSignal = reactionRange ? entryStopLossSignal(reactionRange, tick) : undefined;
   const forcedExitIndex = forcedExitBar
-    ? candidateBars.findIndex(bar => bar.startMs === forcedExitBar.startMs)
+    ? analysisBars.findIndex(bar => bar.startMs === forcedExitBar.startMs)
     : -1;
   const holdingBars = forcedExitIndex < 0
-    ? candidateBars
-    : candidateBars.slice(0, forcedExitIndex + 1);
+    ? analysisBars
+    : analysisBars.slice(0, forcedExitIndex + 1);
   const takeProfitSignal = reactionRange && quarterSignal
     ? entryTakeProfitSignal(reactionRange, holdingBars, quarterSignal, tick)
     : undefined;
@@ -538,20 +615,18 @@ export function entryLifecycle(
       quarterSignal,
       stopLossSignal,
       takeProfitSignal,
-      forcedExitBar,
+      forcedExitIndex < 0 ? undefined : forcedExitBar,
     );
   }
 
   const exitSignal = exitAnalysis?.exitSignal;
   if (exitSignal) {
-    const exitIndex = candidateBars.findIndex(bar => bar.startMs === exitSignal.bar.startMs);
-    const analysisBars = exitIndex < 0 ? candidateBars : candidateBars.slice(0, exitIndex + 1);
+    const exitIndex = analysisBars.findIndex(bar => bar.startMs === exitSignal.bar.startMs);
+    const attemptBars = exitIndex < 0 ? analysisBars : analysisBars.slice(0, exitIndex + 1);
     return {
-      analysisBars,
-      focusBars: focusFor(analysisBars),
-      entryCutoff: session.entryCutoff,
-      sessionEnd: session.sessionEnd,
-      forcedExitBar,
+      number,
+      triggerBar: analysisBars[0],
+      analysisBars: attemptBars,
       reactionRange,
       quarterSignal,
       stopLossSignal,
@@ -561,25 +636,150 @@ export function entryLifecycle(
     };
   }
 
-  const endReason: EntryLifecycleEndReason = quarterSignal?.entryBar
-    ? 'data-end'
-    : sessionEndBar
+  const reachedSessionEnd = Boolean(
+    sessionEndBar
+    && analysisBars.some(bar => bar.startMs === sessionEndBar.startMs),
+  );
+  return {
+    number,
+    triggerBar: analysisBars[0],
+    analysisBars,
+    reactionRange,
+    quarterSignal,
+    stopLossSignal,
+    takeProfitSignal,
+    exitAnalysis,
+    endReason: !quarterSignal?.entryBar && reachedSessionEnd
       ? 'no-entry-session-end'
-      : 'data-end';
-  const analysisBars = sessionEndBar
+      : 'data-end',
+  };
+}
+
+function findSecondAttemptTrigger(
+  direction: WeeklyEntry['direction'],
+  firstRange: EntryReactionRange,
+  bars: readonly Bar[],
+): Bar | undefined {
+  return bars.find(bar => direction === 'long'
+    ? bar.low <= firstRange.low
+    : bar.high >= firstRange.high);
+}
+
+/** Complete entry lifecycle constrained to the trigger's Beijing trading session. */
+export function entryLifecycle(
+  entry: WeeklyEntry,
+  bars5: readonly Bar[],
+  minutes: readonly EdbMinuteRecord[],
+  tick: number,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+): EntryLifecycle {
+  validateEntryStrategySettings(settings);
+  const session = lifecycleSessionBars(entry.triggerBar, bars5);
+  const candidateBars = session.bars;
+  const focusFor = (bars: readonly Bar[]) => bars.slice(0, ENTRY_OBSERVATION_BAR_COUNT);
+  if (!candidateBars.length) {
+    return {
+      analysisBars: [],
+      focusBars: [],
+      entryCutoff: session.entryCutoff,
+      sessionEnd: session.sessionEnd,
+      attempts: [],
+      endReason: 'data-end',
+    };
+  }
+
+  const indexedBars = candidateBars.map(bar => ({ bar, minute: tradingMinuteAt(bar.startMs) }));
+  const forcedExitBar = indexedBars.find(({ bar, minute }) =>
+    minute.index === session.policy.forcedExitBarStartIndex && bar.complete)?.bar;
+  const sessionEndBar = indexedBars.find(({ bar, minute }) =>
+    minute.index === session.policy.sessionEndIndex - 5 && bar.complete)?.bar;
+  const naturalAnalysisBars = sessionEndBar
     ? candidateBars.slice(0, candidateBars.findIndex(bar => bar.startMs === sessionEndBar.startMs) + 1)
     : candidateBars;
+  const firstAttempt = buildEntryLifecycleAttempt(
+    1,
+    entry.direction,
+    naturalAnalysisBars,
+    minutes,
+    tick,
+    settings,
+    session.entryCutoff,
+    forcedExitBar,
+    sessionEndBar,
+  );
+  const attempts: EntryLifecycleAttempt[] = [firstAttempt];
+  let analysisBars = naturalAnalysisBars;
+  let endReason = firstAttempt.endReason;
+
+  const firstExit = firstAttempt.exitAnalysis?.exitSignal;
+  if (firstAttempt.quarterSignal?.entryBar && firstExit && firstAttempt.reactionRange) {
+    const firstExitIndex = naturalAnalysisBars.findIndex(
+      bar => bar.startMs === firstExit.bar.startMs,
+    );
+    const secondSearchBars = firstExitIndex < 0
+      ? []
+      : naturalAnalysisBars.slice(firstExitIndex + 1);
+    const secondTrigger = findSecondAttemptTrigger(
+      entry.direction,
+      firstAttempt.reactionRange,
+      secondSearchBars,
+    );
+
+    if (secondTrigger) {
+      const secondTriggerIndex = naturalAnalysisBars.findIndex(
+        bar => bar.startMs === secondTrigger.startMs,
+      );
+      const secondBars = secondTriggerIndex < 0
+        ? []
+        : naturalAnalysisBars.slice(secondTriggerIndex);
+      if (secondBars.length) {
+        const secondAttempt = buildEntryLifecycleAttempt(
+          2,
+          entry.direction,
+          secondBars,
+          minutes,
+          tick,
+          settings,
+          session.entryCutoff,
+          forcedExitBar,
+          sessionEndBar,
+        );
+        attempts.push(secondAttempt);
+        const secondExit = secondAttempt.exitAnalysis?.exitSignal;
+        if (secondExit) {
+          const secondExitIndex = naturalAnalysisBars.findIndex(
+            bar => bar.startMs === secondExit.bar.startMs,
+          );
+          analysisBars = secondExitIndex < 0
+            ? naturalAnalysisBars
+            : naturalAnalysisBars.slice(0, secondExitIndex + 1);
+          endReason = secondExit.type;
+        } else {
+          endReason = secondAttempt.endReason;
+        }
+      }
+    } else if (firstExitIndex === naturalAnalysisBars.length - 1) {
+      analysisBars = firstAttempt.analysisBars;
+      endReason = firstAttempt.endReason;
+    } else {
+      endReason = sessionEndBar ? 'no-entry-session-end' : 'data-end';
+    }
+  } else {
+    analysisBars = firstAttempt.analysisBars;
+  }
+
   return {
     analysisBars,
     focusBars: focusFor(analysisBars),
     entryCutoff: session.entryCutoff,
     sessionEnd: session.sessionEnd,
     forcedExitBar,
-    reactionRange,
-    quarterSignal,
-    stopLossSignal,
-    takeProfitSignal,
-    exitAnalysis,
+    attempts,
+    reactionRange: firstAttempt.reactionRange,
+    quarterSignal: firstAttempt.quarterSignal,
+    stopLossSignal: firstAttempt.stopLossSignal,
+    takeProfitSignal: firstAttempt.takeProfitSignal,
+    exitAnalysis: firstAttempt.exitAnalysis,
     endReason,
   };
 }

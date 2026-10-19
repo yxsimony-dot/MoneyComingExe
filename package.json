@@ -2,7 +2,7 @@
   "name": "moneycoming",
   "version": "1.0.8",
   "private": true,
-  "description": "豆粕离线历史看盘",
+  "description": "多品种主连离线历史看盘",
   "author": "MoneyComing",
   "type": "module",
   "main": "build/main.cjs",
@@ -11,6 +11,8 @@
     "test": "vitest run",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
     "start": "electron .",
+    "data:generate": "node scripts/generate-market-baselines.mjs",
+    "data:validate": "node scripts/validate-market-baselines.mjs",
     "package": "npm run build && node scripts/prepare-release.mjs && electron-builder --win nsis --publish never",
     "verify:tag": "node scripts/verify-tag-version.mjs",
     "verify:release": "node scripts/verify-release.mjs",
@@ -18,6 +20,7 @@
     "verify:public-release": "node scripts/verify-public-release.mjs",
     "verify:signing-path": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signing-path.ps1",
     "test:app": "node tests/app-smoke.mjs",
+    "test:real-baseline": "node tests/real-baseline-offline-smoke.mjs",
     "test:offscreen-window": "node tests/offscreen-production-mode-smoke.mjs",
     "test:market-update": "node tests/market-update-smoke.mjs",
     "test:market-update-live": "node tests/market-update-live.mjs",
@@ -39,15 +42,12 @@
     ],
     "extraFiles": [
       {
-        "from": "futures_investigation_20261009",
+        "from": "data",
         "to": "data",
         "filter": [
-          "edb_*_1m_raw.csv",
-          "edb_*_5m.csv",
-          "edb_*_60m.csv",
-          "edb_*_rollovers.csv",
-          "summary.json",
-          "cross_source_audit.json"
+          "instruments/**/*",
+          "baseline-report.json",
+          "baseline-validation-report.json"
         ]
       },
       {

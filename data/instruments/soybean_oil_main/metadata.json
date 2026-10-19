@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 4,
+  "snapshotId": "builtin-soybean_oil_main",
+  "instrumentId": "soybean_oil_main",
+  "mainSymbol": "KQ.m@DCE.y",
+  "parameterVersion": 1,
+  "source": {
+    "provider": "EDB",
+    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "symbol": "KQ.m@DCE.y"
+  },
+  "generatedAt": "2026-10-19T02:04:38.581Z",
+  "requestStart": "2025-10-19 10:30:00",
+  "requestEnd": "2026-10-19 10:20:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
+  "files": {
+    "bars1": {
+      "name": "edb_main_continuous_1m_raw.csv",
+      "sha256": "159b600c94946ae11667820c68643c5ee5cbafc8445719705daeed3bd9bd91fa",
+      "rows": 82305
+    },
+    "bars5": {
+      "name": "edb_main_continuous_5m.csv",
+      "sha256": "d0e143bd2ee143e4a07028d2a325b286755172639650469e0dad0f0693358cfd",
+      "rows": 16461
+    },
+    "bars60": {
+      "name": "edb_main_continuous_60m.csv",
+      "sha256": "ffdd4b25d59fb7dc4d06e8cafe0d6b8f5c36f2bc4733c3e46925495d623177ea",
+      "rows": 1432
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "268f7f84f157a4744dd8af5371ec56204877316562f43a0e24e46e33f702bbd9",
+      "rows": 3
+    },
+    "mainContractMappings": {
+      "name": "edb_main_contract_mapping.csv",
+      "sha256": "8e3ad9a564ab472a5348fb0a272395d028a21a917979d86e0d79459803384aef",
+      "rows": 241
+    }
+  }
+}

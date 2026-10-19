@@ -1,4 +1,5 @@
 import { formatBeijing } from '../domain/time';
+import { INSTRUMENT_LIST, instrumentDefinition } from '../shared/instruments';
 import type { Dataset, MarketUpdateState } from '../shared/types';
 
 export type MarketUpdateTone = 'neutral' | 'working' | 'success' | 'warning' | 'danger';
@@ -9,6 +10,21 @@ export interface MarketUpdateView {
   metadataText: string;
   busy: boolean;
   tone: MarketUpdateTone;
+}
+
+export interface MarketUpdateAllItemView {
+  instrument: MarketUpdateState['instrument'];
+  name: string;
+  statusText: string;
+  tone: MarketUpdateTone;
+}
+
+export interface MarketUpdateAllView {
+  buttonLabel: string;
+  statusText: string;
+  busy: boolean;
+  tone: MarketUpdateTone;
+  items: MarketUpdateAllItemView[];
 }
 
 function minute(value?: string): string | undefined {
@@ -43,6 +59,9 @@ function countSummary(state: MarketUpdateState): string {
 
 export function marketUpdateView(state: MarketUpdateState, dataset?: Dataset): MarketUpdateView {
   const metadataText = metadata(state, dataset);
+  const definition = dataset?.instrument === state.instrument
+    ? dataset.definition
+    : instrumentDefinition(state.instrument);
   switch (state.phase) {
     case 'fetching':
       return { buttonLabel: '正在下载', statusText: '正在从 EDB 获取价格与主力合约日线…', metadataText, busy: true, tone: 'working' };
@@ -81,10 +100,99 @@ export function marketUpdateView(state: MarketUpdateState, dataset?: Dataset): M
     case 'idle':
       return {
         buttonLabel: '更新行情',
-        statusText: '更新 EDB 豆粕主连价格与换月映射',
+        statusText: `更新 EDB ${definition.name}价格与换月映射`,
         metadataText,
         busy: false,
         tone: 'neutral',
       };
   }
+}
+
+function allItemView(state: MarketUpdateState): MarketUpdateAllItemView {
+  const name = instrumentDefinition(state.instrument).name;
+  switch (state.phase) {
+    case 'fetching':
+      return { instrument: state.instrument, name, statusText: '正在下载', tone: 'working' };
+    case 'validating':
+      return { instrument: state.instrument, name, statusText: '正在校验', tone: 'working' };
+    case 'saving':
+      return { instrument: state.instrument, name, statusText: '正在保存', tone: 'working' };
+    case 'succeeded':
+      return { instrument: state.instrument, name, statusText: countSummary(state), tone: 'success' };
+    case 'up-to-date':
+      return { instrument: state.instrument, name, statusText: '已是最新', tone: 'neutral' };
+    case 'failed':
+      return {
+        instrument: state.instrument,
+        name,
+        statusText: state.error?.message || '更新失败',
+        tone: 'danger',
+      };
+    case 'idle':
+      return { instrument: state.instrument, name, statusText: '等待更新', tone: 'neutral' };
+  }
+}
+
+export function marketUpdateAllView(
+  states: readonly MarketUpdateState[] = [],
+  busy = false,
+): MarketUpdateAllView {
+  const stateByInstrument = new Map(states.map(state => [state.instrument, state]));
+  const items = INSTRUMENT_LIST.map(definition => allItemView(
+    stateByInstrument.get(definition.id) ?? {
+      instrument: definition.id,
+      phase: 'idle',
+    },
+  ));
+  if (busy) {
+    const completed = states.filter(state => (
+      state.phase === 'succeeded'
+      || state.phase === 'up-to-date'
+      || state.phase === 'failed'
+    )).length;
+    return {
+      buttonLabel: '正在更新全部',
+      statusText: `正在串行更新全部品种 · 已完成 ${completed}/${INSTRUMENT_LIST.length}`,
+      busy: true,
+      tone: 'working',
+      items,
+    };
+  }
+  if (!states.length) {
+    return {
+      buttonLabel: '更新全部品种',
+      statusText: `依次更新 ${INSTRUMENT_LIST.length} 个主连品种`,
+      busy: false,
+      tone: 'neutral',
+      items,
+    };
+  }
+  const succeeded = states.filter(state => state.phase === 'succeeded').length;
+  const upToDate = states.filter(state => state.phase === 'up-to-date').length;
+  const failed = states.filter(state => state.phase === 'failed').length;
+  if (failed) {
+    return {
+      buttonLabel: '再次更新全部',
+      statusText: `全部品种更新完成 · 更新 ${succeeded} · 已是最新 ${upToDate} · 失败 ${failed}`,
+      busy: false,
+      tone: 'danger',
+      items,
+    };
+  }
+  if (!succeeded && upToDate === INSTRUMENT_LIST.length) {
+    return {
+      buttonLabel: '再次检查全部',
+      statusText: `全部 ${INSTRUMENT_LIST.length} 个品种已是数据源当前最新`,
+      busy: false,
+      tone: 'neutral',
+      items,
+    };
+  }
+  return {
+    buttonLabel: '再次更新全部',
+    statusText: `全部品种更新完成 · 更新 ${succeeded} · 已是最新 ${upToDate}`,
+    busy: false,
+    tone: 'success',
+    items,
+  };
 }
