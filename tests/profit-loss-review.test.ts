@@ -7,7 +7,11 @@ import { completeMinutesForFiveMinuteBar } from '../src/domain/market-data';
 import { formatBeijing } from '../src/domain/time';
 import { instrumentDefinition } from '../src/shared/instruments';
 import type { Bar, EdbMinuteRecord } from '../src/shared/types';
-import { entryLifecycle, type WeeklyEntry } from '../src/domain/weekly-entry';
+import {
+  DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  entryLifecycle,
+  type WeeklyEntry,
+} from '../src/domain/weekly-entry';
 
 const M = 5 * 60_000;
 const MINUTE = 60_000;
@@ -347,8 +351,16 @@ describe('profit and loss review', () => {
       bar('13:45', 104, 128, 95, 127),
     ];
     const candidate = entry(bars[0], 'long');
-    const oneTickSettings = { reactionBodyTicks: 1, entryRangePercent: 25 };
-    const twoTickSettings = { reactionBodyTicks: 2, entryRangePercent: 25 };
+    const oneTickSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reactionBodyTicks: 1,
+      entryRangePercent: 25,
+    };
+    const twoTickSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reactionBodyTicks: 2,
+      entryRangePercent: 25,
+    };
     const oneTickLifecycle = entryLifecycle(candidate, bars, [], 1, oneTickSettings);
     const twoTickLifecycle = entryLifecycle(candidate, bars, [], 1, twoTickSettings);
     const oneTickReview = reviewProfitLoss([candidate], bars, [], DEFINITION, oneTickSettings);
@@ -396,7 +408,11 @@ describe('profit and loss review', () => {
       bar('13:40', 102, 106, 101, 105),
     ];
     const candidate = entry(bars[0], 'long');
-    const settings = { reactionBodyTicks: 1, entryRangePercent: 67 };
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reactionBodyTicks: 1,
+      entryRangePercent: 67,
+    };
     const lifecycle = entryLifecycle(candidate, bars, [], 1, settings);
     const review = reviewProfitLoss([candidate], bars, [], DEFINITION, settings);
     const attempt = lifecycle.attempts[0];
@@ -453,8 +469,16 @@ describe('profit and loss review', () => {
       bar('13:55', 103, 115, 103, 114),
     ];
     const candidate = entry(bars[0], 'long');
-    const twentyFiveSettings = { reactionBodyTicks: 1, entryRangePercent: 25 };
-    const hundredSettings = { reactionBodyTicks: 1, entryRangePercent: 100 };
+    const twentyFiveSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reactionBodyTicks: 1,
+      entryRangePercent: 25,
+    };
+    const hundredSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reactionBodyTicks: 1,
+      entryRangePercent: 100,
+    };
     const twentyFiveLifecycle = entryLifecycle(candidate, bars, [], 1, twentyFiveSettings);
     const hundredLifecycle = entryLifecycle(candidate, bars, [], 1, hundredSettings);
     const twentyFiveReview = reviewProfitLoss([candidate], bars, [], DEFINITION, twentyFiveSettings);
@@ -501,6 +525,71 @@ describe('profit and loss review', () => {
       takeProfitCount: 1,
     });
     expect(hundredReview.finalCapital).toBe(hundredReview.initialCapital);
+  });
+
+  it('uses the same opposite-candle filter for lifecycle trades and full-review capital', () => {
+    const bars = [
+      bar('13:00', 106, 107, 104, 105),
+      bar('13:05', 105, 106, 103, 104),
+      bar('13:10', 104, 105, 102, 103),
+      bar('13:15', 103, 104, 101, 102),
+      bar('13:20', 102, 103, 100, 101),
+      bar('13:25', 101, 102, 99, 100),
+      bar('13:30', 100, 104, 100, 103),
+      bar('13:35', 103, 103, 101, 102),
+      bar('13:40', 102, 112, 102, 111),
+    ];
+    const candidate = entry(bars[6], 'long');
+    const disabledSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      oppositeCandleCount: 0,
+    };
+    const sixCandleSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      oppositeCandleCount: 6,
+    };
+    const disabledLifecycle = entryLifecycle(candidate, bars, [], 1, disabledSettings);
+    const filteredLifecycle = entryLifecycle(candidate, bars, [], 1, sixCandleSettings);
+    const disabledReview = reviewProfitLoss([candidate], bars, [], DEFINITION, disabledSettings);
+    const filteredReview = reviewProfitLoss([candidate], bars, [], DEFINITION, sixCandleSettings);
+
+    expect(disabledLifecycle.reactionRange?.reactionBar).toBe(bars[6]);
+    expect(disabledLifecycle.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 112,
+      bar: bars[8],
+    });
+    expect(disabledReview.completedTrades).toHaveLength(1);
+    expect(disabledReview.completedTrades[0]).toMatchObject({
+      reactionBar: disabledLifecycle.reactionRange?.reactionBar,
+      entryBar: disabledLifecycle.quarterSignal?.entryBar,
+      entryPrice: disabledLifecycle.quarterSignal?.price,
+      exitBar: disabledLifecycle.exitAnalysis?.exitSignal?.bar,
+      exitPrice: disabledLifecycle.exitAnalysis?.exitSignal?.price,
+      cashPnl: 1_089_000,
+      capitalAfter: 2_089_000,
+    });
+    expect(disabledReview.finalCapital).toBe(2_089_000);
+    expect(disabledReview.statistics).toMatchObject({
+      validEntryCount: 1,
+      completedTradeCount: 1,
+      winningTradeCount: 1,
+      takeProfitCount: 1,
+      ignoredNoEntryCount: 0,
+    });
+
+    expect(filteredLifecycle.reactionRange?.reactionBar).toBe(bars[8]);
+    expect(filteredLifecycle.quarterSignal?.entryBar).toBeUndefined();
+    expect(filteredReview.completedTrades).toHaveLength(0);
+    expect(filteredReview.incompleteTrades).toHaveLength(0);
+    expect(filteredReview.finalCapital).toBe(filteredReview.initialCapital);
+    expect(filteredReview.statistics).toMatchObject({
+      validEntryCount: 0,
+      completedTradeCount: 0,
+      winningTradeCount: 0,
+      takeProfitCount: 0,
+      ignoredNoEntryCount: 1,
+    });
   });
 
   it('calculates whole lots with leverage and contract multipliers', () => {

@@ -22,15 +22,20 @@ export const MAX_REACTION_BODY_TICKS = 20;
 export const MIN_ENTRY_RANGE_PERCENT = 0;
 export const MAX_ENTRY_RANGE_PERCENT = 100;
 export const DEFAULT_ENTRY_RANGE_PERCENT = 25;
+export const MIN_OPPOSITE_CANDLE_COUNT = 0;
+export const MAX_OPPOSITE_CANDLE_COUNT = 10;
+export const DEFAULT_OPPOSITE_CANDLE_COUNT = 6;
 
 export interface EntryStrategySettings {
   reactionBodyTicks: number;
   entryRangePercent: number;
+  oppositeCandleCount: number;
 }
 
 export const DEFAULT_ENTRY_STRATEGY_SETTINGS: Readonly<EntryStrategySettings> = Object.freeze({
   reactionBodyTicks: MIN_REACTION_BODY_TICKS,
   entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+  oppositeCandleCount: DEFAULT_OPPOSITE_CANDLE_COUNT,
 });
 
 export function validateEntryStrategySettings(
@@ -52,6 +57,15 @@ export function validateEntryStrategySettings(
     || entryRangePercent > MAX_ENTRY_RANGE_PERCENT) {
     throw new RangeError(
       `Entry range percent must be an integer from ${MIN_ENTRY_RANGE_PERCENT} to ${MAX_ENTRY_RANGE_PERCENT}.`,
+    );
+  }
+  const oppositeCandleCount = settings?.oppositeCandleCount;
+  if (!Number.isFinite(oppositeCandleCount)
+    || !Number.isInteger(oppositeCandleCount)
+    || oppositeCandleCount < MIN_OPPOSITE_CANDLE_COUNT
+    || oppositeCandleCount > MAX_OPPOSITE_CANDLE_COUNT) {
+    throw new RangeError(
+      `Opposite candle count must be an integer from ${MIN_OPPOSITE_CANDLE_COUNT} to ${MAX_OPPOSITE_CANDLE_COUNT}.`,
     );
   }
   return settings;
@@ -226,19 +240,41 @@ export function entryObservationWindow(triggerBar: Bar, bars5: Bar[]): Bar[] {
   return triggerIndex < 0 ? [] : bars5.slice(triggerIndex, triggerIndex + ENTRY_OBSERVATION_BAR_COUNT);
 }
 
-/** First directional response and the inclusive extreme through that response bar. */
-export function entryReactionRange(
+function hasFilteredOppositeSequence(
   direction: WeeklyEntry['direction'],
-  bars: Bar[],
+  bars: readonly Bar[],
+  candidateIndex: number,
+  threshold: number,
+): boolean {
+  if (threshold === 0) return false;
+  let count = 0;
+  for (let index = candidateIndex - 1; index >= 0; index -= 1) {
+    const bar = bars[index];
+    if (bar.close === bar.open) continue;
+    const opposite = direction === 'long'
+      ? bar.close < bar.open
+      : bar.close > bar.open;
+    if (!opposite) break;
+    count += 1;
+    if (count >= threshold) return true;
+  }
+  return false;
+}
+
+function entryReactionRangeInHistory(
+  direction: WeeklyEntry['direction'],
+  bars: readonly Bar[],
+  attemptStartIndex: number,
+  searchEndIndex: number,
   tick: number,
-  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  settings: EntryStrategySettings,
 ): EntryReactionRange | undefined {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Reaction price tick must be positive.');
-  const { reactionBodyTicks } = validateEntryStrategySettings(settings);
+  const { reactionBodyTicks, oppositeCandleCount } = validateEntryStrategySettings(settings);
   const minimumBody = tick * reactionBodyTicks;
   let reactionIndex = -1;
   let pricingMode: EntryReactionPricingMode = 'configured-percent';
-  for (let index = 0; index < bars.length; index += 1) {
+  for (let index = attemptStartIndex; index < searchEndIndex; index += 1) {
     const bar = bars[index];
     const body = direction === 'long'
       ? bar.close - bar.open
@@ -249,6 +285,7 @@ export function entryReactionRange(
       ? bar.high - bar.close
       : bar.close - bar.low;
     if (directionalWick >= body * 3) continue;
+    if (hasFilteredOppositeSequence(direction, bars, index, oppositeCandleCount)) continue;
 
     reactionIndex = index;
     pricingMode = directionalWick >= body * 2
@@ -259,7 +296,7 @@ export function entryReactionRange(
   if (reactionIndex < 0) return undefined;
 
   const reactionBar = bars[reactionIndex];
-  const rangeBars = bars.slice(0, reactionIndex + 1);
+  const rangeBars = bars.slice(attemptStartIndex, reactionIndex + 1);
   const extremeBar = rangeBars.reduce((extreme, bar) => {
     if (direction === 'long') return bar.low < extreme.low ? bar : extreme;
     return bar.high > extreme.high ? bar : extreme;
@@ -268,6 +305,16 @@ export function entryReactionRange(
   return direction === 'long'
     ? { direction, pricingMode, reactionBar, extremeBar, high: reactionBar.high, low: extremeBar.low }
     : { direction, pricingMode, reactionBar, extremeBar, high: extremeBar.high, low: reactionBar.low };
+}
+
+/** First directional response and the inclusive extreme through that response bar. */
+export function entryReactionRange(
+  direction: WeeklyEntry['direction'],
+  bars: Bar[],
+  tick: number,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+): EntryReactionRange | undefined {
+  return entryReactionRangeInHistory(direction, bars, 0, bars.length, tick, settings);
 }
 
 /** Classified entry price plus the first later touch inside the supplied lifecycle bars. */
@@ -582,7 +629,9 @@ function lifecycleSessionBars(triggerBar: Bar, bars5: readonly Bar[]): {
 function buildEntryLifecycleAttempt(
   number: EntryLifecycleAttempt['number'],
   direction: WeeklyEntry['direction'],
-  bars: readonly Bar[],
+  fullHistory: readonly Bar[],
+  attemptStartIndex: number,
+  searchEndIndex: number,
   minutes: readonly EdbMinuteRecord[],
   tick: number,
   settings: EntryStrategySettings,
@@ -590,8 +639,15 @@ function buildEntryLifecycleAttempt(
   forcedExitBar?: Bar,
   sessionEndBar?: Bar,
 ): EntryLifecycleAttempt {
-  const analysisBars = [...bars];
-  const reactionRange = entryReactionRange(direction, analysisBars, tick, settings);
+  const analysisBars = fullHistory.slice(attemptStartIndex, searchEndIndex);
+  const reactionRange = entryReactionRangeInHistory(
+    direction,
+    fullHistory,
+    attemptStartIndex,
+    searchEndIndex,
+    tick,
+    settings,
+  );
   const quarterSignal = reactionRange
     ? entryQuarterSignal(reactionRange, analysisBars, tick, entryCutoff, settings)
     : undefined;
@@ -696,10 +752,16 @@ export function entryLifecycle(
   const naturalAnalysisBars = sessionEndBar
     ? candidateBars.slice(0, candidateBars.findIndex(bar => bar.startMs === sessionEndBar.startMs) + 1)
     : candidateBars;
+  const naturalStartIndex = bars5.findIndex(
+    bar => bar.startMs === naturalAnalysisBars[0]?.startMs,
+  );
+  const naturalEndIndex = naturalStartIndex + naturalAnalysisBars.length;
   const firstAttempt = buildEntryLifecycleAttempt(
     1,
     entry.direction,
-    naturalAnalysisBars,
+    bars5,
+    naturalStartIndex,
+    naturalEndIndex,
     minutes,
     tick,
     settings,
@@ -729,14 +791,13 @@ export function entryLifecycle(
       const secondTriggerIndex = naturalAnalysisBars.findIndex(
         bar => bar.startMs === secondTrigger.startMs,
       );
-      const secondBars = secondTriggerIndex < 0
-        ? []
-        : naturalAnalysisBars.slice(secondTriggerIndex);
-      if (secondBars.length) {
+      if (secondTriggerIndex >= 0) {
         const secondAttempt = buildEntryLifecycleAttempt(
           2,
           entry.direction,
-          secondBars,
+          bars5,
+          naturalStartIndex + secondTriggerIndex,
+          naturalEndIndex,
           minutes,
           tick,
           settings,

@@ -19,9 +19,12 @@ import {
 import {
   DEFAULT_ENTRY_RANGE_PERCENT,
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  DEFAULT_OPPOSITE_CANDLE_COUNT,
   MAX_ENTRY_RANGE_PERCENT,
+  MAX_OPPOSITE_CANDLE_COUNT,
   MAX_REACTION_BODY_TICKS,
   MIN_ENTRY_RANGE_PERCENT,
+  MIN_OPPOSITE_CANDLE_COUNT,
   MIN_REACTION_BODY_TICKS,
   analyzeEntryExit,
   analyzeWeeklyEntries,
@@ -90,6 +93,14 @@ app.innerHTML = `
               <button type="button" id="entry-percent-decrease" data-testid="entry-percent-decrease" aria-label="减少入场线百分比" title="减少 1%">−</button>
               <label><input id="entry-percent-input" data-testid="entry-percent-input" type="number" min="0" max="100" step="1" inputmode="numeric" aria-label="入场线百分比" /><span>%</span></label>
               <button type="button" id="entry-percent-increase" data-testid="entry-percent-increase" aria-label="增加入场线百分比" title="增加 1%">+</button>
+            </div>
+          </div>
+          <div class="entry-setting-control">
+            <span class="entry-setting-label" data-testid="opposite-count-label">连续反向K线数量</span>
+            <div class="entry-setting-stepper">
+              <button type="button" id="opposite-count-decrease" data-testid="opposite-count-decrease" aria-label="减少连续反向K线数量" title="减少 1 根">−</button>
+              <label><input id="opposite-count-input" data-testid="opposite-count-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="连续反向K线数量" /><span>根</span></label>
+              <button type="button" id="opposite-count-increase" data-testid="opposite-count-increase" aria-label="增加连续反向K线数量" title="增加 1 根">+</button>
             </div>
           </div>
         </div>
@@ -161,7 +172,7 @@ const reactionRulesDialog = document.createElement('dialog');
 reactionRulesDialog.id = 'reaction-rules-dialog';
 reactionRulesDialog.dataset.testid = 'reaction-rules-dialog';
 reactionRulesDialog.setAttribute('aria-labelledby', 'reaction-rules-title');
-reactionRulesDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">5-MINUTE REACTION BAR</span><h2 id="reaction-rules-title">5分钟K线识别</h2></div><button id="close-reaction-rules" data-testid="close-reaction-rules" class="close-button" aria-label="关闭5分钟K线识别规则">×</button></div><div class="reaction-rules-content" id="reaction-rules-content" data-testid="reaction-rules-content"></div><div class="dialog-bottom"><span>按当前“最小入场K线浮动”动态说明</span><button class="button primary" id="reaction-rules-done" data-testid="reaction-rules-done">知道了</button></div>';
+reactionRulesDialog.innerHTML = '<div class="dialog-heading"><div><span class="eyebrow">5-MINUTE REACTION BAR</span><h2 id="reaction-rules-title">5分钟K线识别</h2></div><button id="close-reaction-rules" data-testid="close-reaction-rules" class="close-button" aria-label="关闭5分钟K线识别规则">×</button></div><div class="reaction-rules-content" id="reaction-rules-content" data-testid="reaction-rules-content"></div><div class="dialog-bottom"><span>按当前入场策略参数动态说明</span><button class="button primary" id="reaction-rules-done" data-testid="reaction-rules-done">知道了</button></div>';
 document.body.append(reactionRulesDialog);
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
@@ -242,6 +253,11 @@ function loadEntryStrategySettings(): EntryStrategySettings {
       && parsed.entryRangePercent! <= MAX_ENTRY_RANGE_PERCENT
       ? parsed.entryRangePercent!
       : DEFAULT_ENTRY_RANGE_PERCENT,
+    oppositeCandleCount: Number.isInteger(parsed.oppositeCandleCount)
+      && parsed.oppositeCandleCount! >= MIN_OPPOSITE_CANDLE_COUNT
+      && parsed.oppositeCandleCount! <= MAX_OPPOSITE_CANDLE_COUNT
+      ? parsed.oppositeCandleCount!
+      : DEFAULT_OPPOSITE_CANDLE_COUNT,
   };
   persistEntryStrategySettings(settings);
   return settings;
@@ -250,6 +266,7 @@ function loadEntryStrategySettings(): EntryStrategySettings {
 let entryStrategySettings = loadEntryStrategySettings();
 document.documentElement.dataset.reactionBodyTicks = String(entryStrategySettings.reactionBodyTicks);
 document.documentElement.dataset.entryRangePercent = String(entryStrategySettings.entryRangePercent);
+document.documentElement.dataset.oppositeCandleCount = String(entryStrategySettings.oppositeCandleCount);
 document.documentElement.dataset.strategyRefreshCount = String(strategyRefreshCount);
 
 type ChartSelection =
@@ -2264,6 +2281,49 @@ if (window.market.testMode) {
       selectBar(60, entry.bar, false, weeklyEntryMarkerId(entry));
       return true;
     },
+    selectOppositeComparisonEntry: () => {
+      if (!dataset) return false;
+      const currentDataset = dataset;
+      const comparison = charts[60].getWeeklyEntries().flatMap(candidate => {
+        const disabled = entryLifecycle(
+          candidate,
+          currentDataset.bars5,
+          currentDataset.bars1,
+          currentDataset.definition.priceTick,
+          {
+            ...entryStrategySettings,
+            oppositeCandleCount: MIN_OPPOSITE_CANDLE_COUNT,
+          },
+        );
+        for (
+          let count = MIN_OPPOSITE_CANDLE_COUNT + 1;
+          count <= MAX_OPPOSITE_CANDLE_COUNT;
+          count += 1
+        ) {
+          const enabled = entryLifecycle(
+            candidate,
+            currentDataset.bars5,
+            currentDataset.bars1,
+            currentDataset.definition.priceTick,
+            {
+              ...entryStrategySettings,
+              oppositeCandleCount: count,
+            },
+          );
+          if (lifecycleFingerprint(disabled) !== lifecycleFingerprint(enabled)) {
+            return [{ entry: candidate, count }];
+          }
+        }
+        return [];
+      })[0];
+      if (!comparison) {
+        delete document.documentElement.dataset.oppositeComparisonCount;
+        return false;
+      }
+      document.documentElement.dataset.oppositeComparisonCount = String(comparison.count);
+      selectBar(60, comparison.entry.bar, false, weeklyEntryMarkerId(comparison.entry));
+      return true;
+    },
   };
 }
 
@@ -2565,13 +2625,25 @@ async function showEntryRules() {
 
 function renderReactionRules(): void {
   const ticks = entryStrategySettings.reactionBodyTicks;
+  const oppositeCount = entryStrategySettings.oppositeCandleCount;
   const content = $('#reaction-rules-content');
   content.dataset.reactionBodyTicks = String(ticks);
+  content.dataset.oppositeCandleCount = String(oppositeCount);
   content.innerHTML = `
     <section class="reaction-rules-current">
-      <span>当前最小实体浮动</span>
-      <strong data-testid="reaction-rules-current-ticks">${ticks} tick</strong>
-      <p>方向实体达到或超过 ${ticks} tick 后，才进入方向侧影线判断。</p>
+      <div>
+        <span>当前最小实体浮动</span>
+        <strong data-testid="reaction-rules-current-ticks">${ticks} tick</strong>
+      </div>
+      <div>
+        <span>当前连续反向K线数量</span>
+        <strong data-testid="reaction-rules-current-opposite-count">${oppositeCount} 根</strong>
+      </div>
+      <p>方向实体达到或超过 ${ticks} tick 后，先判断方向侧影线，再执行连续反向K线过滤。${
+        oppositeCount === 0
+          ? '当前数量为0，连续反向K线过滤已关闭。'
+          : `当前达到或超过 ${oppositeCount} 根即过滤该候选。`
+      }</p>
     </section>
     <dl class="reaction-rules-definitions">
       <div><dt>做多</dt><dd>实体 = 收盘价 - 开盘价；只计算上影线 = 最高价 - 收盘价。</dd></div>
@@ -2582,7 +2654,15 @@ function renderReactionRules(): void {
       <li><strong>实体 × 2 ≤ 方向侧影线 &lt; 实体 × 3</strong><span>这根K线有效，但该轮白色入场线改到红框风险侧边界：做多在底部，做空在顶部。</span></li>
       <li><strong>方向侧影线 ≥ 实体 × 3</strong><span>跳过这根K线，并按时间继续寻找下一根合格K线。</span></li>
     </ol>
-    <p class="reaction-rules-note">被跳过的K线仍参与红框风险侧极值计算。首轮和第二轮分别独立应用以上识别规则。</p>`;
+    <section class="reaction-rules-filter">
+      <h3>连续反向K线过滤</h3>
+      <ul>
+        <li>做多候选向前统计阴线；做空候选向前统计阳线。数量达到或超过当前参数时跳过候选，0表示关闭。</li>
+        <li>允许越过本轮回调触发K线读取更早历史；十字星不计数也不中断，遇到与候选同方向的K线立即中断。</li>
+        <li>因影线或连续反向数量被跳过的K线仍参与红框风险侧极值计算；仅用于回看的触发前历史不进入红框。</li>
+      </ul>
+    </section>
+    <p class="reaction-rules-note">首轮和第二轮共用当前参数，并分别独立应用全部识别规则。</p>`;
 }
 
 function showReactionRules(): void {
@@ -2614,8 +2694,12 @@ function renderEntryStrategyControls(): void {
   const percentInput = $('#entry-percent-input') as HTMLInputElement;
   const percentDecrease = $('#entry-percent-decrease') as HTMLButtonElement;
   const percentIncrease = $('#entry-percent-increase') as HTMLButtonElement;
+  const oppositeInput = $('#opposite-count-input') as HTMLInputElement;
+  const oppositeDecrease = $('#opposite-count-decrease') as HTMLButtonElement;
+  const oppositeIncrease = $('#opposite-count-increase') as HTMLButtonElement;
   const ticks = entryStrategySettings.reactionBodyTicks;
   const percent = entryStrategySettings.entryRangePercent;
+  const oppositeCount = entryStrategySettings.oppositeCandleCount;
   panel.hidden = !mondayVisible;
   panel.dataset.visible = String(mondayVisible);
   ticksInput.value = String(ticks);
@@ -2626,8 +2710,13 @@ function renderEntryStrategyControls(): void {
   percentInput.removeAttribute('aria-invalid');
   percentDecrease.disabled = percent <= MIN_ENTRY_RANGE_PERCENT;
   percentIncrease.disabled = percent >= MAX_ENTRY_RANGE_PERCENT;
+  oppositeInput.value = String(oppositeCount);
+  oppositeInput.removeAttribute('aria-invalid');
+  oppositeDecrease.disabled = oppositeCount <= MIN_OPPOSITE_CANDLE_COUNT;
+  oppositeIncrease.disabled = oppositeCount >= MAX_OPPOSITE_CANDLE_COUNT;
   document.documentElement.dataset.reactionBodyTicks = String(ticks);
   document.documentElement.dataset.entryRangePercent = String(percent);
+  document.documentElement.dataset.oppositeCandleCount = String(oppositeCount);
 }
 
 function calculateProfitLossReview(): ProfitLossReviewResult | undefined {
@@ -2682,6 +2771,7 @@ function refreshStrategyResults(): void {
   const result = calculateProfitLossReview();
   renderStrategySummary(result);
   if (reviewDialog.open) renderProfitLossReview(result);
+  if (reactionRulesDialog.open) renderReactionRules();
 }
 
 function validIntegerSetting(value: string, minimum: number, maximum: number): number | undefined {
@@ -2753,6 +2843,36 @@ function commitEntryRangePercentInput(restoreInvalid: boolean): void {
   }
   input.removeAttribute('aria-invalid');
   setEntryRangePercent(percent);
+}
+
+function setOppositeCandleCount(count: number): boolean {
+  if (!Number.isInteger(count)
+    || count < MIN_OPPOSITE_CANDLE_COUNT
+    || count > MAX_OPPOSITE_CANDLE_COUNT) return false;
+  if (count === entryStrategySettings.oppositeCandleCount) {
+    renderEntryStrategyControls();
+    return false;
+  }
+  entryStrategySettings = {
+    ...entryStrategySettings,
+    oppositeCandleCount: count,
+  };
+  persistEntryStrategySettings(entryStrategySettings);
+  renderEntryStrategyControls();
+  refreshStrategyResults();
+  return true;
+}
+
+function commitOppositeCandleCountInput(restoreInvalid: boolean): void {
+  const input = $('#opposite-count-input') as HTMLInputElement;
+  const count = validIntegerSetting(input.value, MIN_OPPOSITE_CANDLE_COUNT, MAX_OPPOSITE_CANDLE_COUNT);
+  if (count === undefined) {
+    input.setAttribute('aria-invalid', 'true');
+    if (restoreInvalid) renderEntryStrategyControls();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  setOppositeCandleCount(count);
 }
 
 function renderProfitLossReview(result: ProfitLossReviewResult | undefined = latestProfitLossReview): void {
@@ -2865,6 +2985,20 @@ $('#entry-percent-input').addEventListener('keydown', event => {
   event.preventDefault();
   commitEntryRangePercentInput(true);
   ($('#entry-percent-input') as HTMLInputElement).blur();
+});
+$('#opposite-count-decrease').addEventListener('click', () => {
+  setOppositeCandleCount(entryStrategySettings.oppositeCandleCount - 1);
+});
+$('#opposite-count-increase').addEventListener('click', () => {
+  setOppositeCandleCount(entryStrategySettings.oppositeCandleCount + 1);
+});
+$('#opposite-count-input').addEventListener('input', () => commitOppositeCandleCountInput(false));
+$('#opposite-count-input').addEventListener('blur', () => commitOppositeCandleCountInput(true));
+$('#opposite-count-input').addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  commitOppositeCandleCountInput(true);
+  ($('#opposite-count-input') as HTMLInputElement).blur();
 });
 $('#toggle-subcharts').addEventListener('click', () => {
   subchartsVisible = !subchartsVisible;

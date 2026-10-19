@@ -4,10 +4,13 @@ import { createHash } from 'node:crypto';
 import {
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
   DEFAULT_ENTRY_RANGE_PERCENT,
+  DEFAULT_OPPOSITE_CANDLE_COUNT,
   ENTRY_SESSION_POLICIES,
   MAX_ENTRY_RANGE_PERCENT,
+  MAX_OPPOSITE_CANDLE_COUNT,
   MAX_REACTION_BODY_TICKS,
   MIN_ENTRY_RANGE_PERCENT,
+  MIN_OPPOSITE_CANDLE_COUNT,
   MIN_REACTION_BODY_TICKS,
   analyzeEntryExit,
   analyzeWeeklyEntries,
@@ -35,7 +38,10 @@ import type { EmaPoint } from '../src/domain/ema';
 
 const H = 3_600_000; const M = 5 * 60_000;
 const TEST_PRICE_TICK = 1;
-const TWO_TICK_REACTION = { reactionBodyTicks: 2, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT };
+const TWO_TICK_REACTION = {
+  ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+  reactionBodyTicks: 2,
+};
 
 const entryReactionRange = (
   direction: WeeklyEntry['direction'],
@@ -493,8 +499,8 @@ describe('session-bounded entry lifecycle', () => {
     ];
     const entry = lifecycleEntry(bars[0], 'long');
     const oneTick = entryLifecycle(entry, bars, [], 1, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
       reactionBodyTicks: 1,
-      entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
     });
     const twoTicks = entryLifecycle(entry, bars, [], 1, TWO_TICK_REACTION);
 
@@ -842,15 +848,15 @@ describe('second entry attempt trigger', () => {
     const candidate = lifecycleEntry(bars[0], 'long');
     const candidateSnapshot = structuredClone(candidate);
     const twentyFive = entryLifecycle(candidate, bars, [], 1, {
-      reactionBodyTicks: 1,
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
       entryRangePercent: 25,
     });
     const fifty = entryLifecycle(candidate, bars, [], 1, {
-      reactionBodyTicks: 1,
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
       entryRangePercent: 50,
     });
     const hundred = entryLifecycle(candidate, bars, [], 1, {
-      reactionBodyTicks: 1,
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
       entryRangePercent: 100,
     });
 
@@ -920,29 +926,37 @@ describe('second entry attempt trigger', () => {
 });
 
 describe('entry strategy settings', () => {
-  it('defaults to one tick and 25 percent and accepts all configured boundaries', () => {
+  it('defaults to one tick, 25 percent, and six opposite candles and accepts all boundaries', () => {
     expect(DEFAULT_ENTRY_STRATEGY_SETTINGS).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 25,
+      oppositeCandleCount: 6,
     });
     expect(MIN_REACTION_BODY_TICKS).toBe(1);
     expect(MAX_REACTION_BODY_TICKS).toBe(20);
     expect(MIN_ENTRY_RANGE_PERCENT).toBe(0);
     expect(MAX_ENTRY_RANGE_PERCENT).toBe(100);
     expect(DEFAULT_ENTRY_RANGE_PERCENT).toBe(25);
+    expect(MIN_OPPOSITE_CANDLE_COUNT).toBe(0);
+    expect(MAX_OPPOSITE_CANDLE_COUNT).toBe(10);
+    expect(DEFAULT_OPPOSITE_CANDLE_COUNT).toBe(6);
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
+      oppositeCandleCount: 0,
     })).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
+      oppositeCandleCount: 0,
     });
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
+      oppositeCandleCount: 10,
     })).toEqual({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
+      oppositeCandleCount: 10,
     });
   });
 
@@ -950,8 +964,8 @@ describe('entry strategy settings', () => {
     'rejects an invalid reaction body tick value: %s',
     (reactionBodyTicks) => {
       expect(() => validateEntryStrategySettings({
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
         reactionBodyTicks,
-        entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
       })).toThrow(RangeError);
     },
   );
@@ -960,9 +974,19 @@ describe('entry strategy settings', () => {
     'rejects an invalid entry range percent: %s',
     (entryRangePercent) => {
       expect(() => validateEntryStrategySettings({
-        reactionBodyTicks: MIN_REACTION_BODY_TICKS,
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
         entryRangePercent,
       })).toThrow(RangeError);
+    },
+  );
+
+  it.each([-1, 11, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
+    'rejects a missing or invalid opposite candle count: %s',
+    (oppositeCandleCount) => {
+      expect(() => validateEntryStrategySettings({
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        oppositeCandleCount,
+      } as EntryStrategySettings)).toThrow(RangeError);
     },
   );
 
@@ -973,8 +997,205 @@ describe('entry strategy settings', () => {
       [],
       [],
       1,
-      { reactionBodyTicks: 0, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT },
+      { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, reactionBodyTicks: 0 },
     )).toThrow(RangeError);
+  });
+});
+
+describe('continuous opposite candle filter', () => {
+  const settings = (oppositeCandleCount: number): EntryStrategySettings => ({
+    ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+    oppositeCandleCount,
+  });
+
+  it.each([
+    {
+      label: 'long',
+      direction: 'long' as const,
+      opposite: (index: number) => candle(index, 100, 101, 97, 98),
+      candidate: (index: number) => candle(index, 98, 102, 97, 101),
+    },
+    {
+      label: 'short',
+      direction: 'short' as const,
+      opposite: (index: number) => candle(index, 98, 101, 97, 100),
+      candidate: (index: number) => candle(index, 100, 101, 96, 97),
+    },
+  ])('mirrors exact, over, below, and disabled thresholds for $label candidates', ({
+    direction,
+    opposite,
+    candidate,
+  }) => {
+    const exactOpposites = Array.from({ length: 3 }, (_, index) => opposite(index));
+    const exactCandidate = candidate(3);
+    const exactLater = candidate(4);
+    expect(entryReactionRange(
+      direction,
+      [...exactOpposites, exactCandidate, exactLater],
+      1,
+      settings(3),
+    )?.reactionBar).toBe(exactLater);
+
+    const overOpposites = Array.from({ length: 4 }, (_, index) => opposite(index));
+    const overCandidate = candidate(4);
+    const overLater = candidate(5);
+    expect(entryReactionRange(
+      direction,
+      [...overOpposites, overCandidate, overLater],
+      1,
+      settings(3),
+    )?.reactionBar).toBe(overLater);
+
+    const belowOpposites = Array.from({ length: 2 }, (_, index) => opposite(index));
+    const belowCandidate = candidate(2);
+    expect(entryReactionRange(
+      direction,
+      [...belowOpposites, belowCandidate],
+      1,
+      settings(3),
+    )?.reactionBar).toBe(belowCandidate);
+
+    expect(entryReactionRange(
+      direction,
+      [...exactOpposites, exactCandidate],
+      1,
+      settings(0),
+    )?.reactionBar).toBe(exactCandidate);
+  });
+
+  it('ignores doji without interrupting and does not count it toward the threshold', () => {
+    const bearish = (index: number) => candle(index, 100, 101, 97, 98);
+    const doji = candle(3, 98, 100, 97, 98);
+    const candidate = candle(7, 98, 102, 97, 101);
+    const later = candle(8, 101, 105, 100, 104);
+    const sixOpposites = [
+      bearish(0),
+      bearish(1),
+      bearish(2),
+      doji,
+      bearish(4),
+      bearish(5),
+      bearish(6),
+    ];
+
+    expect(entryReactionRange(
+      'long',
+      [...sixOpposites, candidate, later],
+      1,
+      settings(6),
+    )?.reactionBar).toBe(later);
+    expect(entryReactionRange(
+      'long',
+      sixOpposites.slice(1).concat(candidate),
+      1,
+      settings(6),
+    )?.reactionBar).toBe(candidate);
+  });
+
+  it('stops at an earlier same-direction candle before using older opposites', () => {
+    const bars = [
+      candle(0, 100, 101, 97, 98),
+      candle(1, 100, 101, 97, 98),
+      candle(2, 100, 101, 97, 98),
+      candle(3, 98, 100, 97, 99),
+      candle(4, 100, 101, 97, 98),
+      candle(5, 100, 101, 97, 98),
+      candle(6, 98, 102, 97, 101),
+    ];
+
+    expect(entryReactionRange(
+      'long',
+      bars,
+      1,
+      { ...settings(3), reactionBodyTicks: 2 },
+    )?.reactionBar).toBe(bars[6]);
+  });
+
+  it('keeps a filtered candidate in the risk-side extreme and uses the final candidate profit edge', () => {
+    const bars = [
+      candle(0, 100, 101, 97, 98),
+      candle(1, 100, 101, 97, 98),
+      candle(2, 98, 102, 80, 101),
+      candle(3, 101, 102, 90, 99),
+      candle(4, 99, 106, 91, 104),
+    ];
+
+    expect(entryReactionRange('long', bars, 1, settings(2))).toEqual({
+      direction: 'long',
+      pricingMode: 'configured-percent',
+      reactionBar: bars[4],
+      extremeBar: bars[2],
+      high: 106,
+      low: 80,
+    });
+  });
+
+  it('looks before the first trigger while excluding pre-trigger prices from the red box', () => {
+    const history = [
+      sessionCandle('09:30', 100, 101, 50, 98),
+      sessionCandle('09:35', 100, 101, 97, 98),
+      sessionCandle('09:40', 100, 101, 97, 98),
+      sessionCandle('09:45', 100, 101, 97, 98),
+      sessionCandle('09:50', 100, 101, 97, 98),
+      sessionCandle('09:55', 100, 101, 97, 98),
+      sessionCandle('10:00', 100, 104, 90, 103),
+      sessionCandle('10:05', 103, 104, 88, 101),
+      sessionCandle('10:10', 101, 106, 91, 105),
+    ];
+    const trigger = history[6];
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      history,
+      [],
+      1,
+      settings(6),
+    );
+
+    expect(result.reactionRange).toMatchObject({
+      reactionBar: history[8],
+      extremeBar: history[7],
+      high: 106,
+      low: 88,
+    });
+    expect(result.reactionRange?.low).not.toBe(50);
+    expect(result.analysisBars[0]).toBe(trigger);
+  });
+
+  it('uses pre-trigger history for the second attempt and still stops after two attempts', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 104, 105, 101, 103),
+      sessionCandle('13:50', 104, 105, 101, 103),
+      sessionCandle('13:55', 104, 105, 101, 103),
+      sessionCandle('14:00', 104, 105, 101, 103),
+      sessionCandle('14:05', 104, 105, 101, 103),
+      sessionCandle('14:10', 104, 105, 101, 103),
+      sessionCandle('14:15', 103, 107, 99, 106),
+      sessionCandle('14:20', 106, 107, 98, 104),
+      sessionCandle('14:25', 104, 110, 100, 108),
+      sessionCandle('14:30', 100, 101, 90, 91),
+      sessionCandle('14:35', 91, 115, 91, 114),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(6),
+    );
+
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[1].triggerBar).toBe(bars[9]);
+    expect(result.attempts[1].reactionRange).toMatchObject({
+      reactionBar: bars[11],
+      extremeBar: bars[10],
+      high: 110,
+      low: 98,
+    });
+    expect(result.attempts[1].reactionRange?.low).not.toBe(101);
+    expect(result.attempts[1].analysisBars[0]).toBe(bars[9]);
   });
 });
 
@@ -994,7 +1215,7 @@ describe('5-minute first reaction range', () => {
       'long',
       [below, exact],
       1,
-      { reactionBodyTicks: 20, entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT },
+      { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, reactionBodyTicks: 20 },
     );
 
     expect(result).toMatchObject({

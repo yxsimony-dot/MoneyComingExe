@@ -242,6 +242,7 @@ export interface MoneyComingTestAPI {
   showEmptyProfitLossReview: () => void;
   selectThresholdComparisonEntry: () => boolean;
   selectPercentageComparisonEntry: () => boolean;
+  selectOppositeComparisonEntry: () => boolean;
 }
 export type WeeklyDirection = 'long' | 'short';
 export interface EntryRulesResult {

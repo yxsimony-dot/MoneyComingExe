@@ -49,7 +49,7 @@
 @media(max-height:780px){.market-update-row{min-height:36px;padding-top:6px}.toolbar{padding-top:8px;padding-bottom:7px}.workspace-meta{margin-bottom:8px}}
 
 .entry-settings-panel{flex:1 0 100%;min-width:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:10px 2px 1px;border-top:1px solid #283443}
-.entry-setting-controls{min-width:0;display:flex;flex:1 1 470px;align-items:center;gap:22px;flex-wrap:wrap}
+.entry-setting-controls{min-width:0;display:flex;flex:1 1 470px;align-items:center;gap:14px 22px;flex-wrap:wrap}
 .entry-setting-control{display:flex;align-items:center;gap:13px;flex:none}
 .entry-setting-label-row{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .entry-setting-label{color:#aebdcd;font-size:11px;white-space:nowrap}
@@ -79,10 +79,12 @@
 
 #reaction-rules-dialog{width:min(660px,calc(100vw - 48px));max-height:88vh;padding:0;overflow:hidden}
 .reaction-rules-content{max-height:calc(88vh - 154px);padding:20px 25px 24px;overflow:auto}
-.reaction-rules-current{padding:15px 16px;border:1px solid #3d4b5d;border-radius:7px;background:#111923}
-.reaction-rules-current>span{display:block;color:#8194aa;font-size:10px}
-.reaction-rules-current>strong{display:block;margin-top:6px;color:#e5c47f;font:19px Consolas,monospace;font-weight:500}
-.reaction-rules-current>p{margin:7px 0 0;color:#9babbc;font-size:11px;line-height:1.7}
+.reaction-rules-current{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;padding:15px 16px;border:1px solid #3d4b5d;border-radius:7px;background:#111923}
+.reaction-rules-current>div{min-width:0}
+.reaction-rules-current>div+div{padding-left:20px;border-left:1px solid #344254}
+.reaction-rules-current span{display:block;color:#8194aa;font-size:10px}
+.reaction-rules-current strong{display:block;margin-top:6px;color:#e5c47f;font:19px Consolas,monospace;font-weight:500}
+.reaction-rules-current>p{grid-column:1/-1;margin:7px 0 0;color:#9babbc;font-size:11px;line-height:1.7}
 .reaction-rules-definitions{display:grid;gap:8px;margin:14px 0 0}
 .reaction-rules-definitions>div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;padding:11px 13px;border-left:2px solid #53687d;background:#151f2b}
 .reaction-rules-definitions dt{color:#d9e3ed;font-size:11px;font-weight:600}
@@ -92,6 +94,9 @@
 .reaction-rules-bands strong,.reaction-rules-bands span{display:block}
 .reaction-rules-bands strong{color:#dbe5ef;font:11px Consolas,"Microsoft YaHei UI",sans-serif;font-weight:550}
 .reaction-rules-bands span{margin-top:6px;color:#899caf;font-size:10px;line-height:1.7}
+.reaction-rules-filter{margin-top:14px;padding:12px 14px;border:1px solid #344354;border-radius:6px;background:#121b26}
+.reaction-rules-filter h3{margin:0;color:#dce5ef;font-size:11px;font-weight:550}
+.reaction-rules-filter ul{display:grid;gap:7px;margin:9px 0 0;padding-left:18px;color:#8fa1b5;font-size:10px;line-height:1.75}
 .reaction-rules-note{margin:14px 0 0;padding:11px 13px;border-left:2px solid #75633f;background:#29261f;color:#b5a98d;font-size:10px;line-height:1.8}
 
 #review-dialog{width:min(920px,calc(100vw - 48px));max-height:88vh;padding:0;overflow:hidden}

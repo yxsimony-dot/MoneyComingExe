@@ -74,8 +74,9 @@ async function setStoredValueAndReload(page, raw) {
 
 async function setTicks(page, ticks) {
   const input = page.getByTestId('reaction-ticks-input');
-  const reviewOpen = await page.locator('#review-dialog').evaluate(element => element.open);
-  if (reviewOpen) {
+  const modalOpen = await page.locator('#review-dialog, #reaction-rules-dialog')
+    .evaluateAll(elements => elements.some(element => element.open));
+  if (modalOpen) {
     await input.evaluate((element, value) => {
       element.value = String(value);
       element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -89,8 +90,9 @@ async function setTicks(page, ticks) {
 
 async function setPercent(page, percent) {
   const input = page.getByTestId('entry-percent-input');
-  const reviewOpen = await page.locator('#review-dialog').evaluate(element => element.open);
-  if (reviewOpen) {
+  const modalOpen = await page.locator('#review-dialog, #reaction-rules-dialog')
+    .evaluateAll(elements => elements.some(element => element.open));
+  if (modalOpen) {
     await input.evaluate((element, value) => {
       element.value = String(value);
       element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -100,6 +102,22 @@ async function setPercent(page, percent) {
   }
   await frame(page);
   assert.equal(await page.locator('html').getAttribute('data-entry-range-percent'), String(percent));
+}
+
+async function setOppositeCount(page, count) {
+  const input = page.getByTestId('opposite-count-input');
+  const modalOpen = await page.locator('#review-dialog, #reaction-rules-dialog')
+    .evaluateAll(elements => elements.some(element => element.open));
+  if (modalOpen) {
+    await input.evaluate((element, value) => {
+      element.value = String(value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, count);
+  } else {
+    await input.fill(String(count));
+  }
+  await frame(page);
+  assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), String(count));
 }
 
 async function dispatchInvalidInput(page, testid, value) {
@@ -180,8 +198,10 @@ const report = {
   offscreen: [],
   persistedTicks: undefined,
   persistedPercent: undefined,
+  persistedOppositeCount: undefined,
   comparisonEventStart: undefined,
   percentageComparisonEventStart: undefined,
+  oppositeComparisonEventStart: undefined,
   entryRulesFallback: undefined,
   passed: false,
 };
@@ -199,8 +219,13 @@ try {
   const percentInput = page.getByTestId('entry-percent-input');
   const percentDecrease = page.getByTestId('entry-percent-decrease');
   const percentIncrease = page.getByTestId('entry-percent-increase');
+  const oppositeInput = page.getByTestId('opposite-count-input');
+  const oppositeDecrease = page.getByTestId('opposite-count-decrease');
+  const oppositeIncrease = page.getByTestId('opposite-count-increase');
   assert.equal(await page.getByTestId('reaction-ticks-label').innerText(), '最小入场K线浮动');
   assert.equal(await input.getAttribute('aria-label'), '最小入场K线浮动');
+  assert.equal(await page.getByTestId('opposite-count-label').innerText(), '连续反向K线数量');
+  assert.equal(await oppositeInput.getAttribute('aria-label'), '连续反向K线数量');
   const reactionRulesInfo = page.getByTestId('reaction-rules-info');
   const reactionRulesDialog = page.getByTestId('reaction-rules-dialog');
   assert.equal(await reactionRulesInfo.getAttribute('title'), '查看5分钟K线识别规则');
@@ -210,22 +235,43 @@ try {
   assert.equal(await reactionRulesInfo.isHidden(), true);
   assert.equal(await html.getAttribute('data-reaction-body-ticks'), '1');
   assert.equal(await html.getAttribute('data-entry-range-percent'), '25');
+  assert.equal(await html.getAttribute('data-opposite-candle-count'), '6');
   assert.equal(await input.inputValue(), '1');
   assert.equal(await percentInput.inputValue(), '25');
-  assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 1, entryRangePercent: 25 });
+  assert.equal(await oppositeInput.inputValue(), '6');
+  assert.deepEqual(await storedSettings(page), {
+    reactionBodyTicks: 1,
+    entryRangePercent: 25,
+    oppositeCandleCount: 6,
+  });
 
   for (const [raw, expected] of [
-    [null, { reactionBodyTicks: 1, entryRangePercent: 25 }],
-    ['{broken-json', { reactionBodyTicks: 1, entryRangePercent: 25 }],
-    [JSON.stringify({ reactionBodyTicks: 0 }), { reactionBodyTicks: 1, entryRangePercent: 25 }],
-    [JSON.stringify({ reactionBodyTicks: 21 }), { reactionBodyTicks: 1, entryRangePercent: 25 }],
-    [JSON.stringify({ reactionBodyTicks: 7 }), { reactionBodyTicks: 7, entryRangePercent: 25 }],
+    [null, { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+    ['{broken-json', { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 0 }),
+      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 21 }),
+      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7 }),
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 12.5 }),
-      { reactionBodyTicks: 7, entryRangePercent: 25 }],
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 101 }),
-      { reactionBodyTicks: 7, entryRangePercent: 25 }],
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
     [JSON.stringify({ reactionBodyTicks: 0, entryRangePercent: 80 }),
-      { reactionBodyTicks: 1, entryRangePercent: 80 }],
+      { reactionBodyTicks: 1, entryRangePercent: 80, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: -1 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 11 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 1.5 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 0 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 0 }],
+    [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 10 }),
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 10 }],
   ]) {
     await setStoredValueAndReload(page, raw);
     assert.equal(
@@ -236,20 +282,39 @@ try {
       await page.locator('html').getAttribute('data-entry-range-percent'),
       String(expected.entryRangePercent),
     );
+    assert.equal(
+      await page.locator('html').getAttribute('data-opposite-candle-count'),
+      String(expected.oppositeCandleCount),
+    );
     assert.deepEqual(await storedSettings(page), expected);
   }
 
-  await setStoredValueAndReload(page, JSON.stringify({ reactionBodyTicks: 1, entryRangePercent: 25 }));
+  await setStoredValueAndReload(page, JSON.stringify({
+    reactionBodyTicks: 1,
+    entryRangePercent: 25,
+    oppositeCandleCount: 6,
+  }));
   await page.getByTestId('toggle-monday').click();
   await setTicks(page, 7);
   await setPercent(page, 37);
-  assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 7, entryRangePercent: 37 });
+  await setOppositeCount(page, 4);
+  assert.deepEqual(await storedSettings(page), {
+    reactionBodyTicks: 7,
+    entryRangePercent: 37,
+    oppositeCandleCount: 4,
+  });
   await reload(page);
   assert.equal(await page.locator('html').getAttribute('data-reaction-body-ticks'), '7');
   assert.equal(await page.locator('html').getAttribute('data-entry-range-percent'), '37');
+  assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), '4');
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
-  assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 7, entryRangePercent: 37 });
+  assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
+  assert.deepEqual(await storedSettings(page), {
+    reactionBodyTicks: 7,
+    entryRangePercent: 37,
+    oppositeCandleCount: 4,
+  });
 
   await app.close();
   running = await launch('strategy-settings-restart');
@@ -257,12 +322,21 @@ try {
   ({ app, page } = running);
   report.persistedTicks = Number(await page.locator('html').getAttribute('data-reaction-body-ticks'));
   report.persistedPercent = Number(await page.locator('html').getAttribute('data-entry-range-percent'));
+  report.persistedOppositeCount = Number(
+    await page.locator('html').getAttribute('data-opposite-candle-count'),
+  );
   assert.equal(report.persistedTicks, 7);
   assert.equal(report.persistedPercent, 37);
+  assert.equal(report.persistedOppositeCount, 4);
   assert.equal(await page.getByTestId('entry-settings-panel').isHidden(), true);
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
-  assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 7, entryRangePercent: 37 });
+  assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
+  assert.deepEqual(await storedSettings(page), {
+    reactionBodyTicks: 7,
+    entryRangePercent: 37,
+    oppositeCandleCount: 4,
+  });
 
   const restartedPanel = page.getByTestId('entry-settings-panel');
   const restartedInput = page.getByTestId('reaction-ticks-input');
@@ -271,6 +345,9 @@ try {
   const restartedPercentInput = page.getByTestId('entry-percent-input');
   const restartedPercentDecrease = page.getByTestId('entry-percent-decrease');
   const restartedPercentIncrease = page.getByTestId('entry-percent-increase');
+  const restartedOppositeInput = page.getByTestId('opposite-count-input');
+  const restartedOppositeDecrease = page.getByTestId('opposite-count-decrease');
+  const restartedOppositeIncrease = page.getByTestId('opposite-count-increase');
   const restartedReactionRulesInfo = page.getByTestId('reaction-rules-info');
   const restartedReactionRulesDialog = page.getByTestId('reaction-rules-dialog');
   const mondayToggle = page.getByTestId('toggle-monday');
@@ -279,6 +356,7 @@ try {
   assert.equal(await restartedReactionRulesInfo.isVisible(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedOppositeInput.inputValue(), '4');
   const reactionRulesButtonBox = await restartedReactionRulesInfo.boundingBox();
   assert.ok(reactionRulesButtonBox);
   assert.ok(reactionRulesButtonBox.width <= 24, JSON.stringify(reactionRulesButtonBox));
@@ -286,6 +364,10 @@ try {
   await restartedReactionRulesInfo.click();
   assert.equal(await restartedReactionRulesDialog.evaluate(element => element.open), true);
   assert.equal(await page.getByTestId('reaction-rules-current-ticks').innerText(), '7 tick');
+  assert.equal(
+    await page.getByTestId('reaction-rules-current-opposite-count').innerText(),
+    '4 根',
+  );
   const initialReactionRulesText = await page.getByTestId('reaction-rules-content').innerText();
   for (const expected of [
     '做多',
@@ -298,8 +380,33 @@ try {
     '实体 × 2 ≤ 方向侧影线 < 实体 × 3',
     '方向侧影线 ≥ 实体 × 3',
     '被跳过的K线仍参与红框风险侧极值计算',
-    '首轮和第二轮分别独立应用',
+    '做多候选向前统计阴线',
+    '做空候选向前统计阳线',
+    '数量达到或超过当前参数时跳过候选',
+    '0表示关闭',
+    '允许越过本轮回调触发K线读取更早历史',
+    '十字星不计数也不中断',
+    '遇到与候选同方向的K线立即中断',
+    '仅用于回看的触发前历史不进入红框',
+    '首轮和第二轮共用当前参数',
   ]) assert.match(initialReactionRulesText, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  const refreshBeforeOpenRulesChange = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setOppositeCount(page, 5);
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeOpenRulesChange,
+  );
+  assert.equal(
+    await page.getByTestId('reaction-rules-current-opposite-count').innerText(),
+    '5 根',
+  );
+  assert.match(
+    await page.getByTestId('reaction-rules-content').innerText(),
+    /当前达到或超过 5 根即过滤该候选/,
+  );
+  await setOppositeCount(page, 4);
   for (const forbidden of ['60分钟', '止盈', '止损', '休市']) {
     assert.doesNotMatch(initialReactionRulesText, new RegExp(forbidden));
   }
@@ -316,6 +423,9 @@ try {
     '正好3倍也必须跳过',
     '第二轮根据自己的最终方向反应K线独立决定使用当前百分比或风险侧边界',
     '不继承首轮的影线分类',
+    '连续反向K线数量',
+    '十字星不计数且不中断',
+    '首轮和第二轮',
   ]) assert.ok(entryRulesText.includes(expected), `完整入场规则缺少：${expected}`);
   const entryRulesMeta = await page.locator('#rules-meta').innerText();
   report.entryRulesFallback = entryRulesMeta.includes('正在显示内置确认版');
@@ -330,10 +440,12 @@ try {
   assert.equal(await restartedReactionRulesInfo.isHidden(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedOppositeInput.inputValue(), '4');
   await mondayToggle.click();
   assert.equal(await restartedPanel.isVisible(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedOppositeInput.inputValue(), '4');
 
   await setTicks(page, 1);
   await restartedReactionRulesInfo.click();
@@ -356,7 +468,11 @@ try {
       refreshBeforeInvalid,
       `Invalid value ${JSON.stringify(invalid)} must not refresh the strategy`,
     );
-    assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 1, entryRangePercent: 37 });
+    assert.deepEqual(await storedSettings(page), {
+      reactionBodyTicks: 1,
+      entryRangePercent: 37,
+      oppositeCandleCount: 4,
+    });
     await restartedInput.blur();
     await frame(page);
     assert.equal(await restartedInput.inputValue(), '1');
@@ -396,7 +512,11 @@ try {
       refreshBeforeInvalidPercent,
       `Invalid percentage ${JSON.stringify(invalid)} must not refresh the strategy`,
     );
-    assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 1, entryRangePercent: 0 });
+    assert.deepEqual(await storedSettings(page), {
+      reactionBodyTicks: 1,
+      entryRangePercent: 0,
+      oppositeCandleCount: 4,
+    });
     await restartedPercentInput.blur();
     await frame(page);
     assert.equal(await restartedPercentInput.inputValue(), '0');
@@ -422,6 +542,50 @@ try {
   assert.equal(await restartedPercentIncrease.isDisabled(), true);
   assert.equal(await restartedPercentDecrease.isDisabled(), false);
   await setPercent(page, 37);
+
+  await setOppositeCount(page, 0);
+  assert.equal(await restartedOppositeDecrease.isDisabled(), true);
+  assert.equal(await restartedOppositeIncrease.isDisabled(), false);
+  const refreshBeforeInvalidOpposite = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  for (const invalid of ['', 'text', '1.5', '-1', '11']) {
+    await dispatchInvalidInput(page, 'opposite-count-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidOpposite,
+      `Invalid opposite count ${JSON.stringify(invalid)} must not refresh the strategy`,
+    );
+    assert.deepEqual(await storedSettings(page), {
+      reactionBodyTicks: 1,
+      entryRangePercent: 37,
+      oppositeCandleCount: 0,
+    });
+    await restartedOppositeInput.blur();
+    await frame(page);
+    assert.equal(await restartedOppositeInput.inputValue(), '0');
+  }
+  for (const invalid of ['', '1.5', '-1', '11']) {
+    await pressInvalidEnter(page, 'opposite-count-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidOpposite,
+      `Invalid opposite count Enter value ${JSON.stringify(invalid)} must not refresh the strategy`,
+    );
+    assert.equal(await restartedOppositeInput.inputValue(), '0');
+  }
+
+  await restartedOppositeIncrease.click();
+  await frame(page);
+  assert.equal(await restartedOppositeInput.inputValue(), '1');
+  await restartedOppositeDecrease.click();
+  await frame(page);
+  assert.equal(await restartedOppositeInput.inputValue(), '0');
+  assert.equal(await restartedOppositeDecrease.isDisabled(), true);
+  await setOppositeCount(page, 10);
+  assert.equal(await restartedOppositeIncrease.isDisabled(), true);
+  assert.equal(await restartedOppositeDecrease.isDisabled(), false);
+  await setOppositeCount(page, 4);
 
   const selected = await page.evaluate(() =>
     window.moneyComingTest?.selectThresholdComparisonEntry() ?? false);
@@ -516,20 +680,95 @@ try {
   await assertReviewMatchesPanel(page, restoredPercentageSummary);
   await page.getByTestId('review-done').click();
 
+  await setTicks(page, 1);
+  await setPercent(page, 25);
+  await setOppositeCount(page, 0);
+  const oppositeSelected = await page.evaluate(() =>
+    window.moneyComingTest?.selectOppositeComparisonEntry() ?? false);
+  assert.equal(
+    oppositeSelected,
+    true,
+    'Expected a historical entry whose lifecycle differs with opposite-candle filtering enabled.',
+  );
+  await frame(page, 6);
+  const oppositeComparisonCount = Number(
+    await page.locator('html').getAttribute('data-opposite-comparison-count'),
+  );
+  assert.ok(
+    Number.isInteger(oppositeComparisonCount)
+      && oppositeComparisonCount >= 1
+      && oppositeComparisonCount <= 10,
+    `Invalid comparison count: ${oppositeComparisonCount}`,
+  );
+  const oppositeSelectedStart = await page.locator('html').getAttribute('data-selected-start');
+  report.oppositeComparisonEventStart = oppositeSelectedStart;
+  assert.ok(oppositeSelectedStart);
+  const oppositeRange60 = await chartRange(page, 60);
+  const oppositeRange5 = await chartRange(page, 5);
+  const oppositeSnapshot0 = await strategySnapshot(page);
+  const oppositeSummary0 = await panelSummary(page);
+  assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), '0');
+
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  await assertReviewMatchesPanel(page, oppositeSummary0);
+
+  const refreshBeforeOppositeEnabled = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setOppositeCount(page, oppositeComparisonCount);
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeOppositeEnabled,
+  );
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), oppositeSelectedStart);
+  assertRangeEqual(
+    await chartRange(page, 60),
+    oppositeRange60,
+    `60-minute viewport after ${oppositeComparisonCount} opposite candles`,
+  );
+  assertRangeEqual(
+    await chartRange(page, 5),
+    oppositeRange5,
+    `5-minute viewport after ${oppositeComparisonCount} opposite candles`,
+  );
+  const oppositeSnapshotEnabled = await strategySnapshot(page);
+  const oppositeSummaryEnabled = await panelSummary(page);
+  assert.notDeepEqual(oppositeSnapshotEnabled, oppositeSnapshot0);
+  assert.notDeepEqual(oppositeSummaryEnabled.raw, oppositeSummary0.raw);
+  await assertReviewMatchesPanel(page, oppositeSummaryEnabled);
+
+  await setOppositeCount(page, 0);
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), oppositeSelectedStart);
+  assertRangeEqual(await chartRange(page, 60), oppositeRange60, '60-minute viewport after restoring 0 opposite candles');
+  assertRangeEqual(await chartRange(page, 5), oppositeRange5, '5-minute viewport after restoring 0 opposite candles');
+  assert.deepEqual(await strategySnapshot(page), oppositeSnapshot0);
+  const restoredOppositeSummary = await panelSummary(page);
+  assert.deepEqual(restoredOppositeSummary.raw, oppositeSummary0.raw);
+  await assertReviewMatchesPanel(page, restoredOppositeSummary);
+  await page.getByTestId('review-done').click();
+
+  await setOppositeCount(page, 4);
   await setPercent(page, 37);
   const instrumentBeforeReload = await page.locator('#instrument').inputValue();
   await page.locator('#instrument').evaluate(element =>
     element.dispatchEvent(new Event('change', { bubbles: true })));
   await page.waitForFunction(
-    ({ instrument, percent }) =>
+    ({ instrument, percent, oppositeCount }) =>
       document.querySelector('#instrument')?.value === instrument
       && document.documentElement.dataset.entryRangePercent === percent
+      && document.documentElement.dataset.oppositeCandleCount === oppositeCount
       && document.documentElement.dataset.ready === 'true',
-    { instrument: instrumentBeforeReload, percent: '37' },
+    { instrument: instrumentBeforeReload, percent: '37', oppositeCount: '4' },
   );
   await frame(page, 5);
   assert.equal(await restartedPercentInput.inputValue(), '37');
-  assert.deepEqual(await storedSettings(page), { reactionBodyTicks: 1, entryRangePercent: 37 });
+  assert.equal(await restartedOppositeInput.inputValue(), '4');
+  assert.deepEqual(await storedSettings(page), {
+    reactionBodyTicks: 1,
+    entryRangePercent: 37,
+    oppositeCandleCount: 4,
+  });
 
   await page.setViewportSize({ width: 1100, height: 720 });
   await page.getByTestId('mode-dual').click();
@@ -568,10 +807,25 @@ try {
       }
     }
     const info = rectangles['#reaction-rules-info'];
-    const stepperRect = document.querySelector('#reaction-ticks-input')?.closest('.entry-setting-stepper')?.getBoundingClientRect();
+    const controlRects = [...document.querySelectorAll('.entry-setting-control')]
+      .map(element => element.getBoundingClientRect());
+    const controlOverlaps = [];
+    for (let leftIndex = 0; leftIndex < controlRects.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < controlRects.length; rightIndex += 1) {
+        const left = controlRects[leftIndex];
+        const right = controlRects[rightIndex];
+        if (left.left < right.right && left.right > right.left
+          && left.top < right.bottom && left.bottom > right.top) {
+          controlOverlaps.push([leftIndex, rightIndex]);
+        }
+      }
+    }
+    const stepperRect = document.querySelector('#reaction-ticks-input')
+      ?.closest('.entry-setting-stepper')?.getBoundingClientRect();
     return {
       rectangles,
       overlaps,
+      controlOverlaps,
       horizontalOverflow: document.body.scrollWidth > innerWidth,
       inputFits: [...document.querySelectorAll('#entry-settings-panel input, #entry-settings-panel button, #entry-settings-panel dd')]
         .every(element => element.scrollWidth <= element.clientWidth),
@@ -582,6 +836,7 @@ try {
     };
   });
   assert.deepEqual(layout.overlaps, [], JSON.stringify(layout));
+  assert.deepEqual(layout.controlOverlaps, [], JSON.stringify(layout));
   assert.equal(layout.horizontalOverflow, false, JSON.stringify(layout));
   assert.equal(layout.inputFits, true, JSON.stringify(layout));
   assert.equal(layout.infoCompact, true, JSON.stringify(layout));
