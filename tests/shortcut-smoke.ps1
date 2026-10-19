@@ -57,6 +57,31 @@ function Assert-RectangleOutsideDisplays {
     }
 }
 
+function Get-CanonicalExistingPath {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path
+    )
+    $item = Get-Item -LiteralPath $Path -Force
+    $canonicalPath = $item.FullName
+    if ($item.PSIsContainer) {
+        $root = [System.IO.Path]::GetPathRoot($canonicalPath)
+        if ($canonicalPath.Length -gt $root.Length) {
+            $canonicalPath = $canonicalPath.TrimEnd('\')
+        }
+    }
+    return $canonicalPath
+}
+
+function Test-SameExistingPath {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Left,
+        [Parameter(Mandatory = $true)] [string] $Right
+    )
+    $canonicalLeft = Get-CanonicalExistingPath -Path $Left
+    $canonicalRight = Get-CanonicalExistingPath -Path $Right
+    return [StringComparer]::OrdinalIgnoreCase.Equals($canonicalLeft, $canonicalRight)
+}
+
 $displayBounds = @(
     [System.Windows.Forms.Screen]::AllScreens | ForEach-Object {
         [pscustomobject]@{
@@ -73,6 +98,9 @@ $report = [ordered]@{
     target = $executable
     workingDirectory = $launchCwd
     arguments = $testArguments
+    savedTarget = $null
+    savedWorkingDirectory = $null
+    savedArguments = $null
     actualShortcutLaunch = $false
     processId = $null
     windowTitle = $null
@@ -93,8 +121,11 @@ try {
     $shortcut.Description = 'MoneyComing portable acceptance test'
     $shortcut.Save()
     $saved = $wsh.CreateShortcut($shortcutPath)
-    if ($saved.TargetPath -ne $executable -or
-        $saved.WorkingDirectory.TrimEnd('\') -ne $launchCwd -or
+    $report.savedTarget = $saved.TargetPath
+    $report.savedWorkingDirectory = $saved.WorkingDirectory
+    $report.savedArguments = $saved.Arguments
+    if (-not (Test-SameExistingPath -Left $saved.TargetPath -Right $executable) -or
+        -not (Test-SameExistingPath -Left $saved.WorkingDirectory -Right $launchCwd) -or
         $saved.Arguments -ne $testArguments) {
         throw 'Saved shortcut target, working directory, or arguments differ from requested values.'
     }
@@ -111,7 +142,9 @@ try {
     } while ([DateTime]::UtcNow -lt $deadline)
     $report.windowTitle = $launched.MainWindowTitle
     if ($report.windowTitle -notmatch 'MoneyComing') { throw 'Expected MoneyComing application window did not appear.' }
-    if ($launched.Path -ne $executable) { throw 'Launched process does not belong to the tested portable executable.' }
+    if (-not (Test-SameExistingPath -Left $launched.Path -Right $executable)) {
+        throw 'Launched process does not belong to the tested portable executable.'
+    }
     if ($launched.MainWindowHandle -eq [IntPtr]::Zero) { throw 'Expected MoneyComing main window handle is unavailable.' }
     $nativeBounds = New-Object MoneyComingWindowRect
     if (-not [MoneyComingNativeWindow]::GetWindowRect($launched.MainWindowHandle, [ref] $nativeBounds)) {
