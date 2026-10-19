@@ -43,7 +43,7 @@ const offscreenScenarios = [];
     assert.equal(await page.getByTestId('update-dialog').isVisible(), true);
     assert.equal(await page.locator('#update-current').innerText(), `v${currentVersion}`);
     assert.equal(await page.locator('#update-target').innerText(), `v${targetVersion}`);
-    assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+    assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
 
     await page.locator('#update-later').click();
     assert.equal(await page.getByTestId('update-dialog').isHidden(), true);
@@ -110,7 +110,7 @@ const offscreenScenarios = [];
   try {
     await page.locator('html[data-update-phase="failed"]').waitFor();
     assert.equal(await page.getByTestId('update-dialog').isHidden(), true);
-    assert.match(await page.locator('#counts').innerText(), /16,530.*1,438/);
+    assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
     await page.getByTestId('update-entry').click();
     assert.equal(await page.getByTestId('update-dialog').isVisible(), true);
     assert.match(await page.locator('#update-error').innerText(), /更新源不可用/);

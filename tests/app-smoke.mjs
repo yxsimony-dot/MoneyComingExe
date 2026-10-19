@@ -254,7 +254,7 @@ try {
   await jump('2026-02-07');
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2026-02-09T09:00:00+08:00')));
   await jump('2030-01-01');
-  assert.equal(await page.locator('html').getAttribute('data-child-count'), '9');
+  assert.equal(await page.locator('html').getAttribute('data-child-count'), '12');
   await page.getByTestId('latest').click();
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), null);
   // Locate real candles through the visible crosshair, not a test-only chart API.
