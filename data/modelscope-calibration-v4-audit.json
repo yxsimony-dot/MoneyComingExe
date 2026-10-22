@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "purpose": "modelscope-tick-to-five-minute-calibration-v4-audit",
+  "verifiedAt": "2026-10-20T15:00:36.3654522Z",
+  "source": {
+    "repositoryId": "ylzmota1/chinese-commodity",
+    "commit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+    "requestedRange": {
+      "firstTradingDate": "2025-10-09",
+      "lastTradingDate": "2025-11-07"
+    },
+    "v3Summary": "D:\\MoneyComing-temp\\modelscope-candidates-v3-audit\\technical-validation-summary.json",
+    "v4Summary": "D:\\MoneyComing-temp\\modelscope-candidates\\technical-validation-summary.json"
+  },
+  "implementation": {
+    "dailyCacheSchemaVersion": 4,
+    "aggregationVersion": "edb-minute-boundary-v4",
+    "importerVersion": "modelscope-temporary-candidate-v4",
+    "updateMillisecValidation": {
+      "integerRequired": true,
+      "minimum": 0,
+      "maximum": 999
+    },
+    "shfeExactMinuteRule": {
+      "exchange": "SHFE",
+      "condition": "second === 0 && UpdateMillisec === 0",
+      "ordinaryMinuteBoundaryShiftMs": -1,
+      "sessionOpenTimesExcluded": [
+        "21:00",
+        "09:00",
+        "10:30",
+        "13:30"
+      ]
+    }
+  },
+  "cacheAudit": {
+    "instrumentCount": 15,
+    "tradingDatesPerInstrument": 22,
+    "recordCount": 330,
+    "invalidOrOldVersionRecords": 0
+  },
+  "calibrationComparison": {
+    "comparedBars": 15603,
+    "v3MismatchRows": 3861,
+    "v4MismatchRows": 2360,
+    "reducedMismatchRows": 1501,
+    "reductionPercent": 38.88,
+    "instruments": [
+      {
+        "instrumentId": "main_continuous",
+        "v3MismatchRows": 96,
+        "v4MismatchRows": 96,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "rapeseed_meal_main",
+        "v3MismatchRows": 210,
+        "v4MismatchRows": 210,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "pvc_main",
+        "v3MismatchRows": 64,
+        "v4MismatchRows": 64,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "rebar_main",
+        "v3MismatchRows": 939,
+        "v4MismatchRows": 42,
+        "reducedMismatchRows": 897,
+        "reductionPercent": 95.53
+      },
+      {
+        "instrumentId": "glass_main",
+        "v3MismatchRows": 360,
+        "v4MismatchRows": 360,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "rapeseed_oil_main",
+        "v3MismatchRows": 335,
+        "v4MismatchRows": 335,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "palm_oil_main",
+        "v3MismatchRows": 83,
+        "v4MismatchRows": 83,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "soybean_oil_main",
+        "v3MismatchRows": 52,
+        "v4MismatchRows": 52,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "pulp_main",
+        "v3MismatchRows": 631,
+        "v4MismatchRows": 27,
+        "reducedMismatchRows": 604,
+        "reductionPercent": 95.72
+      },
+      {
+        "instrumentId": "corn_main",
+        "v3MismatchRows": 45,
+        "v4MismatchRows": 45,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "soda_ash_main",
+        "v3MismatchRows": 332,
+        "v4MismatchRows": 332,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "soybean_1_main",
+        "v3MismatchRows": 59,
+        "v4MismatchRows": 59,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "methanol_main",
+        "v3MismatchRows": 340,
+        "v4MismatchRows": 340,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "sugar_main",
+        "v3MismatchRows": 248,
+        "v4MismatchRows": 248,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      },
+      {
+        "instrumentId": "soybean_2_main",
+        "v3MismatchRows": 67,
+        "v4MismatchRows": 67,
+        "reducedMismatchRows": 0,
+        "reductionPercent": 0
+      }
+    ],
+    "nonShfeRegressionDetected": false,
+    "allTechnicalCandidatesPassed": false
+  },
+  "verification": {
+    "targetedTests": {
+      "testFilesPassed": 2,
+      "testsPassed": 24
+    },
+    "fullTestSuite": {
+      "testFilesPassed": 39,
+      "testsPassed": 542
+    },
+    "typecheckPassed": true,
+    "gitDiffCheckPassed": true
+  },
+  "releaseDecision": {
+    "technicalCandidateOnly": true,
+    "redistributionPermissionConfirmed": false,
+    "baselineReplacementAllowed": false,
+    "releaseEligible": false,
+    "reason": "The SHFE boundary correction materially improves calibration, but all 15 instruments still fail strict zero-tolerance calibration and the upstream market-data redistribution authority remains undocumented."
+  }
+}

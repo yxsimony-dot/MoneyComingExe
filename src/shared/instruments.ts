@@ -382,9 +382,11 @@ export function isConcreteContractCode(
   definition: InstrumentDefinition,
   contract: string,
 ): boolean {
-  const expiryLength = definition.contractCode.expiryDigits;
+  const expiryPattern = definition.exchange === 'CZCE'
+    ? '\\d{3,4}'
+    : `\\d{${definition.contractCode.expiryDigits}}`;
   const match = new RegExp(
-    `^${escapedRegExp(definition.productCode)}(\\d{${expiryLength}})$`,
+    `^${escapedRegExp(definition.productCode)}(${expiryPattern})$`,
   ).exec(contract);
   if (!match) return false;
   const month = Number(match[1].slice(-2));

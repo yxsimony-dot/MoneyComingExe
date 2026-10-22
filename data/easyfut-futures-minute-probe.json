@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "purpose": "easyfut-tianqin-hosted-minute-api-probe",
+  "reviewedOn": "2026-10-19",
+  "source": {
+    "skillRepository": {
+      "url": "https://github.com/PPsteven/skills",
+      "commit": "84bb9443544cbbf7a6b57f0f907982569bca227c",
+      "path": "tianqin-data/",
+      "repositoryLicenseFound": false
+    },
+    "clientRepository": {
+      "url": "https://github.com/hanwanhe/easyfut-python",
+      "license": "Apache-2.0",
+      "licenseAppliesToHostedMarketData": false
+    },
+    "hostedService": {
+      "baseUrl": "http://47.115.228.20:8888",
+      "pathTemplate": "/klines/{symbol}_{durationSeconds}_{length}",
+      "transportEncrypted": false,
+      "documentedMaximumLength": 8000,
+      "operatorIdentityConfirmed": false,
+      "upstreamMarketDataProvenanceDocumented": false,
+      "hostedDataTermsFound": false
+    }
+  },
+  "requestPlan": {
+    "instrumentCount": 15,
+    "intervalSeconds": 300,
+    "requestedContractCount": 30,
+    "requestedLength": 8000,
+    "contractsPerInstrument": [
+      "2025-09",
+      "2026-01"
+    ]
+  },
+  "responseSchema": {
+    "observedFields": [
+      "datetime",
+      "id",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "open_oi",
+      "close_oi",
+      "symbol",
+      "duration"
+    ],
+    "timezone": "Asia/Shanghai"
+  },
+  "successfulSamples": [
+    {
+      "symbol": "DCE.m2509",
+      "intervalSeconds": 300,
+      "requestedLength": 8000,
+      "httpStatus": 200,
+      "rowCount": 8000,
+      "firstTimestamp": "2025-03-26 21:05:00",
+      "lastTimestamp": "2025-09-12 14:55:00",
+      "targetGapRowCount": 3702,
+      "targetGapFirstTimestamp": "2025-07-01 09:00:00",
+      "targetGapLastTimestamp": "2025-09-12 14:55:00"
+    },
+    {
+      "symbol": "DCE.m2601",
+      "intervalSeconds": 300,
+      "requestedLength": 8000,
+      "httpStatus": 200,
+      "rowCount": 8000,
+      "firstTimestamp": "2025-07-28 09:05:00",
+      "lastTimestamp": "2026-01-16 14:55:00",
+      "targetGapRowCount": 3701,
+      "targetGapFirstTimestamp": "2025-07-28 09:05:00",
+      "targetGapLastTimestamp": "2025-10-17 22:55:00"
+    },
+    {
+      "symbol": "DCE.c2601",
+      "intervalSeconds": 300,
+      "requestedLength": 8000,
+      "httpStatus": 200,
+      "rowCount": 8000,
+      "targetGapFirstTimestamp": "2025-07-28 09:05:00",
+      "targetGapLastTimestamp": "2025-10-17 22:55:00"
+    },
+    {
+      "symbol": "DCE.p2601",
+      "intervalSeconds": 300,
+      "requestedLength": 8000,
+      "httpStatus": 200,
+      "rowCount": 8000,
+      "targetGapFirstTimestamp": "2025-07-28 09:05:00",
+      "targetGapLastTimestamp": "2025-10-17 22:55:00"
+    }
+  ],
+  "batchResult": {
+    "requestedContractCount": 30,
+    "successfulContractCount": 4,
+    "serverTimeoutCount": 26,
+    "successRate": 0.13333333333333333,
+    "concurrentLoadMayHaveContributed": true
+  },
+  "sequentialRetry": {
+    "reviewedOn": "2026-10-19",
+    "requestedLength": 10,
+    "timeoutMs": 30000,
+    "requestDelayMs": 1500,
+    "successfulContractCount": 0,
+    "results": [
+      {
+        "symbol": "DCE.m2601",
+        "status": "client-timeout"
+      },
+      {
+        "symbol": "CZCE.RM601",
+        "status": "client-timeout"
+      },
+      {
+        "symbol": "CZCE.RM2601",
+        "status": "client-timeout"
+      },
+      {
+        "symbol": "SHFE.rb2601",
+        "status": "fetch-failed"
+      },
+      {
+        "symbol": "DCE.v2601",
+        "status": "fetch-failed"
+      }
+    ],
+    "conclusion": "即使只请求 10 根 K 线并串行访问，服务仍不稳定，当前不能据此确认其余品种不受支持。"
+  },
+  "coverage": {
+    "soybeanMeal": {
+      "targetGapFirstDate": "2025-07-01",
+      "targetGapLastDate": "2025-10-08",
+      "sampleContracts": [
+        "DCE.m2509",
+        "DCE.m2601"
+      ],
+      "combinedCalendarSpanCoversTargetGap": true,
+      "tradingSessionCompletenessConfirmed": false,
+      "mainContractMappingConfirmed": false
+    },
+    "sampleSuccessfulInstrumentCount": 3,
+    "allTargetInstrumentCoverageConfirmed": false,
+    "targetGapCoverageConfirmed": false,
+    "threeYearFiveMinuteCoverageConfirmed": false,
+    "threeYearSixtyMinuteCoverageConfirmed": false
+  },
+  "rights": {
+    "clientCodeLicenseConfirmed": true,
+    "hostedMarketDataRedistributionPermissionConfirmed": false,
+    "gitStorageAllowed": false,
+    "packagedApplicationRedistributionAllowed": false,
+    "derivedBarsRedistributionAllowed": false,
+    "commercialUseAllowed": false,
+    "reason": "Apache-2.0 只覆盖 EasyFut 客户端代码；托管接口没有可核验的运营方身份、上游行情来源、服务条款或允许随商业 EXE 再分发的书面授权。"
+  },
+  "retention": {
+    "rawResponsesPersisted": false,
+    "rawRowsPersisted": false,
+    "summaryOnly": true
+  },
+  "releaseDecision": {
+    "redistributionPermissionConfirmed": false,
+    "releasableGapSourceFound": false,
+    "baselineReplacementAllowed": false,
+    "task4_2MayBeMarkedComplete": false,
+    "releaseEligibility": "blocked-unstable-partial-access-and-data-rights-unconfirmed",
+    "note": "豆粕两个合约样本在日历范围上覆盖目标缺口，但未验证逐交易时段完整性、主力映射、全部十五个品种或托管行情再分发权。"
+  }
+}

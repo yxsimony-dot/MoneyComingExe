@@ -286,10 +286,18 @@ export function locateRolloverBar(
   period: Period,
 ): Bar | undefined {
   const index = lowerBoundStart(bars, rollover.timeMs);
-  const bar = bars[index];
-  if (!bar) return undefined;
-  if (period === 5 && bar.startMs !== rollover.timeMs) return undefined;
-  return bar;
+  const next = bars[index];
+  if (period === 5) {
+    return next?.startMs === rollover.timeMs ? next : undefined;
+  }
+  if (next?.startMs === rollover.timeMs) return next;
+  const previous = index > 0 ? bars[index - 1] : undefined;
+  if (previous
+    && previous.startMs <= rollover.timeMs
+    && rollover.timeMs < previous.endMs) {
+    return previous;
+  }
+  return next;
 }
 
 export function detectContractRollovers(

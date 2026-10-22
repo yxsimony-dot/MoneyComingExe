@@ -3,6 +3,45 @@ import { analyzeWeeklyRange } from './weekly-range';
 
 const BEIJING_OFFSET = 8 * 60 * 60 * 1000;
 
+export interface BeijingDateRange {
+  startDate: string;
+  endDate: string;
+}
+
+export function isBeijingDate(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
+export function beijingDateKey(ms: number): string {
+  if (!Number.isFinite(ms)) throw new Error('无效时间戳');
+  return formatBeijing(ms).slice(0, 10);
+}
+
+export function validateBeijingDateRange(range: BeijingDateRange): BeijingDateRange {
+  if (!isBeijingDate(range?.startDate) || !isBeijingDate(range?.endDate)) {
+    throw new RangeError('复盘日期必须使用有效的 YYYY-MM-DD 北京时间日期。');
+  }
+  if (range.startDate > range.endDate) {
+    throw new RangeError('开始日期不能晚于结束日期');
+  }
+  return range;
+}
+
+export function isBeijingDateInRange(ms: number, range: BeijingDateRange): boolean {
+  validateBeijingDateRange(range);
+  const date = beijingDateKey(ms);
+  return date >= range.startDate && date <= range.endDate;
+}
+
 /** Interpret source timestamps explicitly; never consult the machine's local timezone. */
 export function parseBeijing(text: string): number {
   const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\+08:00)?$/.exec(text);

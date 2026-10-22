@@ -48,6 +48,41 @@
 @media(max-width:1200px){.market-update-copy{gap:8px}.market-update-row{gap:10px}#market-update-status{max-width:430px}#market-update-meta{flex:1}.market-update-button{width:110px}}
 @media(max-height:780px){.market-update-row{min-height:36px;padding-top:6px}.toolbar{padding-top:8px;padding-bottom:7px}.workspace-meta{margin-bottom:8px}}
 
+.offline[data-tone="neutral"]{color:#8e9cad}.offline[data-tone="neutral"] i{background:#718196}
+.offline[data-tone="working"]{color:#dfbd82}.offline[data-tone="working"] i{background:#d6a95f;box-shadow:0 0 0 4px #d6a95f14}
+.offline[data-tone="success"]{color:#91cbb7}.offline[data-tone="success"] i{background:#66bca2;box-shadow:0 0 0 4px #66bca214}
+.offline[data-tone="warning"]{color:#e1b070}.offline[data-tone="warning"] i{background:#d99a4f;box-shadow:0 0 0 4px #d99a4f14}
+.offline[data-tone="danger"]{color:#ef9da6}.offline[data-tone="danger"] i{background:#dc6672;box-shadow:0 0 0 4px #dc667214}
+.online-market-control{min-width:300px;flex:0 1 430px;display:flex;align-items:center;gap:14px;padding-right:18px;border-right:1px solid #2c3949}
+.online-market-switch{position:relative;display:flex;align-items:center;gap:8px;flex:none;cursor:pointer;color:#a9b7c6;font-size:10px;white-space:nowrap}
+.online-market-switch input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.online-market-track{width:34px;height:18px;padding:2px;display:flex;align-items:center;border:1px solid #465568;border-radius:9px;background:#111923;transition:background .16s ease,border-color .16s ease}
+.online-market-track span{width:12px;height:12px;border-radius:50%;background:#7e8d9f;transition:transform .16s ease,background .16s ease}
+.online-market-switch input:checked+.online-market-track{border-color:#5b8e7b;background:#1d3b33}
+.online-market-switch input:checked+.online-market-track span{transform:translateX(16px);background:#83d3b6}
+.online-market-switch input:focus-visible+.online-market-track{outline:2px solid var(--amber);outline-offset:3px}
+.online-market-switch input:disabled~.online-market-track,.online-market-switch input:disabled~.online-market-label{cursor:wait;opacity:.55}
+.online-market-copy{min-width:0;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+#online-market-status{overflow:hidden;color:#b9c5d3;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+#online-market-meta{overflow:hidden;color:#657b92;font-size:9px;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
+.online-market-control[data-tone="working"] #online-market-status{color:#dfbd82}
+.online-market-control[data-tone="success"] #online-market-status{color:#91cbb7}
+.online-market-control[data-tone="warning"] #online-market-status{color:#e1b070}
+.online-market-control[data-tone="danger"] #online-market-status{color:#ef9da6}
+.market-update-manual{min-width:0;flex:1 1 520px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.market-update-manual .market-update-copy{flex:1}
+@media(max-width:1200px){
+  .online-market-control{min-width:280px;flex-basis:340px;gap:10px;padding-right:12px}
+  .market-update-manual{flex-basis:500px;gap:8px}
+  #online-market-meta{max-width:210px}
+  #market-update-status{max-width:260px}
+}
+@media(max-height:780px){
+  .online-market-control{gap:9px}
+  .online-market-copy{gap:1px}
+  .market-update-manual{gap:8px}
+}
+
 .entry-settings-panel{flex:1 0 100%;min-width:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:10px 2px 1px;border-top:1px solid #283443}
 .entry-setting-controls{min-width:0;display:flex;flex:1 1 470px;align-items:center;gap:14px 22px;flex-wrap:wrap}
 .entry-setting-control{display:flex;align-items:center;gap:13px;flex:none}
@@ -64,11 +99,25 @@
 .entry-setting-stepper input{width:42px;height:30px;padding:0;border:0;background:transparent;color:#e6edf5;text-align:right;font:13px Consolas,monospace;-moz-appearance:textfield}
 .entry-setting-stepper input::-webkit-inner-spin-button,.entry-setting-stepper input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .entry-setting-stepper input[aria-invalid="true"]{color:#ef929c}
+.entry-setting-select-control select{width:138px;height:34px;padding:0 30px 0 11px;border:1px solid #3a485a;border-radius:6px;background:#101822;color:#e6edf5;font:11px "Microsoft YaHei UI",sans-serif;white-space:nowrap}
+.entry-setting-select-control select:hover{border-color:#596b80;background:#15202c}
+.entry-setting-select-control select:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.entry-review-date-control{position:relative;align-items:flex-start}
+.entry-review-date-control>.entry-setting-label{padding-top:10px}
+.entry-review-date-fields{height:34px;display:flex;align-items:center;gap:7px}
+.entry-review-date-fields>label{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid #3a485a;border-radius:6px;background:#101822;color:#778ba2;font-size:9px}
+.entry-review-date-fields input{width:112px;height:30px;padding:0;border:0;background:transparent;color:#e6edf5;font:11px Consolas,monospace}
+.entry-review-date-fields input::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
+.entry-review-date-fields input[aria-invalid="true"]{color:#ef929c}
+.entry-review-date-fields>i{color:#667990;font-size:9px;font-style:normal}
+.entry-review-date-error{position:absolute;top:37px;left:69px;color:#ef929c;font-size:9px;white-space:nowrap}
 .entry-settings-summary{min-width:360px;display:grid;grid-template-columns:repeat(3,minmax(105px,1fr));align-items:center;gap:0;margin:0;flex:1 1 390px}
 .entry-settings-summary>div{min-width:0;padding:0 15px;border-left:1px solid #2f3b4b}
 .entry-settings-summary dt{color:#71849a;font-size:9px;white-space:nowrap}
 .entry-settings-summary dd{margin:5px 0 0;overflow:hidden;color:#dce5ef;font:12px Consolas,"Microsoft YaHei UI",sans-serif;text-overflow:ellipsis;white-space:nowrap}
 .entry-settings-summary>div:first-child dd{color:#e6c78d}
+.entry-settings-summary>.entry-settings-range{grid-column:1/-1;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #293646}
+.entry-settings-summary>.entry-settings-range dd{margin-top:3px;color:#9fb0c3;font-size:10px}
 @media(max-width:1200px){
   .entry-settings-panel{gap:14px}
   .entry-setting-controls{gap:10px 16px}
@@ -101,6 +150,7 @@
 
 #review-dialog{width:min(920px,calc(100vw - 48px));max-height:88vh;padding:0;overflow:hidden}
 #review-dialog .dialog-heading,#review-dialog .dialog-bottom{flex:none}
+.review-date-range{display:block;margin-top:6px;color:#8fa2b8;font:10px Consolas,"Microsoft YaHei UI",sans-serif}
 .review-content{max-height:calc(88vh - 154px);overflow:auto;padding:20px 25px 24px}
 .review-summary{border:1px solid #39485a;background:#111a25;border-radius:8px;padding:17px 18px}
 .review-summary-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:20px}

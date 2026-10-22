@@ -17,7 +17,111 @@ const userData = process.env.MONEYCOMING_TEST_USER_DATA
 const executable = process.env.MONEYCOMING_EXE
   ? resolve(process.env.MONEYCOMING_EXE)
   : undefined;
+const legacyUpdateExpectations =
+  process.env.MONEYCOMING_TEST_LEGACY_UPDATE_EXPECTATIONS === '1';
 const fixturePath = join(sandbox, 'edb-fixture.csv');
+const MINUTE_MS = 60_000;
+const SEGMENTED_SCHEDULE = [
+  {
+    session: 'day',
+    segments: [
+      [9 * 60, 10 * 60 + 15],
+      [10 * 60 + 30, 11 * 60 + 30],
+      [13 * 60 + 30, 15 * 60],
+    ],
+  },
+  {
+    session: 'night',
+    segments: [
+      [21 * 60, 23 * 60],
+    ],
+  },
+];
+
+function parseBarRows(text, label) {
+  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const header = lines.shift()?.split(',');
+  assert.ok(header?.length, `${label} 缺少表头`);
+  const indexes = Object.fromEntries(header.map((name, index) => [name, index]));
+  for (const field of [
+    'bar_start',
+    'bar_end',
+    'session',
+    'observed_minutes',
+    'expected_minutes',
+    'complete',
+  ]) {
+    assert.ok(Number.isInteger(indexes[field]), `${label} 缺少 ${field}`);
+  }
+  return lines.filter(Boolean).map((line, rowIndex) => {
+    const fields = line.split(',');
+    assert.equal(fields.length, header.length, `${label} 第 ${rowIndex + 2} 行列数无效`);
+    return {
+      start: fields[indexes.bar_start],
+      end: fields[indexes.bar_end],
+      session: fields[indexes.session],
+      observedMinutes: Number(fields[indexes.observed_minutes]),
+      expectedMinutes: Number(fields[indexes.expected_minutes]),
+      complete: fields[indexes.complete].toLowerCase() === 'true',
+    };
+  });
+}
+
+function beijingMs(value) {
+  const parsed = Date.parse(`${value.replace(' ', 'T')}+08:00`);
+  assert.ok(Number.isFinite(parsed), `北京时间无效：${value}`);
+  return parsed;
+}
+
+function segmentedSixtyMinuteStarts(fiveMinuteRows) {
+  const groups = new Map();
+  for (const bar of fiveMinuteRows) {
+    const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):00$/.exec(bar.start);
+    assert.ok(match, `5 分钟开始时间无效：${bar.start}`);
+    const wallMinute = Number(match[2]) * 60 + Number(match[3]);
+    const schedule = SEGMENTED_SCHEDULE.find(candidate => candidate.session === bar.session);
+    assert.ok(schedule, `5 分钟交易时段无效：${bar.session}`);
+    const segmentIndex = schedule.segments.findIndex(
+      ([startMinute, endMinute]) => wallMinute >= startMinute && wallMinute < endMinute,
+    );
+    assert.ok(segmentIndex >= 0, `5 分钟不在交易分段内：${bar.start}`);
+    const [segmentStart, segmentEnd] = schedule.segments[segmentIndex];
+    const segmentOffset = wallMinute - segmentStart;
+    const bucket = Math.floor(segmentOffset / 60);
+    const bucketStartOffset = bucket * 60;
+    const bucketEndOffset = Math.min(bucketStartOffset + 60, segmentEnd - segmentStart);
+    assert.equal((bucketEndOffset - bucketStartOffset) % 5, 0);
+    const startMs = beijingMs(`${match[1]} 00:00:00`)
+      + (segmentStart + bucketStartOffset) * MINUTE_MS;
+    const key = `${match[1]}|${bar.session}|${segmentIndex}|${bucket}`;
+    const group = groups.get(key) ?? {
+      startMs,
+      endMs: beijingMs(`${match[1]} 00:00:00`)
+        + (segmentStart + bucketEndOffset) * MINUTE_MS,
+      bars: [],
+    };
+    group.bars.push(bar);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()]
+    .filter(group => {
+      const bars = group.bars.sort(
+        (left, right) => beijingMs(left.start) - beijingMs(right.start),
+      );
+      const expectedChildren = (group.endMs - group.startMs) / (5 * MINUTE_MS);
+      return bars.length === expectedChildren
+        && bars.every((bar, index) => (
+          beijingMs(bar.start) === group.startMs + index * 5 * MINUTE_MS
+          && beijingMs(bar.end) === group.startMs + (index + 1) * 5 * MINUTE_MS
+          && bar.observedMinutes === 5
+          && bar.expectedMinutes === 5
+          && bar.complete
+        ));
+    })
+    .map(group => group.startMs)
+    .sort((left, right) => left - right);
+}
 
 async function resolveBaselineDirectory() {
   const configured = process.env.MONEYCOMING_TEST_BUILTIN_DATA
@@ -55,13 +159,32 @@ const metadata = JSON.parse(
 );
 const initialBars5 = metadata.files?.bars5?.rows;
 const initialBars60 = metadata.files?.bars60?.rows;
+const initialBars1 = metadata.files?.bars1?.rows;
 const rawMinuteName = metadata.files?.bars1?.name;
+const fiveMinuteName = metadata.files?.bars5?.name;
+const sixtyMinuteName = metadata.files?.bars60?.name;
+assert.equal(metadata.schemaVersion, 4);
 assert.ok(Number.isSafeInteger(initialBars5) && initialBars5 > 0);
 assert.ok(Number.isSafeInteger(initialBars60) && initialBars60 > 0);
+assert.ok(Number.isSafeInteger(initialBars1) && initialBars1 > 0);
 assert.equal(typeof rawMinuteName, 'string');
+assert.equal(typeof fiveMinuteName, 'string');
+assert.equal(typeof sixtyMinuteName, 'string');
 assert.match(metadata.sourceLatestAt, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 
 const source = await readFile(join(baselineDirectory, rawMinuteName), 'utf8');
+const baselineFiveMinuteRows = parseBarRows(
+  await readFile(join(baselineDirectory, fiveMinuteName), 'utf8'),
+  '基线 5 分钟 CSV',
+);
+const legacySixtyMinuteRows = parseBarRows(
+  await readFile(join(baselineDirectory, sixtyMinuteName), 'utf8'),
+  '基线 60 分钟 CSV',
+);
+assert.equal(baselineFiveMinuteRows.length, initialBars5);
+assert.equal(legacySixtyMinuteRows.length, initialBars60);
+const canonicalBaselineSixtyStarts = segmentedSixtyMinuteStarts(baselineFiveMinuteRows);
+assert.ok(canonicalBaselineSixtyStarts.length > initialBars60);
 const [header, ...sourceRows] = source.trim().split(/\r?\n/);
 const finalSourceFields = sourceRows.at(-1)?.split(',');
 assert.equal(finalSourceFields?.length, 8);
@@ -97,8 +220,21 @@ const syntheticDate = nextWeekday(metadata.sourceLatestAt);
 const syntheticStartMs = Date.parse(`${syntheticDate}T09:00:00+08:00`);
 const syntheticLatest = `${syntheticDate} 10:00`;
 const syntheticBase = Math.ceil(finalSourceClose) + 10;
+const expectedBars1 = initialBars1 + 60;
 const expectedBars5 = initialBars5 + 12;
-const expectedBars60 = initialBars60 + 1;
+const syntheticSixtyStartMs = beijingMs(`${syntheticDate} 09:00:00`);
+const expectedSixtyStarts = [...canonicalBaselineSixtyStarts, syntheticSixtyStartMs];
+const legacySixtyStarts = new Set(
+  legacySixtyMinuteRows.map(bar => beijingMs(bar.start)),
+);
+const expectedAdded60 = legacyUpdateExpectations
+  ? 1
+  : expectedSixtyStarts.filter(
+    startMs => !legacySixtyStarts.has(startMs),
+  ).length;
+const expectedBars60 = legacyUpdateExpectations
+  ? initialBars60 + expectedAdded60
+  : expectedSixtyStarts.length;
 const expectedFinalClose = syntheticBase + 6;
 const syntheticRows = Array.from({ length: 60 }, (_, index) => {
   const startMs = syntheticStartMs + index * 60_000;
@@ -250,7 +386,10 @@ try {
         await page.locator('#counts').innerText(),
         countPattern(expectedBars5, expectedBars60),
       );
-      assert.match(await page.locator('#market-update-status').innerText(), /5 分钟 \+12.*60 分钟 \+1/);
+      assert.match(
+        await page.locator('#market-update-status').innerText(),
+        new RegExp(`5 分钟 \\+12.*60 分钟 \\+${expectedAdded60}`),
+      );
       assert.ok((await page.locator('#market-update-status').innerText()).includes(syntheticLatest));
       assert.ok((await page.locator('#coverage').innerText()).includes(syntheticLatest));
       assert.ok((await page.locator('#last-time').innerText()).includes(syntheticLatest));
@@ -267,6 +406,32 @@ try {
         60: await rolloverDiagnostics(page, 60),
       };
       assert.deepEqual(updatedRollovers[60], updatedRollovers[5]);
+      const snapshotRoot = join(
+        userData,
+        'market-data',
+        'instruments',
+        'main_continuous',
+      );
+      const pointer = JSON.parse(
+        await readFile(join(snapshotRoot, 'current.json'), 'utf8'),
+      );
+      assert.equal(typeof pointer.snapshotId, 'string');
+      const snapshotMetadata = JSON.parse(
+        await readFile(
+          join(snapshotRoot, 'snapshots', pointer.snapshotId, 'metadata.json'),
+          'utf8',
+        ),
+      );
+      if (legacyUpdateExpectations) {
+        assert.equal(snapshotMetadata.schemaVersion, 4);
+      } else {
+        assert.equal(pointer.schemaVersion, 5);
+        assert.equal(snapshotMetadata.schemaVersion, 5);
+      }
+      assert.equal(snapshotMetadata.snapshotId, pointer.snapshotId);
+      assert.equal(snapshotMetadata.files?.bars1?.rows, expectedBars1);
+      assert.equal(snapshotMetadata.files?.bars5?.rows, expectedBars5);
+      assert.equal(snapshotMetadata.files?.bars60?.rows, expectedBars60);
 
       await page.getByTestId('market-update').click();
       await page.locator('html[data-market-update-phase="up-to-date"]').waitFor({ timeout: 30_000 });

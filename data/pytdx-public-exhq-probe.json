@@ -1,0 +1,1215 @@
+{
+  "schemaVersion": 1,
+  "purpose": "pytdx-public-exhq-five-minute-history-probe",
+  "capturedAt": "2026-10-20T00:34:03+08:00",
+  "probeStatus": "success",
+  "environment": {
+    "pythonVersion": "3.12.13",
+    "pythonImplementation": "CPython",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "package": {
+      "name": "pytdx",
+      "version": "1.72",
+      "summary": "A Python Interface to TDX protocol",
+      "homePage": "https://github.com/rainx/pytdx",
+      "metadata": {
+        "bytes": 402,
+        "sha256": "ff498f00863b7571adf635f03e179f0451af4ef3e7a165b0f5712938613f0448"
+      },
+      "license": {
+        "metadataLicense": null,
+        "bundledLicenseFilePresent": false,
+        "bundledLicenseFiles": [],
+        "codeLicenseConfirmed": false,
+        "note": "当前安装包元数据未声明 License，且未随包提供 LICENSE/COPYING；客户端代码许可不能从该安装物中确认。"
+      }
+    }
+  },
+  "server": {
+    "host": "116.205.143.214",
+    "port": 7727,
+    "accountRequiredByProbe": false,
+    "marketCount": 52,
+    "instrumentCount": 108874
+  },
+  "request": {
+    "category": 0,
+    "intervalMinutes": 5,
+    "pageSize": 700,
+    "maxPagesPerInstrument": 80,
+    "targetStartDate": "2025-07-01",
+    "defaultTargetEndDate": "2025-10-19",
+    "soybeanMealTargetEndDate": "2025-10-08"
+  },
+  "instruments": [
+    {
+      "instrumentId": "main_continuous",
+      "name": "豆粕主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "ML7",
+          "ML8",
+          "ML9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 8,
+        "firstConcreteContract": "M2611",
+        "lastConcreteContract": "M2709",
+        "expiredContractCode": "M2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "ML9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-08",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 4554,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-09-30 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "M2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "rapeseed_meal_main",
+      "name": "菜粕主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "RML7",
+          "RML8",
+          "RML9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 7,
+        "firstConcreteContract": "RM2611",
+        "lastConcreteContract": "RM2709",
+        "expiredContractCode": "RM2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "RML9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "RM2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "pvc_main",
+      "name": "PVC主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "VL7",
+          "VL8",
+          "VL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "V2610",
+        "lastConcreteContract": "V2709",
+        "expiredContractCode": "V2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "VL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "V2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "rebar_main",
+      "name": "螺纹钢主连",
+      "exchange": "SHFE",
+      "market": 30,
+      "catalog": {
+        "seriesCodes": [
+          "RBL7",
+          "RBL8",
+          "RBL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "RB2611",
+        "lastConcreteContract": "RB2710",
+        "expiredContractCode": "RB2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "RBL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "RB2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "glass_main",
+      "name": "玻璃主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "FGL7",
+          "FGL8",
+          "FGL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "FG2610",
+        "lastConcreteContract": "FG2709",
+        "expiredContractCode": "FG2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "FGL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "FG2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "rapeseed_oil_main",
+      "name": "菜油主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "OIL7",
+          "OIL8",
+          "OIL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 6,
+        "firstConcreteContract": "OI2611",
+        "lastConcreteContract": "OI2709",
+        "expiredContractCode": "OI2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "OIL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "OI2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "palm_oil_main",
+      "name": "棕榈油主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "PL7",
+          "PL8",
+          "PL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "P2610",
+        "lastConcreteContract": "P2709",
+        "expiredContractCode": "P2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "PL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "P2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "soybean_oil_main",
+      "name": "豆油主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "YL7",
+          "YL8",
+          "YL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 8,
+        "firstConcreteContract": "Y2611",
+        "lastConcreteContract": "Y2709",
+        "expiredContractCode": "Y2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "YL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "Y2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "pulp_main",
+      "name": "纸浆主连",
+      "exchange": "SHFE",
+      "market": 30,
+      "catalog": {
+        "seriesCodes": [
+          "SPL7",
+          "SPL8",
+          "SPL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "SP2611",
+        "lastConcreteContract": "SP2710",
+        "expiredContractCode": "SP2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "SPL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "SP2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "corn_main",
+      "name": "玉米主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "CL7",
+          "CL8",
+          "CL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 6,
+        "firstConcreteContract": "C2611",
+        "lastConcreteContract": "C2709",
+        "expiredContractCode": "C2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "CL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "C2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "soda_ash_main",
+      "name": "纯碱主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "SAL7",
+          "SAL8",
+          "SAL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "SA2610",
+        "lastConcreteContract": "SA2709",
+        "expiredContractCode": "SA2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "SAL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "SA2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "soybean_1_main",
+      "name": "豆一主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "AL7",
+          "AL8",
+          "AL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 6,
+        "firstConcreteContract": "A2611",
+        "lastConcreteContract": "A2709",
+        "expiredContractCode": "A2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "AL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "A2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "methanol_main",
+      "name": "甲醇主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "MAL7",
+          "MAL8",
+          "MAL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "MA2610",
+        "lastConcreteContract": "MA2709",
+        "expiredContractCode": "MA2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "MAL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "MA2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "sugar_main",
+      "name": "白糖主连",
+      "exchange": "CZCE",
+      "market": 28,
+      "catalog": {
+        "seriesCodes": [
+          "SRL7",
+          "SRL8",
+          "SRL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 6,
+        "firstConcreteContract": "SR2611",
+        "lastConcreteContract": "SR2709",
+        "expiredContractCode": "SR2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "SRL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "SR2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    },
+    {
+      "instrumentId": "soybean_2_main",
+      "name": "豆二主连",
+      "exchange": "DCE",
+      "market": 29,
+      "catalog": {
+        "seriesCodes": [
+          "BL7",
+          "BL8",
+          "BL9"
+        ],
+        "allExpectedSeriesPresent": true,
+        "concreteContractCount": 12,
+        "firstConcreteContract": "B2610",
+        "lastConcreteContract": "B2709",
+        "expiredContractCode": "B2601",
+        "expiredContractInCatalog": false
+      },
+      "fiveMinuteSeries": {
+        "seriesCode": "BL9",
+        "intervalMinutes": 5,
+        "pagesRequested": 31,
+        "rowsObserved": 21700,
+        "uniqueTimestampCount": 21700,
+        "duplicateTimestampCount": 0,
+        "firstTimestamp": "2025-06-27 09:05",
+        "lastTimestamp": "2026-10-20 23:00",
+        "returnedFields": [
+          "amount",
+          "close",
+          "datetime",
+          "day",
+          "high",
+          "hour",
+          "low",
+          "minute",
+          "month",
+          "open",
+          "position",
+          "price",
+          "trade",
+          "year"
+        ],
+        "requiredFields": [
+          "close",
+          "datetime",
+          "high",
+          "low",
+          "open",
+          "position",
+          "trade"
+        ],
+        "requiredFieldCompleteRows": 21700,
+        "allRowsHaveRequiredFields": true,
+        "contractAttributionFieldPresent": false,
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "dateBoundsReached": true,
+          "rowsObservedWithinBounds": 5013,
+          "firstObservedTimestamp": "2025-07-01 09:05",
+          "lastObservedTimestamp": "2025-10-17 23:00"
+        },
+        "scanLimit": {
+          "pageSize": 700,
+          "maxPages": 80,
+          "reachedTargetStart": true
+        }
+      },
+      "expiredContractProbe": {
+        "code": "B2601",
+        "rowsReturned": 0,
+        "historicalBarsAvailable": false,
+        "rawRowsPersisted": false
+      }
+    }
+  ],
+  "coverage": {
+    "targetInstrumentCount": 15,
+    "allL7L8L9SeriesPresent": true,
+    "allTargetDateBoundsReached": true,
+    "allRequiredFieldsComplete": true,
+    "continuousContractAttributionAvailable": false,
+    "expiredSpecificContractHistoryAvailable": false
+  },
+  "rights": {
+    "clientCodeLicenseConfirmed": false,
+    "returnedMarketDataRedistributionPermissionConfirmed": false,
+    "gitStorageAllowed": false,
+    "packagedApplicationRedistributionAllowed": false,
+    "reason": "公共接口访问能力不等于行情复制和再分发授权；当前未取得服务器运营方、交易所或其他权利方允许写入 Git 并随 EXE/安装包分发的明确书面许可。"
+  },
+  "retention": {
+    "rawMarketRowsPersisted": false,
+    "rawPricesPersisted": false,
+    "rawVolumeOrPositionPersisted": false,
+    "summaryOnly": true
+  },
+  "conclusion": {
+    "targetGapAccessCapabilityConfirmed": true,
+    "specificContractGapCapabilityConfirmed": false,
+    "historicalMainContractMappingCapabilityConfirmed": false,
+    "releaseUseAllowed": false,
+    "reason": "L9 序列到达全部目标日期边界并返回完整 OHLC、成交量和持仓量字段，但记录不包含具体合约归属，已到期具体合约也不可查询；同时缺少行情再分发授权，因此不能用于完成任务 4.2 或替换内置基线。"
+  },
+  "elapsedMilliseconds": 155936.9
+}

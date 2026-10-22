@@ -48,26 +48,28 @@ export interface SnapshotFileMetadata {
   sha256: string;
   rows: number;
 }
-interface MarketSnapshotMetadataBase {
+interface MarketSnapshotMetadataCommon {
   snapshotId: string;
-  source: {
-    provider: 'EDB';
-    endpoint: 'https://edb.shinnytech.com/md/kline';
-    symbol: string;
-  };
   generatedAt: string;
   requestStart: string;
   requestEnd: string;
   sourceLatestAt: string;
 }
-export interface MarketSnapshotMetadataV1 extends MarketSnapshotMetadataBase {
+interface LegacyMarketSnapshotMetadataBase extends MarketSnapshotMetadataCommon {
+  source: {
+    provider: 'EDB';
+    endpoint: 'https://edb.shinnytech.com/md/kline';
+    symbol: string;
+  };
+}
+export interface MarketSnapshotMetadataV1 extends LegacyMarketSnapshotMetadataBase {
   schemaVersion: 1;
   files: {
     bars5: SnapshotFileMetadata;
     bars60: SnapshotFileMetadata;
   };
 }
-export interface MarketSnapshotMetadataV2 extends MarketSnapshotMetadataBase {
+export interface MarketSnapshotMetadataV2 extends LegacyMarketSnapshotMetadataBase {
   schemaVersion: 2;
   files: {
     bars5: SnapshotFileMetadata;
@@ -75,7 +77,7 @@ export interface MarketSnapshotMetadataV2 extends MarketSnapshotMetadataBase {
     rollovers: SnapshotFileMetadata;
   };
 }
-export interface MarketSnapshotMetadataV3 extends MarketSnapshotMetadataBase {
+export interface MarketSnapshotMetadataV3 extends LegacyMarketSnapshotMetadataBase {
   schemaVersion: 3;
   files: {
     bars1: SnapshotFileMetadata;
@@ -84,7 +86,7 @@ export interface MarketSnapshotMetadataV3 extends MarketSnapshotMetadataBase {
     rollovers: SnapshotFileMetadata;
   };
 }
-export interface MarketSnapshotMetadataV4 extends MarketSnapshotMetadataBase {
+export interface MarketSnapshotMetadataV4 extends LegacyMarketSnapshotMetadataBase {
   schemaVersion: 4;
   instrumentId: Instrument;
   mainSymbol: InstrumentDefinition['mainSymbol'];
@@ -97,11 +99,100 @@ export interface MarketSnapshotMetadataV4 extends MarketSnapshotMetadataBase {
     mainContractMappings: SnapshotFileMetadata;
   };
 }
+export interface SnapshotPeriodMetadata {
+  first: string;
+  last: string;
+  rows: number;
+}
+export type MarketSnapshotSourceKind =
+  | 'desktop-main'
+  | 'public-history'
+  | 'gap-fill'
+  | 'edb-tail'
+  | 'legacy-migration'
+  | 'test-fixture';
+export interface MarketSnapshotRawSourceFile {
+  name: string;
+  sha256: string;
+  rows: number;
+}
+export interface MarketSnapshotSourceSegment {
+  sourceId: string;
+  sourceName: string;
+  kind: MarketSnapshotSourceKind;
+  sourceVersion?: string;
+  acquiredAt?: string;
+  coverage: {
+    first: string;
+    last: string;
+  };
+  rawFiles: MarketSnapshotRawSourceFile[];
+  importerVersion: string;
+  license: {
+    identifier?: string;
+    redistributionAllowed: boolean;
+    conclusion: string;
+  };
+}
+export interface MarketSnapshotRedistribution {
+  allowed: boolean;
+  conclusion: string;
+}
+export interface MarketSnapshotMetadataV5 extends MarketSnapshotMetadataCommon {
+  schemaVersion: 5;
+  instrumentId: Instrument;
+  mainSymbol: InstrumentDefinition['mainSymbol'];
+  parameterVersion: number;
+  source: {
+    provider: 'EDB' | 'MIXED';
+    endpoint?: 'https://edb.shinnytech.com/md/kline';
+    symbol: string;
+  };
+  sourceSegments: MarketSnapshotSourceSegment[];
+  redistribution: MarketSnapshotRedistribution;
+  periods: {
+    bars1?: SnapshotPeriodMetadata;
+    bars5: SnapshotPeriodMetadata;
+    bars60: SnapshotPeriodMetadata;
+  };
+  files: {
+    bars1?: SnapshotFileMetadata;
+    bars5: SnapshotFileMetadata;
+    bars60: SnapshotFileMetadata;
+    rollovers: SnapshotFileMetadata;
+    mainContractMappings: SnapshotFileMetadata;
+  };
+}
+export interface MarketSnapshotMetadataV6 extends MarketSnapshotMetadataCommon {
+  schemaVersion: 6;
+  instrumentId: Instrument;
+  mainSymbol: InstrumentDefinition['mainSymbol'];
+  parameterVersion: number;
+  source: MarketSnapshotMetadataV5['source'];
+  sourceSegments: MarketSnapshotSourceSegment[];
+  redistribution: MarketSnapshotRedistribution;
+  base: {
+    snapshotId: string;
+    metadataSha256: string;
+  };
+  replacementCutoff: string;
+  layerSequence: number;
+  periods: MarketSnapshotMetadataV5['periods'];
+  files: {
+    bars1: SnapshotFileMetadata;
+    bars5: SnapshotFileMetadata;
+    bars60: SnapshotFileMetadata;
+    rollovers: SnapshotFileMetadata;
+    mainContractMappings: SnapshotFileMetadata;
+  };
+}
 export type MarketSnapshotMetadata =
   | MarketSnapshotMetadataV1
   | MarketSnapshotMetadataV2
   | MarketSnapshotMetadataV3
-  | MarketSnapshotMetadataV4;
+  | MarketSnapshotMetadataV4
+  | MarketSnapshotMetadataV5
+  | MarketSnapshotMetadataV6;
 export type SnapshotSource = 'builtin' | 'user';
 export interface Anomaly {
   timeMs: number; title: string; detail: string;
@@ -124,6 +215,7 @@ export type MarketUpdatePhase =
   | 'succeeded'
   | 'up-to-date'
   | 'failed';
+export type MarketUpdateIntent = 'full' | 'tail';
 export interface MarketUpdateCounts {
   added1: number;
   replaced1: number;
@@ -145,12 +237,40 @@ export interface PublicMarketUpdateError {
 export interface MarketUpdateState {
   instrument: Instrument;
   phase: MarketUpdatePhase;
+  intent?: MarketUpdateIntent;
   startedAt?: string;
   completedAt?: string;
   localLatestAt?: string;
+  localMinuteLatestAt?: string;
   sourceLatestAt?: string;
+  requestStartAt?: string;
+  requestEndAt?: string;
   snapshotUpdatedAt?: string;
   counts?: MarketUpdateCounts;
+  error?: PublicMarketUpdateError;
+}
+export interface MarketSnapshotActivatedEvent {
+  instrument: Instrument;
+  snapshotUpdatedAt: string;
+  counts: MarketUpdateCounts;
+  mappingsChanged: boolean;
+}
+export type OnlineMarketPhase =
+  | 'disabled'
+  | 'catching-up'
+  | 'waiting'
+  | 'polling'
+  | 'source-delayed'
+  | 'degraded';
+export interface OnlineMarketState {
+  enabled: boolean;
+  phase: OnlineMarketPhase;
+  instrument?: Instrument;
+  localMinuteLatestAt?: string;
+  sourceLatestAt?: string;
+  snapshotUpdatedAt?: string;
+  lastSucceededAt?: string;
+  nextCheckAt?: string;
   error?: PublicMarketUpdateError;
 }
 export interface MarketUpdateAllResult {
@@ -166,6 +286,14 @@ export interface MarketAPI {
   update: (instrument: Instrument) => Promise<MarketUpdateState>;
   updateAll: () => Promise<MarketUpdateAllResult>;
   onUpdateState: (listener: (state: MarketUpdateState) => void) => () => void;
+  getOnlineState: () => Promise<OnlineMarketState>;
+  setOnlineEnabled: (enabled: boolean) => Promise<OnlineMarketState>;
+  setCurrentInstrument: (instrument: Instrument) => Promise<OnlineMarketState>;
+  notifyNetworkRecovered: () => Promise<OnlineMarketState>;
+  onOnlineState: (listener: (state: OnlineMarketState) => void) => () => void;
+  onSnapshotActivated: (
+    listener: (event: MarketSnapshotActivatedEvent) => void,
+  ) => () => void;
   testMode: boolean;
 }
 export type UpdatePhase =
@@ -235,14 +363,51 @@ export type ReactionTestScenario =
   | 'exit-stop-loss'
   | 'exit-stop-risk-same-bar'
   | 'exit-no-touch'
-  | 'two-attempts';
+  | 'two-attempts'
+  | 'multiple-abandonments';
+export interface StrategyDateRangeBarDiagnostics {
+  count: number;
+  firstStartMs?: number;
+  lastStartMs?: number;
+}
+export interface StrategyDateRangeAttemptDiagnostics {
+  markerId: string;
+  attemptNumber: number;
+  entryStartMs: number;
+  entryDate: string;
+  analysisBarCount: number;
+  analysisFirstStartMs?: number;
+  analysisLastStartMs?: number;
+  exitType?: 'take-profit' | 'stop-loss' | 'session-close';
+  exitStartMs?: number;
+  exitDate?: string;
+  exitPrice?: number;
+  exitGranularity?: MinuteDecisionGranularity;
+  exitMinuteStartMs?: number;
+  lineEndMs?: number;
+}
+export interface StrategyDateRangeDiagnostics {
+  reviewStartDate?: string;
+  reviewEndDate?: string;
+  rawBars5: StrategyDateRangeBarDiagnostics;
+  rawBars60: StrategyDateRangeBarDiagnostics;
+  totalCandidateCount: number;
+  visibleCandidateCount: number;
+  visibleMarkerIds: string[];
+  attempts: StrategyDateRangeAttemptDiagnostics[];
+}
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;
+  getFiveMinuteBarsFromEnd: (count: number) => { startIndex: number; bars: Bar[] };
+  entryLifecycleAttemptCount: (triggerStartMs: number) => number;
+  strategyDateRangeDiagnostics: () => StrategyDateRangeDiagnostics;
+  selectVisibleEntry: (markerId: string) => boolean;
   clearReactionScenario: () => void;
   showEmptyProfitLossReview: () => void;
   selectThresholdComparisonEntry: () => boolean;
   selectPercentageComparisonEntry: () => boolean;
   selectOppositeComparisonEntry: () => boolean;
+  selectSessionExitComparisonEntry: () => boolean;
 }
 export type WeeklyDirection = 'long' | 'short';
 export interface EntryRulesResult {

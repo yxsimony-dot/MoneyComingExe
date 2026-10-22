@@ -1,8 +1,9 @@
 import {
+  aggregateFiveMinuteBars,
   aggregateMinutes,
   assertBarsValid,
   assertMinuteRecordsValid,
-  mergeBars,
+  mergeBarsPreservingHistory,
   mergeMinuteHistory,
   reconcileBars,
   updateCounts,
@@ -22,8 +23,10 @@ import type {
   EdbMinuteRecord,
   Instrument,
   MainContractMapping,
+  MarketSnapshotActivatedEvent,
   MarketUpdateAllResult,
   MarketUpdateCounts,
+  MarketUpdateIntent,
   MarketUpdateState,
   PublicMarketUpdateError,
 } from '../shared/types';
@@ -49,10 +52,26 @@ export interface MarketUpdateCoordinatorOptions {
   saveSnapshot: (
     definition: InstrumentDefinition,
     candidate: SnapshotCandidate,
+    intent: MarketUpdateIntent,
+    current: LoadedMarketSnapshot,
   ) => Promise<LoadedMarketSnapshot>;
   invalidate: (instrument: Instrument) => void;
   publish: (state: MarketUpdateState) => void;
+  publishActivation?: (event: MarketSnapshotActivatedEvent) => void;
   now?: () => Date;
+}
+
+interface PendingOperation {
+  intent: MarketUpdateIntent;
+  promise: Promise<MarketUpdateState>;
+  resolve: (state: MarketUpdateState) => void;
+  reject: (error: unknown) => void;
+}
+
+interface OperationSlot {
+  activeIntent: MarketUpdateIntent;
+  activePromise: Promise<MarketUpdateState>;
+  pending?: PendingOperation;
 }
 
 function publicError(error: unknown): PublicMarketUpdateError {
@@ -79,20 +98,45 @@ function publicError(error: unknown): PublicMarketUpdateError {
   return { code, message: messages[code] };
 }
 
-function latestAt(snapshot: LoadedMarketSnapshot): number {
-  return Math.max(
-    (snapshot.bars1.at(-1)?.startMs ?? -MINUTE_MS) + MINUTE_MS,
-    snapshot.bars5.at(-1)?.endMs ?? 0,
-    snapshot.bars60.at(-1)?.endMs ?? 0,
-  );
+function minuteLatestMs(
+  snapshot: Pick<LoadedMarketSnapshot, 'bars1'>,
+): number | undefined {
+  const lastMinute = snapshot.bars1.at(-1);
+  return lastMinute ? lastMinute.startMs + MINUTE_MS : undefined;
+}
+
+function latestDataMs(
+  snapshot: Pick<LoadedMarketSnapshot, 'bars1' | 'bars5' | 'bars60'>,
+): number | undefined {
+  const values = [
+    minuteLatestMs(snapshot),
+    snapshot.bars5.at(-1)?.endMs,
+    snapshot.bars60.at(-1)?.endMs,
+  ].filter((value): value is number => value !== undefined);
+  return values.length ? Math.max(...values) : undefined;
+}
+
+function formatted(ms: number | undefined): string | undefined {
+  return ms === undefined ? undefined : formatBeijing(ms);
 }
 
 export function requestStartFor(
   snapshot: LoadedMarketSnapshot,
   requestEndMs = Date.now(),
+  intent: MarketUpdateIntent = 'full',
 ): number {
+  if (intent === 'tail') {
+    const complete = snapshot.bars60.filter(bar => bar.complete);
+    const anchor = complete.at(-2) ?? complete.at(-1);
+    if (anchor) return anchor.startMs;
+  }
   const lastMinute = snapshot.bars1.at(-1);
   if (!lastMinute) {
+    const lastFive = snapshot.bars5.at(-1);
+    if (lastFive) {
+      const date = formatBeijing(lastFive.startMs).slice(0, 10);
+      return parseBeijing(`${date} 00:00:00`) - DAY_MS;
+    }
     return Math.floor(
       (requestEndMs - EMPTY_MINUTE_HISTORY_LOOKBACK_MS) / MINUTE_MS,
     ) * MINUTE_MS;
@@ -103,6 +147,82 @@ export function requestStartFor(
 
 function changed(counts: MarketUpdateCounts): boolean {
   return Object.values(counts).some(value => value > 0);
+}
+
+function intentPriority(intent: MarketUpdateIntent): number {
+  return intent === 'full' ? 2 : 1;
+}
+
+function assertHistoryCoverageNotRegressed(
+  current: LoadedMarketSnapshot['bars5'],
+  candidate: LoadedMarketSnapshot['bars5'],
+  period: 5 | 60,
+): void {
+  if (!current.length) return;
+  const currentFirst = current[0];
+  const currentLast = current.at(-1)!;
+  const candidateFirst = candidate[0];
+  const candidateLast = candidate.at(-1);
+  if (!candidateFirst || !candidateLast
+    || candidateFirst.startMs > currentFirst.startMs
+    || candidateLast.endMs < currentLast.endMs
+    || candidateLast.endMs - candidateFirst.startMs
+      < currentLast.endMs - currentFirst.startMs) {
+    throw new Error(`${period} 分钟候选历史覆盖范围倒退，已拒绝覆盖当前快照`);
+  }
+}
+
+function sameNumber(left: number, right: number): boolean {
+  return Math.abs(left - right) <= 1e-9;
+}
+
+function sameBar(
+  left: LoadedMarketSnapshot['bars5'][number],
+  right: LoadedMarketSnapshot['bars5'][number],
+): boolean {
+  return left.startMs === right.startMs
+    && left.endMs === right.endMs
+    && left.session === right.session
+    && sameNumber(left.open, right.open)
+    && sameNumber(left.high, right.high)
+    && sameNumber(left.low, right.low)
+    && sameNumber(left.close, right.close)
+    && sameNumber(left.volume, right.volume)
+    && sameNumber(left.openOi, right.openOi)
+    && sameNumber(left.closeOi, right.closeOi)
+    && left.observedMinutes === right.observedMinutes
+    && left.expectedMinutes === right.expectedMinutes
+    && left.complete === right.complete;
+}
+
+function assertFiveMinuteOverlap(
+  current: readonly LoadedMarketSnapshot['bars5'][number][],
+  remote: readonly LoadedMarketSnapshot['bars5'][number][],
+): void {
+  if (!current.length) return;
+  const currentByStart = new Map(current.map(bar => [bar.startMs, bar]));
+  const overlap = remote.filter(bar => currentByStart.has(bar.startMs));
+  if (!overlap.length
+    || !overlap.some(bar => sameBar(currentByStart.get(bar.startMs)!, bar))) {
+    throw new Error('EDB 增量区间与当前 5 分钟快照没有可验证重叠');
+  }
+}
+
+function replacementCounts(
+  current: readonly LoadedMarketSnapshot['bars60'][number][],
+  candidate: readonly LoadedMarketSnapshot['bars60'][number][],
+) {
+  const currentByStart = new Map(current.map(bar => [bar.startMs, bar]));
+  const candidateByStart = new Map(candidate.map(bar => [bar.startMs, bar]));
+  return {
+    bars: [...candidate],
+    added: candidate.filter(bar => !currentByStart.has(bar.startMs)).length,
+    replaced: candidate.filter(bar => {
+      const previous = currentByStart.get(bar.startMs);
+      return previous !== undefined && !sameBar(previous, bar);
+    }).length,
+    removed: current.filter(bar => !candidateByStart.has(bar.startMs)).length,
+  };
 }
 
 function sameMappings(
@@ -140,7 +260,11 @@ function rolloverCounts(
 
 export class MarketUpdateCoordinator {
   private readonly states = new Map<Instrument, MarketUpdateState>();
-  private readonly running = new Map<Instrument, Promise<MarketUpdateState>>();
+  private readonly slots = new Map<Instrument, OperationSlot>();
+  private readonly mappingRefresh = new Map<
+    Instrument,
+    { beijingDate?: string; failed: boolean }
+  >();
   private readonly now: () => Date;
 
   constructor(private readonly options: MarketUpdateCoordinatorOptions) {
@@ -153,14 +277,31 @@ export class MarketUpdateCoordinator {
     );
   }
 
-  update(instrument: Instrument): Promise<MarketUpdateState> {
-    const active = this.running.get(instrument);
-    if (active) return active;
-    const operation = this.run(instrumentDefinition(instrument)).finally(() => {
-      this.running.delete(instrument);
+  update(
+    instrument: Instrument,
+    intent: MarketUpdateIntent = 'full',
+  ): Promise<MarketUpdateState> {
+    const slot = this.slots.get(instrument);
+    if (!slot) {
+      const created = {} as OperationSlot;
+      this.slots.set(instrument, created);
+      return this.startOperation(created, instrument, intent);
+    }
+    if (slot.pending
+      && intentPriority(slot.pending.intent) >= intentPriority(intent)) {
+      return slot.pending.promise;
+    }
+    if (intentPriority(slot.activeIntent) >= intentPriority(intent)) {
+      return slot.activePromise;
+    }
+    let resolve!: PendingOperation['resolve'];
+    let reject!: PendingOperation['reject'];
+    const promise = new Promise<MarketUpdateState>((accept, fail) => {
+      resolve = accept;
+      reject = fail;
     });
-    this.running.set(instrument, operation);
-    return operation;
+    slot.pending = { intent, promise, resolve, reject };
+    return promise;
   }
 
   async updateAll(
@@ -169,7 +310,7 @@ export class MarketUpdateCoordinator {
     const startedAt = this.now().toISOString();
     const results: MarketUpdateState[] = [];
     for (const instrument of instruments) {
-      results.push(await this.update(instrument));
+      results.push(await this.update(instrument, 'full'));
     }
     return {
       startedAt,
@@ -178,28 +319,67 @@ export class MarketUpdateCoordinator {
     };
   }
 
-  private async run(definition: InstrumentDefinition): Promise<MarketUpdateState> {
+  private startOperation(
+    slot: OperationSlot,
+    instrument: Instrument,
+    intent: MarketUpdateIntent,
+  ): Promise<MarketUpdateState> {
+    const operation = this.run(instrumentDefinition(instrument), intent);
+    slot.activeIntent = intent;
+    slot.activePromise = operation;
+    void operation.then(
+      () => this.advanceSlot(instrument, slot),
+      () => this.advanceSlot(instrument, slot),
+    );
+    return operation;
+  }
+
+  private advanceSlot(instrument: Instrument, slot: OperationSlot): void {
+    if (this.slots.get(instrument) !== slot) return;
+    const pending = slot.pending;
+    if (!pending) {
+      this.slots.delete(instrument);
+      return;
+    }
+    slot.pending = undefined;
+    const operation = this.startOperation(slot, instrument, pending.intent);
+    void operation.then(pending.resolve, pending.reject);
+  }
+
+  private async run(
+    definition: InstrumentDefinition,
+    intent: MarketUpdateIntent,
+  ): Promise<MarketUpdateState> {
     const instrument = definition.id;
     const startedAt = this.now().toISOString();
+    let mappingRefreshAttempted = false;
     try {
       const current = await this.options.loadSnapshot(definition);
-      const requestStartMs = requestStartFor(current);
       const requestEndMs = Math.floor(this.now().getTime() / MINUTE_MS) * MINUTE_MS;
-      const localLatestMs = latestAt(current);
+      const requestStartMs = requestStartFor(current, requestEndMs, intent);
+      const localMinuteLatestMs = minuteLatestMs(current);
+      const localLatestMs = latestDataMs(current);
       this.transition(instrument, {
         phase: 'fetching',
+        intent,
         startedAt,
         completedAt: undefined,
-        localLatestAt: formatBeijing(localLatestMs),
+        localLatestAt: formatted(localLatestMs),
+        localMinuteLatestAt: formatted(localMinuteLatestMs),
         sourceLatestAt: undefined,
+        requestStartAt: formatBeijing(requestStartMs),
+        requestEndAt: formatBeijing(requestEndMs),
         snapshotUpdatedAt: current.snapshotUpdatedAt,
         counts: undefined,
         error: undefined,
       });
-      const minutes = await this.options.fetchMinutes(
+      const responseMinutes = await this.options.fetchMinutes(
         definition,
         requestStartMs,
         requestEndMs,
+      );
+      const minutes = responseMinutes.filter(
+        record => record.startMs + MINUTE_MS <= requestEndMs,
       );
       if (!minutes.length) throw new Error('EDB 未返回可验证的重叠分钟数据');
       assertMinuteRecordsValid(minutes, definition.tradingSessions);
@@ -213,48 +393,85 @@ export class MarketUpdateCoordinator {
         }
       }
       const minuteMerge = mergeMinuteHistory(current.bars1, minutes);
+      const rebuildMinutes = minuteMerge.records.filter(
+        record => record.startMs >= requestStartMs,
+      );
+      const coverageEndMs = Math.max(
+        sourceLatestMs,
+        minuteLatestMs(current) ?? Number.NEGATIVE_INFINITY,
+      );
       const rebuilt5 = aggregateMinutes(
-        minuteMerge.records,
+        rebuildMinutes,
         5,
-        sourceLatestMs,
+        coverageEndMs,
         definition.tradingSessions,
-      );
-      const rebuilt60 = aggregateMinutes(
-        minuteMerge.records,
-        60,
-        sourceLatestMs,
-        definition.tradingSessions,
-      );
-      const five = mergeBars(current.bars5, rebuilt5, requestStartMs);
-      const sixty = mergeBars(current.bars60, rebuilt60, requestStartMs);
-      assertMinuteRecordsValid(minuteMerge.records, definition.tradingSessions);
-      assertBarsValid(five.bars, 5, definition.tradingSessions);
-      assertBarsValid(sixty.bars, 60, definition.tradingSessions);
-      reconcileBars(five.bars, sixty.bars);
-      if ((five.bars.at(-1)?.endMs ?? 0) < (current.bars5.at(-1)?.endMs ?? 0)
-        || (sixty.bars.at(-1)?.endMs ?? 0) < (current.bars60.at(-1)?.endMs ?? 0)) {
-        throw new Error('候选行情时间倒退，已拒绝覆盖当前快照');
+      ).filter(bar => bar.complete);
+      if (!current.bars1.length) {
+        assertFiveMinuteOverlap(current.bars5, rebuilt5);
       }
-      const remoteMappings = await this.options.fetchContractMappings(
-        definition,
-        requestStartMs,
-        requestEndMs,
-      );
-      const mappings = mergeMainContractMappings(
-        current.mainContractMappings,
-        remoteMappings,
-        definition,
-      );
+      const five = rebuilt5.length
+        ? mergeBarsPreservingHistory(current.bars5, rebuilt5)
+        : {
+            bars: [...current.bars5],
+            added: 0,
+            replaced: 0,
+            removed: 0,
+          };
+      assertBarsValid(five.bars, 5, definition.tradingSessions);
+      const rebuilt60 = aggregateFiveMinuteBars(
+        five.bars,
+        definition.tradingSessions,
+      ).filter(bar => bar.complete);
+      const sixty = replacementCounts(current.bars60, rebuilt60);
+      reconcileBars(five.bars, sixty.bars, definition.tradingSessions);
+      assertHistoryCoverageNotRegressed(current.bars5, five.bars, 5);
+      assertHistoryCoverageNotRegressed(current.bars60, sixty.bars, 60);
+      const requestBeijingDate = formatBeijing(requestEndMs).slice(0, 10);
+      const latestTradingDate = minuteMerge.records.at(-1)?.start.slice(0, 10);
+      const mappingState = this.mappingRefresh.get(instrument);
+      const needsMappingRefresh = intent === 'full'
+        || !mappingState
+        || mappingState.failed
+        || mappingState.beijingDate !== requestBeijingDate
+        || (
+          latestTradingDate !== undefined
+          && !current.mainContractMappings.some(
+            mapping => mapping.tradingDate === latestTradingDate,
+          )
+        );
+      let mappings = current.mainContractMappings;
+      if (needsMappingRefresh) {
+        mappingRefreshAttempted = true;
+        const mappingStartMs = intent === 'tail'
+          ? parseBeijing(`${requestBeijingDate} 00:00:00`) - DAY_MS
+          : requestStartMs;
+        const remoteMappings = await this.options.fetchContractMappings(
+          definition,
+          mappingStartMs,
+          requestEndMs,
+        );
+        mappings = mergeMainContractMappings(
+          current.mainContractMappings,
+          remoteMappings,
+          definition,
+        );
+        this.mappingRefresh.set(instrument, {
+          beijingDate: requestBeijingDate,
+          failed: false,
+        });
+      }
       const rollovers = detectContractRollovers(mappings, five.bars, definition);
       const counts = {
         ...updateCounts(minuteMerge, five, sixty),
         ...rolloverCounts(current.rollovers, rollovers),
       };
-      if (!changed(counts)
-        && sameMappings(current.mainContractMappings, mappings)) {
+      const mappingsChanged = !sameMappings(current.mainContractMappings, mappings);
+      if (!changed(counts) && !mappingsChanged) {
         this.transition(instrument, {
           phase: 'up-to-date',
           completedAt: this.now().toISOString(),
+          localLatestAt: formatted(latestDataMs(current)),
+          localMinuteLatestAt: formatted(minuteLatestMs(current)),
           sourceLatestAt,
           counts,
           error: undefined,
@@ -262,27 +479,48 @@ export class MarketUpdateCoordinator {
         return this.getState(instrument);
       }
       this.transition(instrument, { phase: 'saving', counts });
-      const saved = await this.options.saveSnapshot(definition, {
-        bars1: minuteMerge.records,
-        bars5: five.bars,
-        bars60: sixty.bars,
-        mainContractMappings: mappings,
-        rollovers,
-        requestStart: formatBeijing(requestStartMs),
-        requestEnd: formatBeijing(requestEndMs),
-        sourceLatestAt,
-      });
+      const saved = await this.options.saveSnapshot(
+        definition,
+        {
+          bars1: minuteMerge.records,
+          bars5: five.bars,
+          bars60: sixty.bars,
+          mainContractMappings: mappings,
+          rollovers,
+          requestStart: formatBeijing(requestStartMs),
+          requestEnd: formatBeijing(requestEndMs),
+          sourceLatestAt,
+        },
+        intent,
+        current,
+      );
       this.options.invalidate(instrument);
+      if (!saved.snapshotUpdatedAt) {
+        throw new Error('快照激活时间缺失');
+      }
       this.transition(instrument, {
         phase: 'succeeded',
         completedAt: this.now().toISOString(),
-        localLatestAt: formatBeijing(latestAt(saved)),
+        localLatestAt: formatted(latestDataMs(saved)),
+        localMinuteLatestAt: formatted(minuteLatestMs(saved)),
         sourceLatestAt,
         snapshotUpdatedAt: saved.snapshotUpdatedAt,
         counts,
         error: undefined,
       });
+      this.options.publishActivation?.({
+        instrument,
+        snapshotUpdatedAt: saved.snapshotUpdatedAt,
+        counts: structuredClone(counts),
+        mappingsChanged,
+      });
     } catch (error) {
+      if (mappingRefreshAttempted) {
+        this.mappingRefresh.set(instrument, {
+          ...this.mappingRefresh.get(instrument),
+          failed: true,
+        });
+      }
       this.transition(instrument, {
         phase: 'failed',
         completedAt: this.now().toISOString(),

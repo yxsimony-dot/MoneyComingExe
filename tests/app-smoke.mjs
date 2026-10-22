@@ -1,7 +1,8 @@
 import { launchElectronTest } from './electron-test-launch.mjs';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import {
   assertElectronWindowOffscreen,
@@ -11,12 +12,26 @@ import {
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' };
+const sandbox = process.env.MONEYCOMING_TEST_USER_DATA
+  ? undefined
+  : await mkdtemp(join(tmpdir(), 'moneycoming-app-smoke-'));
+const userData = process.env.MONEYCOMING_TEST_USER_DATA
+  ? resolve(process.env.MONEYCOMING_TEST_USER_DATA)
+  : join(sandbox, 'user-data');
+const env = {
+  ...process.env,
+  MONEYCOMING_TEST_MODE: '1',
+  MONEYCOMING_TEST_USER_DATA: userData,
+};
 if (process.env.MONEYCOMING_TEST_APPDATA) {
   env.APPDATA = process.env.MONEYCOMING_TEST_APPDATA;
+} else if (sandbox) {
+  env.APPDATA = join(sandbox, 'appdata');
 }
 if (process.env.MONEYCOMING_TEST_LOCALAPPDATA) {
   env.LOCALAPPDATA = process.env.MONEYCOMING_TEST_LOCALAPPDATA;
+} else if (sandbox) {
+  env.LOCALAPPDATA = join(sandbox, 'localappdata');
 }
 delete env.ELECTRON_RUN_AS_NODE;
 const started = performance.now();
@@ -44,6 +59,26 @@ try {
     await page.getByTestId('date-input').fill(date);
     await page.getByTestId('date-jump').click();
     await frame();
+  };
+  const setReviewDateRange = async (startDate, endDate) => {
+    await page.evaluate(({ startDate, endDate }) => {
+      const start = document.querySelector('#review-start-date');
+      const end = document.querySelector('#review-end-date');
+      start.value = startDate;
+      end.value = endDate;
+      end.dispatchEvent(new Event('change', { bubbles: true }));
+    }, { startDate, endDate });
+    await frame();
+  };
+  const beijingDateKey = timestamp => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(timestamp));
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
   };
   const startupMs = performance.now() - started;
   await page.setViewportSize({ width: 1100, height: 720 });
@@ -99,6 +134,120 @@ try {
   await frame();
   assert.deepEqual(await rolloverDiagnostics(5), initialRolloverDiagnostics[5]);
   assert.deepEqual(await rolloverDiagnostics(60), initialRolloverDiagnostics[60]);
+  const initialDateDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  const fullReviewRange = {
+    startDate: beijingDateKey(initialDateDiagnostics.rawBars5.firstStartMs),
+    endDate: beijingDateKey(initialDateDiagnostics.rawBars5.lastStartMs),
+  };
+  await setReviewDateRange(fullReviewRange.startDate, fullReviewRange.endDate);
+  const fullDateDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.equal(fullDateDiagnostics.reviewStartDate, fullReviewRange.startDate);
+  assert.equal(fullDateDiagnostics.reviewEndDate, fullReviewRange.endDate);
+  const completedDateAttempt = fullDateDiagnostics.attempts.find(attempt =>
+    attempt.attemptNumber === 1
+    && attempt.exitStartMs !== undefined
+    && attempt.lineEndMs !== undefined);
+  assert.ok(completedDateAttempt, 'Expected a completed first entry attempt for date-range checks');
+  const reviewDate = completedDateAttempt.entryDate;
+  await setReviewDateRange(reviewDate, reviewDate);
+  const narrowedDateDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.deepEqual(narrowedDateDiagnostics.rawBars5, fullDateDiagnostics.rawBars5);
+  assert.deepEqual(narrowedDateDiagnostics.rawBars60, fullDateDiagnostics.rawBars60);
+  assert.ok(
+    narrowedDateDiagnostics.visibleCandidateCount < fullDateDiagnostics.visibleCandidateCount,
+    JSON.stringify({
+      full: fullDateDiagnostics.visibleCandidateCount,
+      narrowed: narrowedDateDiagnostics.visibleCandidateCount,
+      reviewDate,
+    }),
+  );
+  assert.ok(narrowedDateDiagnostics.visibleCandidateCount > 0);
+  assert.ok(narrowedDateDiagnostics.attempts.length > 0);
+  assert.ok(narrowedDateDiagnostics.attempts.every(attempt => attempt.entryDate === reviewDate));
+  assert.ok(narrowedDateDiagnostics.visibleMarkerIds.includes(completedDateAttempt.markerId));
+
+  const outsideStartMs = beijingDateKey(fullDateDiagnostics.rawBars60.firstStartMs) === reviewDate
+    ? fullDateDiagnostics.rawBars60.lastStartMs
+    : fullDateDiagnostics.rawBars60.firstStartMs;
+  const outsideDate = beijingDateKey(outsideStartMs);
+  assert.notEqual(outsideDate, reviewDate);
+  await jump(outsideDate);
+  assert.equal(
+    beijingDateKey(Number(await page.locator('html').getAttribute('data-selected-start'))),
+    outsideDate,
+  );
+
+  const selectedDateEntry = await page.evaluate(
+    markerId => window.moneyComingTest.selectVisibleEntry(markerId),
+    completedDateAttempt.markerId,
+  );
+  assert.equal(selectedDateEntry, true);
+  await frame();
+  const selectedMarkerAttempts = narrowedDateDiagnostics.attempts
+    .filter(attempt => attempt.markerId === completedDateAttempt.markerId);
+  const selectedAttempt = selectedMarkerAttempts.find(attempt =>
+    attempt.attemptNumber === completedDateAttempt.attemptNumber);
+  assert.ok(selectedAttempt);
+  const selectedLifecycleLastStart = Math.max(
+    ...selectedMarkerAttempts.map(attempt => attempt.analysisLastStartMs),
+  );
+  const selectedDateChartDiagnostics = await page.evaluate(attemptNumber => {
+    const root = document.documentElement.dataset;
+    const card = document.querySelector('#card-5').dataset;
+    const prefix = `attempt${attemptNumber}`;
+    return {
+      selectionKind: root.selectionKind,
+      lifecycleLastStart: root.entryLifecycleLastStart,
+      analysisLastStart: card[`${prefix}AnalysisLastStart`],
+      exitType: card[`${prefix}ExitType`],
+      exitStart: card[`${prefix}ExitStart`],
+      stopLossLineVisible: card[`${prefix}StopLossLineVisible`],
+      stopLossLineLastStart: card[`${prefix}StopLossLineLastStart`],
+      takeProfitLineVisible: card[`${prefix}TakeProfitLineVisible`],
+      takeProfitLineLastStart: card[`${prefix}TakeProfitLineLastStart`],
+      exitSignalLineEnd: card.exitSignalLineEnd,
+      exitMarkerCount: Number(card.exitMarkerCount),
+    };
+  }, selectedAttempt.attemptNumber);
+  assert.equal(selectedDateChartDiagnostics.selectionKind, 'entry');
+  assert.equal(
+    selectedDateChartDiagnostics.lifecycleLastStart,
+    String(selectedLifecycleLastStart),
+  );
+  assert.equal(
+    selectedDateChartDiagnostics.analysisLastStart,
+    String(selectedAttempt.analysisLastStartMs),
+  );
+  assert.equal(selectedDateChartDiagnostics.exitType, selectedAttempt.exitType);
+  assert.equal(selectedDateChartDiagnostics.exitStart, String(selectedAttempt.exitStartMs));
+  assert.equal(selectedDateChartDiagnostics.stopLossLineVisible, 'true');
+  assert.equal(
+    selectedDateChartDiagnostics.stopLossLineLastStart,
+    String(selectedAttempt.exitStartMs),
+  );
+  assert.equal(selectedDateChartDiagnostics.takeProfitLineVisible, 'true');
+  assert.equal(
+    selectedDateChartDiagnostics.takeProfitLineLastStart,
+    String(selectedAttempt.exitStartMs),
+  );
+  assert.equal(
+    selectedDateChartDiagnostics.exitSignalLineEnd,
+    String(selectedAttempt.lineEndMs),
+  );
+  assert.ok(selectedDateChartDiagnostics.exitMarkerCount > 0);
+
+  await setReviewDateRange(fullReviewRange.startDate, fullReviewRange.endDate);
+  const restoredDateDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.deepEqual(restoredDateDiagnostics.rawBars5, fullDateDiagnostics.rawBars5);
+  assert.deepEqual(restoredDateDiagnostics.rawBars60, fullDateDiagnostics.rawBars60);
+  assert.equal(
+    restoredDateDiagnostics.visibleCandidateCount,
+    fullDateDiagnostics.visibleCandidateCount,
+  );
   await page.getByTestId('toggle-monday').click();
   await frame();
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
@@ -580,5 +729,8 @@ try {
     passed: true,
   }, null, 2));
   console.log(JSON.stringify({ packaged: !!executablePath, startupMs, passed: true }));
-} finally { await app.close(); }
+} finally {
+  await app.close();
+  if (sandbox) await rm(sandbox, { recursive: true, force: true });
+}
 }

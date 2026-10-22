@@ -1,0 +1,960 @@
+{
+  "schemaVersion": 1,
+  "purpose": "public-contract-five-minute-source-probe",
+  "acquiredOn": "2026-10-19",
+  "source": {
+    "repository": "https://github.com/Freddy-Hexas/china-futures-5min-2015-2025.git",
+    "commit": "1a402721d639432875504a343e2b9ffe9508cd36",
+    "commitUnixTimestamp": 1761041731,
+    "commitTimezoneOffset": "+0800",
+    "tree": "0bfff729be22e053f259eeda48adff85b0105f0d",
+    "author": "FrederickXu"
+  },
+  "documentation": {
+    "readme": {
+      "path": "README_zh.md",
+      "sha256": "4c56a6838d4d675bca8cb9935ab554267a8b9935515622781ac665303dd3b5ac",
+      "statedRange": {
+        "firstDate": "2015-04-16",
+        "lastDate": "2025-06-30"
+      },
+      "statedDataType": "中国场内期货具体合约 5 分钟行情",
+      "statedFields": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "statedLicense": "CC0"
+    },
+    "license": {
+      "path": "LICENSE",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "identifier": "CC0-1.0",
+      "containsCanonicalHeading": true
+    }
+  },
+  "coverage": {
+    "expectedInstrumentCount": 15,
+    "coveredInstrumentCount": 15,
+    "targetCoverageComplete": true,
+    "totalContractFiles": 2136,
+    "sampledRawFileCount": 30,
+    "sampledActualRange": {
+      "firstTimestamp": "2005-01-04 09:00:00",
+      "lastTimestamp": "2025-06-30 22:55:00"
+    },
+    "readmeStartDateCorroborated": false,
+    "readmeEndDateCorroborated": true,
+    "latestDateCoveredByEveryTarget": true
+  },
+  "fieldSemantics": {
+    "header": [
+      "datetime",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "money",
+      "open_interest"
+    ],
+    "confirmed": {
+      "datetime": "无时区日期时间文本，全部边界样本对齐 5 分钟边界",
+      "openHighLowClose": "数值型 OHLC，全部边界样本满足 high/low 包络关系",
+      "volumeMoneyOpenInterest": "数值型且全部边界样本非负"
+    },
+    "unresolvedByRepositoryDocumentation": [
+      "datetime 未声明时区",
+      "datetime 未声明代表 K 线起点还是终点",
+      "volume 未声明手数或双边/单边口径",
+      "money 未声明币种、单位和成交额口径",
+      "open_interest 未声明是 K 线起点还是终点快照"
+    ]
+  },
+  "licenseAssessment": {
+    "repositoryAssertion": "README_zh.md 明确声明本数据集采用 CC0，可自由使用、修改和分发",
+    "repositoryLicenseAppliesToDataset": true,
+    "upstreamMarketDataProvenanceDocumented": false,
+    "releaseEligibility": "blocked-until-upstream-rights-confirmed",
+    "note": "CC0 文件和数据集声明已验证；原始行情上游来源未记录，在第三方权利边界确认前不得进入 Git/EXE。"
+  },
+  "validation": {
+    "samplesPassedStructuralValidation": true,
+    "expectedHeaderMatchedByEverySample": true,
+    "allSampleHashesPresent": true
+  },
+  "instruments": [
+    {
+      "instrumentId": "main_continuous",
+      "name": "豆粕主连",
+      "directory": "5min/DCE/M",
+      "fileCount": 170,
+      "firstRawFile": {
+        "path": "5min/DCE/M/M0501.csv",
+        "sha256": "713cd3610df4634fff18da13a2ebd8e170ad7e5d10f6d7928c6cde6d7b3fed80",
+        "bytes": 29213,
+        "rows": 450,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2005-01-04 09:00:00",
+        "lastTimestamp": "2005-01-17 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 450,
+          "validOhlcRows": 450,
+          "nonNegativeMetricRows": 450,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/M/M2605.csv",
+        "sha256": "db9bd45b8a2f2f51c06750de3f1a661f8ce9fb6aa47d1fdd3922ae6e04f2dd46",
+        "bytes": 143568,
+        "rows": 2001,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:00:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 2001,
+          "validOhlcRows": 2001,
+          "nonNegativeMetricRows": 2001,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "rapeseed_meal_main",
+      "name": "菜粕主连",
+      "directory": "5min/CZCE/RM",
+      "fileCount": 92,
+      "firstRawFile": {
+        "path": "5min/CZCE/RM/RM1305.csv",
+        "sha256": "0b5cd1bc076dd75164142ea556c487733a535c5bac6ef231c6d8e744acd9cd6e",
+        "bytes": 280142,
+        "rows": 3870,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2012-12-28 09:00:00",
+        "lastTimestamp": "2013-05-15 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 3870,
+          "validOhlcRows": 3870,
+          "nonNegativeMetricRows": 3870,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/RM/RM2605.csv",
+        "sha256": "8ef48a4be6b8e8aec37b768cba504555d50844809bf557097d3359979db99dd5",
+        "bytes": 129066,
+        "rows": 1931,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:00:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1931,
+          "validOhlcRows": 1931,
+          "nonNegativeMetricRows": 1931,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "pvc_main",
+      "name": "PVC主连",
+      "directory": "5min/DCE/V",
+      "fileCount": 202,
+      "firstRawFile": {
+        "path": "5min/DCE/V/V0909.csv",
+        "sha256": "1032fee9bc2338d7bfa6052ff961ce4ee0e54b8f5f7c9ca23ce191aeb6dad0a9",
+        "bytes": 253216,
+        "rows": 3555,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2009-05-25 09:00:00",
+        "lastTimestamp": "2009-09-14 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 3555,
+          "validOhlcRows": 3555,
+          "nonNegativeMetricRows": 3555,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/V/V2606.csv",
+        "sha256": "950d5e5778242a289388aa0cee3754b751bf79267e527744767abfec4017b531",
+        "bytes": 8617,
+        "rows": 136,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-16 22:25:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 136,
+          "validOhlcRows": 136,
+          "nonNegativeMetricRows": 136,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "rebar_main",
+      "name": "螺纹钢主连",
+      "directory": "5min/SHFE/RB",
+      "fileCount": 202,
+      "firstRawFile": {
+        "path": "5min/SHFE/RB/RB0909.csv",
+        "sha256": "7640fcb68a35e9d522c884bbbb8c4d2d458dd65abc5014f2fc27fdf7a8d62e3a",
+        "bytes": 391898,
+        "rows": 5355,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2009-03-27 09:00:00",
+        "lastTimestamp": "2009-09-15 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 5355,
+          "validOhlcRows": 5355,
+          "nonNegativeMetricRows": 5355,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/SHFE/RB/RB2606.csv",
+        "sha256": "cffca1cba3e9f2836d2868ba5933064c25b16bf16ffcb7ae7e9807c8d5d1f284",
+        "bytes": 9356,
+        "rows": 146,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-17 09:30:00",
+        "lastTimestamp": "2025-06-30 22:45:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 146,
+          "validOhlcRows": 146,
+          "nonNegativeMetricRows": 146,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "glass_main",
+      "name": "玻璃主连",
+      "directory": "5min/CZCE/FG",
+      "fileCount": 160,
+      "firstRawFile": {
+        "path": "5min/CZCE/FG/FG1303.csv",
+        "sha256": "edd9cc0de0fe9416014f1aa0123567770c6a2502cbcf91327efbdba4032fc8bc",
+        "bytes": 191635,
+        "rows": 2970,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2012-12-03 09:00:00",
+        "lastTimestamp": "2013-03-14 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 2970,
+          "validOhlcRows": 2970,
+          "nonNegativeMetricRows": 2970,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/FG/FG2606.csv",
+        "sha256": "84e9873c40a049074765725ca143a1ec0b59de31224aa185ad8258de0bee9e27",
+        "bytes": 12784,
+        "rows": 201,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-16 21:05:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 201,
+          "validOhlcRows": 201,
+          "nonNegativeMetricRows": 201,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "rapeseed_oil_main",
+      "name": "菜油主连",
+      "directory": "5min/CZCE/OI",
+      "fileCount": 78,
+      "firstRawFile": {
+        "path": "5min/CZCE/OI/OI1307.csv",
+        "sha256": "e7226714a4fbd3e855e628f3b1c3ac6a99eb24cccf678d1d92fcc24c710bd122",
+        "bytes": 675073,
+        "rows": 10755,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2012-07-16 09:00:00",
+        "lastTimestamp": "2013-07-12 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 10755,
+          "validOhlcRows": 10755,
+          "nonNegativeMetricRows": 10755,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/OI/OI2605.csv",
+        "sha256": "c86b3c295582d28e6bd79cbf2c6bf627594c29f1951faf073cd25b0784db9ade",
+        "bytes": 56028,
+        "rows": 869,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:40:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 869,
+          "validOhlcRows": 869,
+          "nonNegativeMetricRows": 869,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "palm_oil_main",
+      "name": "棕榈油主连",
+      "directory": "5min/DCE/P",
+      "fileCount": 222,
+      "firstRawFile": {
+        "path": "5min/DCE/P/P0801.csv",
+        "sha256": "f24d256a826fd7ca9191769e97fc95197289c540f7575338d68f440926cd77c1",
+        "bytes": 162447,
+        "rows": 2475,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2007-10-29 09:00:00",
+        "lastTimestamp": "2008-01-15 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 2475,
+          "validOhlcRows": 2475,
+          "nonNegativeMetricRows": 2475,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/P/P2606.csv",
+        "sha256": "a3ed488faba11796dc582798798b1e6ea1411247e56f372930b9f631e67ad48a",
+        "bytes": 2196,
+        "rows": 34,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-17 09:25:00",
+        "lastTimestamp": "2025-06-30 13:50:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 34,
+          "validOhlcRows": 34,
+          "nonNegativeMetricRows": 34,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_oil_main",
+      "name": "豆油主连",
+      "directory": "5min/DCE/Y",
+      "fileCount": 162,
+      "firstRawFile": {
+        "path": "5min/DCE/Y/Y0603.csv",
+        "sha256": "4d1a19cc490ac0b672bf890a60d7ca128b163962dd64ae58f921a78c3f54b281",
+        "bytes": 114273,
+        "rows": 1890,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2006-01-09 09:00:00",
+        "lastTimestamp": "2006-03-14 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1890,
+          "validOhlcRows": 1890,
+          "nonNegativeMetricRows": 1890,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/Y/Y2605.csv",
+        "sha256": "a2266094ee83a2a9f0bc507f5b01a55fe3c9b887ad7bb70ab8edc6d55a6c46f9",
+        "bytes": 124014,
+        "rows": 1843,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:05:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1843,
+          "validOhlcRows": 1843,
+          "nonNegativeMetricRows": 1843,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "pulp_main",
+      "name": "纸浆主连",
+      "directory": "5min/SHFE/SP",
+      "fileCount": 85,
+      "firstRawFile": {
+        "path": "5min/SHFE/SP/SP1906.csv",
+        "sha256": "f9b78ec64e57b68632e36cf2e25bab5efa7afa954757cb155a98bcdac4c2d922",
+        "bytes": 671871,
+        "rows": 9057,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2018-11-26 21:00:00",
+        "lastTimestamp": "2019-06-17 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 9057,
+          "validOhlcRows": 9057,
+          "nonNegativeMetricRows": 9057,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/SHFE/SP/SP2606.csv",
+        "sha256": "4d64c273601a36ff4a564c631559267283514e18c1bde7dd7d1493381839f58f",
+        "bytes": 6000,
+        "rows": 94,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-17 10:45:00",
+        "lastTimestamp": "2025-06-30 22:35:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 94,
+          "validOhlcRows": 94,
+          "nonNegativeMetricRows": 94,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "corn_main",
+      "name": "玉米主连",
+      "directory": "5min/DCE/C",
+      "fileCount": 129,
+      "firstRawFile": {
+        "path": "5min/DCE/C/C0501.csv",
+        "sha256": "5785f0cbfa1148da2cf66ea6728a26912b34ce1d5160c5bc02b6214dc826e7ab",
+        "bytes": 28450,
+        "rows": 450,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2005-01-04 09:00:00",
+        "lastTimestamp": "2005-01-17 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 450,
+          "validOhlcRows": 450,
+          "nonNegativeMetricRows": 450,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/C/C2605.csv",
+        "sha256": "63397cd3d333e9076c2413ad90ada8d6a982d963bd20905407e71ee2a31efd9c",
+        "bytes": 123825,
+        "rows": 1854,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:00:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1854,
+          "validOhlcRows": 1854,
+          "nonNegativeMetricRows": 1854,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "soda_ash_main",
+      "name": "纯碱主连",
+      "directory": "5min/CZCE/SA",
+      "fileCount": 74,
+      "firstRawFile": {
+        "path": "5min/CZCE/SA/SA2005.csv",
+        "sha256": "b73117283881251bab79020542ff627f809d61cf8ad4d264dc556d091cd272bf",
+        "bytes": 416466,
+        "rows": 5847,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2019-12-05 21:00:00",
+        "lastTimestamp": "2020-05-19 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 5847,
+          "validOhlcRows": 5847,
+          "nonNegativeMetricRows": 5847,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/SA/SA2606.csv",
+        "sha256": "bacd13b1e7d86e814c10b1cbfb4ad069c44d8056a228a9e18e5e53931d884a77",
+        "bytes": 17327,
+        "rows": 269,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-16 21:10:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 269,
+          "validOhlcRows": 269,
+          "nonNegativeMetricRows": 269,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_1_main",
+      "name": "豆一主连",
+      "directory": "5min/DCE/A",
+      "fileCount": 129,
+      "firstRawFile": {
+        "path": "5min/DCE/A/A0501.csv",
+        "sha256": "a4e541d1789ad028bc5a9bf4f9bcf9abf70ce39161f79d5a31757ba4c80b983e",
+        "bytes": 31441,
+        "rows": 450,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2005-01-04 09:00:00",
+        "lastTimestamp": "2005-01-17 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 450,
+          "validOhlcRows": 450,
+          "nonNegativeMetricRows": 450,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/A/A2605.csv",
+        "sha256": "7a2da2a1553c24d49cb577e5bb135bb5ff82a3881a54b0061eeec55169dba680",
+        "bytes": 48496,
+        "rows": 754,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:20:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 754,
+          "validOhlcRows": 754,
+          "nonNegativeMetricRows": 754,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "methanol_main",
+      "name": "甲醇主连",
+      "directory": "5min/CZCE/MA",
+      "fileCount": 133,
+      "firstRawFile": {
+        "path": "5min/CZCE/MA/MA1506.csv",
+        "sha256": "39e8eb79f059e50c24bd69c4e8309c5d4c54465b8bfe9bf902dd62acf4232667",
+        "bytes": 1065979,
+        "rows": 14490,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2014-06-17 09:00:00",
+        "lastTimestamp": "2015-06-12 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 14490,
+          "validOhlcRows": 14490,
+          "nonNegativeMetricRows": 14490,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/MA/MA2606.csv",
+        "sha256": "c88c2a68d98fad7d827866b99cbda5722dcd1e9641b9133e3491ac7ec1741b66",
+        "bytes": 8000,
+        "rows": 126,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-16 22:35:00",
+        "lastTimestamp": "2025-06-30 21:45:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 126,
+          "validOhlcRows": 126,
+          "nonNegativeMetricRows": 126,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "sugar_main",
+      "name": "白糖主连",
+      "directory": "5min/CZCE/SR",
+      "fileCount": 121,
+      "firstRawFile": {
+        "path": "5min/CZCE/SR/SR0605.csv",
+        "sha256": "d06a9b8b3dc87d9c5ffa199ef2c0e6eaf2e084136a36e5af943d7bd7751465cc",
+        "bytes": 265779,
+        "rows": 3870,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2006-01-06 09:00:00",
+        "lastTimestamp": "2006-05-19 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 3870,
+          "validOhlcRows": 3870,
+          "nonNegativeMetricRows": 3870,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/CZCE/SR/SR2605.csv",
+        "sha256": "25e34bd316ffb0b5bc149af1a2ad97637b9131958322a8b19d4755f35ae80238",
+        "bytes": 112556,
+        "rows": 1702,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-05-19 21:45:00",
+        "lastTimestamp": "2025-06-30 22:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1702,
+          "validOhlcRows": 1702,
+          "nonNegativeMetricRows": 1702,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_2_main",
+      "name": "豆二主连",
+      "directory": "5min/DCE/B",
+      "fileCount": 177,
+      "firstRawFile": {
+        "path": "5min/DCE/B/B0503.csv",
+        "sha256": "1dbd7cd392190a0edd1247aa032d30c18b7a2759c633e0b1d6a823a22d96bb7e",
+        "bytes": 120821,
+        "rows": 1935,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2005-01-04 09:00:00",
+        "lastTimestamp": "2005-03-14 14:55:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 1935,
+          "validOhlcRows": 1935,
+          "nonNegativeMetricRows": 1935,
+          "problemCount": 0,
+          "problems": []
+        }
+      },
+      "lastRawFile": {
+        "path": "5min/DCE/B/B2606.csv",
+        "sha256": "7822a11fcf4bf61e433f08e44d520cd680727190c902468643bd9dd484c39345",
+        "bytes": 8863,
+        "rows": 138,
+        "header": [
+          "datetime",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money",
+          "open_interest"
+        ],
+        "firstTimestamp": "2025-06-16 21:25:00",
+        "lastTimestamp": "2025-06-30 22:15:00",
+        "validation": {
+          "strictlyIncreasingTimestamps": true,
+          "fiveMinuteAlignedRows": 138,
+          "validOhlcRows": 138,
+          "nonNegativeMetricRows": 138,
+          "problemCount": 0,
+          "problems": []
+        }
+      }
+    }
+  ]
+}

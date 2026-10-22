@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import {
   cp,
   mkdir,
@@ -9,7 +10,7 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import {
   parseContractRollovers,
   parseMainContractMappings,
@@ -17,10 +18,13 @@ import {
   serializeMainContractMappings,
 } from '../domain/contract-rollover';
 import {
+  aggregateFiveMinuteBars,
   assertBarsValid,
+  assertMinuteCoverageMatchesFiveMinuteBars,
   assertMinuteRecordsValid,
   parseEdbMinuteCsv,
   reconcileBars,
+  reconcileCompatibleBars,
   serializeBars,
   serializeMinuteRecords,
 } from '../domain/market-data';
@@ -37,11 +41,16 @@ import type {
   MainContractMapping,
   MarketSnapshotMetadata,
   MarketSnapshotMetadataV4,
+  MarketSnapshotMetadataV5,
+  MarketSnapshotMetadataV6,
+  MarketSnapshotRedistribution,
+  MarketSnapshotSourceSegment,
+  MarketUpdateIntent,
   SnapshotFileMetadata,
   SnapshotSource,
 } from '../shared/types';
 
-export const SNAPSHOT_SCHEMA_VERSION = 4 as const;
+export const SNAPSHOT_SCHEMA_VERSION = 6 as const;
 const ONE_MINUTE_FILE = 'edb_main_continuous_1m_raw.csv';
 const FIVE_MINUTE_FILE = 'edb_main_continuous_5m.csv';
 const SIXTY_MINUTE_FILE = 'edb_main_continuous_60m.csv';
@@ -51,7 +60,13 @@ const METADATA_FILE = 'metadata.json';
 const ACTIVATED_FILE = 'activated.json';
 const POINTER_FILE = 'current.json';
 const SNAPSHOT_ID = /^[A-Za-z0-9._-]{1,100}$/;
-const LEGACY_SCHEMA_VERSIONS = new Set([1, 2, 3]);
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4, 5, 6]);
+const DEFAULT_TAIL_COMPACTION_THRESHOLD = 64;
+type LegacyMigrationResult = {
+  builtinMigrated: boolean;
+  userSnapshotMigrated: boolean;
+};
+const legacyMigrationFlights = new Map<string, Promise<LegacyMigrationResult>>();
 
 export interface MarketDataPaths {
   builtinDataDirectory: string;
@@ -81,13 +96,27 @@ export interface SnapshotCandidate {
   requestStart: string;
   requestEnd: string;
   sourceLatestAt: string;
+  source?: MarketSnapshotMetadataV5['source'];
+  sourceSegments?: MarketSnapshotSourceSegment[];
+  redistribution?: MarketSnapshotRedistribution;
 }
 
 export interface SaveSnapshotOptions {
   now?: () => Date;
   idFactory?: () => string;
   beforePointerSwitch?: () => void | Promise<void>;
+  onTiming?: (phase: SaveSnapshotTimingPhase, durationMs: number) => void;
+  intent?: MarketUpdateIntent;
+  current?: LoadedMarketSnapshot;
+  tailCompactionThreshold?: number;
 }
+
+export type SaveSnapshotTimingPhase =
+  | 'serialization'
+  | 'write'
+  | 'validation'
+  | 'activation'
+  | 'reload';
 
 export interface WriteBuiltinSnapshotOptions {
   now?: () => Date;
@@ -95,18 +124,41 @@ export interface WriteBuiltinSnapshotOptions {
 }
 
 interface CurrentPointer {
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
   snapshotId: string;
   updatedAt: string;
 }
 
 interface SerializedSnapshot {
-  oneText: string;
+  oneText?: string;
   fiveText: string;
   sixtyText: string;
   rolloverText: string;
   mappingText: string;
 }
+
+interface PreparedSnapshot {
+  candidate: SnapshotCandidate;
+  serialized: SerializedSnapshot;
+}
+
+interface TailLayerPlan {
+  base: MarketSnapshotMetadataV6['base'];
+  replacementCutoff: string;
+  layerSequence: number;
+}
+
+type PersistedSnapshotMetadata =
+  | MarketSnapshotMetadataV4
+  | MarketSnapshotMetadataV5
+  | MarketSnapshotMetadataV6;
+
+interface CachedBaseSnapshot {
+  signatures: string[];
+  snapshot: LoadedMarketSnapshot;
+}
+
+const verifiedBaseCache = new Map<string, CachedBaseSnapshot>();
 
 function sha256(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex');
@@ -151,6 +203,126 @@ function fileMetadata(
   return record as unknown as SnapshotFileMetadata;
 }
 
+function optionalFileMetadata(
+  files: Record<string, unknown>,
+  key: string,
+): SnapshotFileMetadata | undefined {
+  return files[key] === undefined ? undefined : fileMetadata(files, key);
+}
+
+function nonEmptyString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${label}无效`);
+  }
+  return value;
+}
+
+function assertPeriodMetadata(
+  value: unknown,
+  label: string,
+  expectedRows?: number,
+): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label}覆盖元数据无效`);
+  }
+  const period = value as Record<string, unknown>;
+  const first = nonEmptyString(period.first, `${label}首条时间`);
+  const last = nonEmptyString(period.last, `${label}末条时间`);
+  parseBeijing(first);
+  parseBeijing(last);
+  if (first > last
+    || !Number.isSafeInteger(period.rows)
+    || (period.rows as number) <= 0
+    || (expectedRows !== undefined && period.rows !== expectedRows)) {
+    throw new Error(`${label}覆盖元数据无效`);
+  }
+}
+
+function assertSourceSegments(value: unknown): asserts value is MarketSnapshotSourceSegment[] {
+  if (!Array.isArray(value) || !value.length) {
+    throw new Error('快照分段来源声明无效');
+  }
+  const kinds = new Set([
+    'desktop-main',
+    'public-history',
+    'gap-fill',
+    'edb-tail',
+    'legacy-migration',
+    'test-fixture',
+  ]);
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error('快照分段来源声明无效');
+    }
+    const segment = item as unknown as Record<string, unknown>;
+    nonEmptyString(segment.sourceId, '快照来源标识');
+    nonEmptyString(segment.sourceName, '快照来源名称');
+    if (!kinds.has(segment.kind as string)) {
+      throw new Error('快照来源类型无效');
+    }
+    if (segment.sourceVersion !== undefined) {
+      nonEmptyString(segment.sourceVersion, '快照来源版本');
+    }
+    if (segment.acquiredAt !== undefined
+      && (typeof segment.acquiredAt !== 'string'
+        || Number.isNaN(Date.parse(segment.acquiredAt)))) {
+      throw new Error('快照来源取得时间无效');
+    }
+    const coverage = segment.coverage;
+    if (!coverage || typeof coverage !== 'object' || Array.isArray(coverage)) {
+      throw new Error('快照来源覆盖范围无效');
+    }
+    const coverageRecord = coverage as Record<string, unknown>;
+    const first = nonEmptyString(coverageRecord.first, '快照来源首条时间');
+    const last = nonEmptyString(coverageRecord.last, '快照来源末条时间');
+    parseBeijing(first);
+    parseBeijing(last);
+    if (first > last) throw new Error('快照来源覆盖范围无效');
+    if (!Array.isArray(segment.rawFiles) || !segment.rawFiles.length) {
+      throw new Error('快照来源原始文件审计无效');
+    }
+    for (const rawFile of segment.rawFiles) {
+      if (!rawFile || typeof rawFile !== 'object' || Array.isArray(rawFile)) {
+        throw new Error('快照来源原始文件审计无效');
+      }
+      const file = rawFile as Record<string, unknown>;
+      nonEmptyString(file.name, '快照原始文件名');
+      if (typeof file.sha256 !== 'string'
+        || !/^[a-f0-9]{64}$/.test(file.sha256)
+        || !Number.isSafeInteger(file.rows)
+        || (file.rows as number) < 0) {
+        throw new Error('快照来源原始文件审计无效');
+      }
+    }
+    nonEmptyString(segment.importerVersion, '快照导入器版本');
+    const license = segment.license;
+    if (!license || typeof license !== 'object' || Array.isArray(license)) {
+      throw new Error('快照来源授权结论无效');
+    }
+    const licenseRecord = license as Record<string, unknown>;
+    if (licenseRecord.identifier !== undefined) {
+      nonEmptyString(licenseRecord.identifier, '快照来源授权标识');
+    }
+    if (typeof licenseRecord.redistributionAllowed !== 'boolean') {
+      throw new Error('快照来源授权结论无效');
+    }
+    nonEmptyString(licenseRecord.conclusion, '快照来源授权结论');
+  }
+}
+
+function assertRedistribution(
+  value: unknown,
+): asserts value is MarketSnapshotRedistribution {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('快照再分发结论无效');
+  }
+  const redistribution = value as Record<string, unknown>;
+  if (typeof redistribution.allowed !== 'boolean') {
+    throw new Error('快照再分发结论无效');
+  }
+  nonEmptyString(redistribution.conclusion, '快照再分发结论');
+}
+
 function parseMetadata(
   text: string,
   expectedId: string | undefined,
@@ -158,8 +330,7 @@ function parseMetadata(
 ): MarketSnapshotMetadata {
   const value = parseObject(text, METADATA_FILE);
   const schemaVersion = value.schemaVersion;
-  if (!LEGACY_SCHEMA_VERSIONS.has(schemaVersion as number)
-    && schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+  if (!SUPPORTED_SCHEMA_VERSIONS.has(schemaVersion as number)) {
     throw new Error('快照 schema 不受支持');
   }
   if (typeof value.snapshotId !== 'string') throw new Error('快照标识无效');
@@ -172,12 +343,19 @@ function parseMetadata(
     throw new Error('快照数据源声明无效');
   }
   const sourceRecord = source as Record<string, unknown>;
-  if (sourceRecord.provider !== 'EDB'
+  if (schemaVersion === 5 || schemaVersion === 6) {
+    if (!['EDB', 'MIXED'].includes(sourceRecord.provider as string)
+      || typeof sourceRecord.symbol !== 'string'
+      || (sourceRecord.endpoint !== undefined
+        && sourceRecord.endpoint !== 'https://edb.shinnytech.com/md/kline')) {
+      throw new Error('快照数据源声明无效');
+    }
+  } else if (sourceRecord.provider !== 'EDB'
     || sourceRecord.endpoint !== 'https://edb.shinnytech.com/md/kline'
     || typeof sourceRecord.symbol !== 'string') {
     throw new Error('快照数据源声明无效');
   }
-  if (schemaVersion === SNAPSHOT_SCHEMA_VERSION) {
+  if ((schemaVersion as number) >= 4) {
     if (value.instrumentId !== definition.id
       || value.mainSymbol !== definition.mainSymbol
       || value.parameterVersion !== definition.parameterVersion
@@ -193,12 +371,68 @@ function parseMetadata(
     throw new Error('快照文件元数据无效');
   }
   const files = filesValue as Record<string, unknown>;
-  fileMetadata(files, 'bars5');
-  fileMetadata(files, 'bars60');
+  const bars5File = fileMetadata(files, 'bars5');
+  const bars60File = fileMetadata(files, 'bars60');
   if ((schemaVersion as number) >= 2) fileMetadata(files, 'rollovers');
-  if ((schemaVersion as number) >= 3) fileMetadata(files, 'bars1');
-  if (schemaVersion === SNAPSHOT_SCHEMA_VERSION) {
+  if (schemaVersion === 3 || schemaVersion === 4) fileMetadata(files, 'bars1');
+  if ((schemaVersion as number) >= 4) {
     fileMetadata(files, 'mainContractMappings');
+  }
+  if (schemaVersion === 5 || schemaVersion === 6) {
+    const bars1File = schemaVersion === 5
+      ? optionalFileMetadata(files, 'bars1')
+      : fileMetadata(files, 'bars1');
+    const periods = value.periods;
+    if (!periods || typeof periods !== 'object' || Array.isArray(periods)) {
+      throw new Error('快照周期覆盖元数据无效');
+    }
+    const periodRecord = periods as Record<string, unknown>;
+    assertPeriodMetadata(
+      periodRecord.bars5,
+      '5 分钟',
+      schemaVersion === 5 ? bars5File.rows : undefined,
+    );
+    assertPeriodMetadata(
+      periodRecord.bars60,
+      '60 分钟',
+      schemaVersion === 5 ? bars60File.rows : undefined,
+    );
+    if (schemaVersion === 5) {
+      if ((bars1File === undefined) !== (periodRecord.bars1 === undefined)) {
+        throw new Error('快照 1 分钟文件与覆盖元数据不一致');
+      }
+      if (bars1File) {
+        assertPeriodMetadata(periodRecord.bars1, '1 分钟', bars1File.rows);
+      }
+    } else if (periodRecord.bars1 === undefined) {
+      if (bars1File?.rows !== 0) {
+        throw new Error('尾部快照 1 分钟覆盖元数据无效');
+      }
+    } else {
+      assertPeriodMetadata(periodRecord.bars1, '1 分钟');
+    }
+    assertSourceSegments(value.sourceSegments);
+    assertRedistribution(value.redistribution);
+    if (schemaVersion === 6) {
+      const base = value.base;
+      if (!base || typeof base !== 'object' || Array.isArray(base)) {
+        throw new Error('尾部快照基础引用无效');
+      }
+      const baseRecord = base as Record<string, unknown>;
+      assertSnapshotId(baseRecord.snapshotId);
+      if (typeof baseRecord.metadataSha256 !== 'string'
+        || !/^[a-f0-9]{64}$/.test(baseRecord.metadataSha256)) {
+        throw new Error('尾部快照基础元数据哈希无效');
+      }
+      if (typeof value.replacementCutoff !== 'string') {
+        throw new Error('尾部快照替换起点无效');
+      }
+      parseBeijing(value.replacementCutoff);
+      if (!Number.isSafeInteger(value.layerSequence)
+        || (value.layerSequence as number) <= 0) {
+        throw new Error('尾部快照层序号无效');
+      }
+    }
   }
   for (const field of ['generatedAt', 'requestStart', 'requestEnd', 'sourceLatestAt'] as const) {
     if (typeof value[field] !== 'string') throw new Error(`快照缺少 ${field}`);
@@ -245,11 +479,20 @@ function validateSnapshotData(
   bars1: EdbMinuteRecord[],
   bars5: Bar[],
   bars60: Bar[],
+  schemaVersion: MarketSnapshotMetadata['schemaVersion'],
 ): void {
   assertMinuteRecordsValid(bars1, definition.tradingSessions);
   assertBarsValid(bars5, 5, definition.tradingSessions);
-  assertBarsValid(bars60, 60, definition.tradingSessions);
-  reconcileBars(bars5, bars60);
+  if (schemaVersion === 5) {
+    reconcileBars(bars5, bars60, definition.tradingSessions);
+    assertMinuteCoverageMatchesFiveMinuteBars(
+      bars1,
+      bars5,
+      definition.tradingSessions,
+    );
+  } else {
+    reconcileCompatibleBars(bars5, bars60, definition.tradingSessions);
+  }
 }
 
 function deriveLegacyMappings(
@@ -294,38 +537,90 @@ async function readVerifiedFile(
   return text;
 }
 
-async function loadMetadataSnapshotDirectory(
+function assertLoadedPeriods(
+  metadata: MarketSnapshotMetadataV5 | MarketSnapshotMetadataV6,
+  bars1: readonly EdbMinuteRecord[],
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+): void {
+  const samePeriod = (
+    actual: MarketSnapshotMetadataV5['periods']['bars1'],
+    first: string,
+    last: string,
+    rows: number,
+  ) => actual?.first === first
+    && actual.last === last
+    && actual.rows === rows;
+  const bars1Matches = bars1.length
+    ? samePeriod(
+        metadata.periods.bars1,
+        bars1[0].start,
+        bars1.at(-1)!.start,
+        bars1.length,
+      )
+    : metadata.periods.bars1 === undefined;
+  if (!bars1Matches
+    || !samePeriod(
+      metadata.periods.bars5,
+      bars5[0].start,
+      bars5.at(-1)!.end,
+      bars5.length,
+    )
+    || !samePeriod(
+      metadata.periods.bars60,
+      bars60[0].start,
+      bars60.at(-1)!.end,
+      bars60.length,
+    )) {
+    throw new Error('快照周期覆盖元数据与文件内容不一致');
+  }
+}
+
+async function loadStandaloneMetadataSnapshotDirectory(
   directory: string,
   expectedId: string | undefined,
   definition: InstrumentDefinition,
+  metadata: Exclude<MarketSnapshotMetadata, MarketSnapshotMetadataV6>,
   source: SnapshotSource,
   fallback?: LoadedMarketSnapshot,
 ): Promise<LoadedMarketSnapshot> {
-  const metadata = parseMetadata(
-    await readFile(join(directory, METADATA_FILE), 'utf8'),
-    expectedId,
-    definition,
-  );
-  const files = metadata.files as unknown as Record<string, SnapshotFileMetadata>;
+  if (expectedId !== undefined && metadata.snapshotId !== expectedId) {
+    throw new Error('快照标识与目录不一致');
+  }
+  const files = metadata.files as unknown as Record<
+    string,
+    SnapshotFileMetadata | undefined
+  >;
+  const bars5File = files.bars5;
+  const bars60File = files.bars60;
+  if (!bars5File || !bars60File) throw new Error('快照文件元数据无效');
   const [fiveText, sixtyText] = await Promise.all([
-    readVerifiedFile(directory, files.bars5, FIVE_MINUTE_FILE),
-    readVerifiedFile(directory, files.bars60, SIXTY_MINUTE_FILE),
+    readVerifiedFile(directory, bars5File, FIVE_MINUTE_FILE),
+    readVerifiedFile(directory, bars60File, SIXTY_MINUTE_FILE),
   ]);
   const bars5 = parseBars(fiveText, FIVE_MINUTE_FILE);
   const bars60 = parseBars(sixtyText, SIXTY_MINUTE_FILE);
-  if (bars5.length !== files.bars5.rows || bars60.length !== files.bars60.rows) {
+  if (bars5.length !== bars5File.rows || bars60.length !== bars60File.rows) {
     throw new Error('快照记录数与元数据不一致');
   }
 
   let bars1: EdbMinuteRecord[];
-  if (metadata.schemaVersion >= 3) {
-    const oneText = await readVerifiedFile(directory, files.bars1, ONE_MINUTE_FILE);
+  if (metadata.schemaVersion === 5 && !files.bars1) {
+    bars1 = [];
+  } else if (metadata.schemaVersion >= 3) {
+    const bars1File = files.bars1;
+    if (!bars1File) throw new Error('快照文件元数据无效');
+    const oneText = await readVerifiedFile(
+      directory,
+      bars1File,
+      ONE_MINUTE_FILE,
+    );
     bars1 = parseEdbMinuteCsv(
       oneText,
       ONE_MINUTE_FILE,
       definition.tradingSessions,
     );
-    if (bars1.length !== files.bars1.rows) {
+    if (bars1.length !== bars1File.rows) {
       throw new Error('快照 1 分钟记录数与元数据不一致');
     }
   } else {
@@ -335,13 +630,15 @@ async function loadMetadataSnapshotDirectory(
 
   let rollovers: ContractRollover[];
   if (metadata.schemaVersion >= 2) {
+    const rolloverFile = files.rollovers;
+    if (!rolloverFile) throw new Error('快照文件元数据无效');
     const rolloverText = await readVerifiedFile(
       directory,
-      files.rollovers,
+      rolloverFile,
       ROLLOVER_FILE,
     );
     rollovers = parseContractRollovers(rolloverText, ROLLOVER_FILE, definition);
-    if (rollovers.length !== files.rollovers.rows) {
+    if (rollovers.length !== rolloverFile.rows) {
       throw new Error('快照换月记录数与元数据不一致');
     }
   } else {
@@ -350,10 +647,12 @@ async function loadMetadataSnapshotDirectory(
   }
 
   let mainContractMappings: MainContractMapping[];
-  if (metadata.schemaVersion === SNAPSHOT_SCHEMA_VERSION) {
+  if (metadata.schemaVersion >= 4) {
+    const mappingFile = files.mainContractMappings;
+    if (!mappingFile) throw new Error('快照文件元数据无效');
     const mappingText = await readVerifiedFile(
       directory,
-      files.mainContractMappings,
+      mappingFile,
       MAPPING_FILE,
     );
     mainContractMappings = parseMainContractMappings(
@@ -361,7 +660,7 @@ async function loadMetadataSnapshotDirectory(
       MAPPING_FILE,
       definition,
     );
-    if (mainContractMappings.length !== files.mainContractMappings.rows) {
+    if (mainContractMappings.length !== mappingFile.rows) {
       throw new Error('快照主力映射记录数与元数据不一致');
     }
   } else if (metadata.schemaVersion === 1 && fallback) {
@@ -370,7 +669,16 @@ async function loadMetadataSnapshotDirectory(
     mainContractMappings = deriveLegacyMappings(bars5, rollovers, definition);
   }
 
-  validateSnapshotData(definition, bars1, bars5, bars60);
+  validateSnapshotData(
+    definition,
+    bars1,
+    bars5,
+    bars60,
+    metadata.schemaVersion,
+  );
+  if (metadata.schemaVersion === 5) {
+    assertLoadedPeriods(metadata, bars1, bars5, bars60);
+  }
   return {
     source,
     directory,
@@ -383,6 +691,263 @@ async function loadMetadataSnapshotDirectory(
     snapshotUpdatedAt: source === 'user' ? metadata.generatedAt : undefined,
     metadata,
   };
+}
+
+function snapshotDirectoryRoot(directory: string): string {
+  const parent = dirname(directory);
+  return basename(parent) === 'snapshots' ? parent : join(parent, 'snapshots');
+}
+
+async function fileSignatures(
+  directory: string,
+  metadata: MarketSnapshotMetadataV5,
+): Promise<string[]> {
+  const files = Object.values(metadata.files)
+    .filter((file): file is SnapshotFileMetadata => file !== undefined);
+  return Promise.all(files.map(async file => {
+    const info = await stat(join(directory, file.name));
+    if (!info.isFile()) throw new Error('基础快照文件无效');
+    return `${file.name}:${info.size}:${info.mtimeMs}`;
+  }));
+}
+
+async function loadVerifiedBaseSnapshot(
+  layerDirectory: string,
+  metadata: MarketSnapshotMetadataV6,
+  definition: InstrumentDefinition,
+): Promise<LoadedMarketSnapshot> {
+  const baseDirectory = join(
+    snapshotDirectoryRoot(layerDirectory),
+    metadata.base.snapshotId,
+  );
+  const metadataText = await readFile(join(baseDirectory, METADATA_FILE), 'utf8');
+  if (sha256(metadataText) !== metadata.base.metadataSha256) {
+    throw new Error('尾部快照基础元数据哈希不一致');
+  }
+  const baseMetadata = parseMetadata(
+    metadataText,
+    metadata.base.snapshotId,
+    definition,
+  );
+  if (baseMetadata.schemaVersion !== 5) {
+    throw new Error('尾部快照必须直接引用 schema 5 基础快照');
+  }
+  const signatures = await fileSignatures(baseDirectory, baseMetadata);
+  const cacheKey = `${baseDirectory}\0${metadata.base.metadataSha256}`;
+  const cached = verifiedBaseCache.get(cacheKey);
+  if (cached
+    && cached.signatures.length === signatures.length
+    && cached.signatures.every((signature, index) => signature === signatures[index])) {
+    return cached.snapshot;
+  }
+  const snapshot = await loadStandaloneMetadataSnapshotDirectory(
+    baseDirectory,
+    metadata.base.snapshotId,
+    definition,
+    baseMetadata,
+    'user',
+  );
+  verifiedBaseCache.set(cacheKey, { signatures, snapshot });
+  return snapshot;
+}
+
+function mergeTailRecords<T extends { startMs: number }>(
+  base: readonly T[],
+  tail: readonly T[],
+  cutoffMs: number,
+  endMs: (value: T) => number,
+  label: string,
+): T[] {
+  if (tail.some(value => value.startMs < cutoffMs)) {
+    throw new Error(`${label}尾部包含替换起点之前的记录`);
+  }
+  const prefix = base.filter(value => value.startMs < cutoffMs);
+  if (prefix.some(value => endMs(value) > cutoffMs)) {
+    throw new Error(`${label}基础前缀跨越替换起点`);
+  }
+  const previous = prefix.at(-1);
+  const first = tail[0];
+  if (previous && first
+    && (first.startMs <= previous.startMs || first.startMs < endMs(previous))) {
+    throw new Error(`${label}基础前缀与尾部重叠`);
+  }
+  return [...prefix, ...tail];
+}
+
+function parseTailBars(
+  text: string,
+  expectedRows: number,
+  filename: string,
+): Bar[] {
+  if (expectedRows === 0) {
+    if (text !== serializeBars([])) {
+      throw new Error(`${filename} 空尾部文件格式无效`);
+    }
+    return [];
+  }
+  return parseBars(text, filename);
+}
+
+function parseTailMinutes(
+  text: string,
+  expectedRows: number,
+  definition: InstrumentDefinition,
+): EdbMinuteRecord[] {
+  if (expectedRows === 0) {
+    if (text !== serializeMinuteRecords([], definition.tradingSessions)) {
+      throw new Error(`${ONE_MINUTE_FILE} 空尾部文件格式无效`);
+    }
+    return [];
+  }
+  return parseEdbMinuteCsv(
+    text,
+    ONE_MINUTE_FILE,
+    definition.tradingSessions,
+  );
+}
+
+function validateTailReplacement(
+  definition: InstrumentDefinition,
+  bars1: readonly EdbMinuteRecord[],
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+): void {
+  assertMinuteRecordsValid(bars1, definition.tradingSessions);
+  assertBarsValid(bars5, 5, definition.tradingSessions);
+  reconcileBars(bars5, bars60, definition.tradingSessions);
+  assertMinuteCoverageMatchesFiveMinuteBars(
+    bars1,
+    bars5,
+    definition.tradingSessions,
+  );
+}
+
+async function loadTailLayerSnapshotDirectory(
+  directory: string,
+  definition: InstrumentDefinition,
+  metadata: MarketSnapshotMetadataV6,
+  source: SnapshotSource,
+): Promise<LoadedMarketSnapshot> {
+  if (source !== 'user') throw new Error('内置快照不支持尾部增量层');
+  const files = metadata.files;
+  const [
+    oneText,
+    fiveText,
+    sixtyText,
+    rolloverText,
+    mappingText,
+    base,
+  ] = await Promise.all([
+    readVerifiedFile(directory, files.bars1, ONE_MINUTE_FILE),
+    readVerifiedFile(directory, files.bars5, FIVE_MINUTE_FILE),
+    readVerifiedFile(directory, files.bars60, SIXTY_MINUTE_FILE),
+    readVerifiedFile(directory, files.rollovers, ROLLOVER_FILE),
+    readVerifiedFile(directory, files.mainContractMappings, MAPPING_FILE),
+    loadVerifiedBaseSnapshot(directory, metadata, definition),
+  ]);
+  const bars1Tail = parseTailMinutes(
+    oneText,
+    files.bars1.rows,
+    definition,
+  );
+  const bars5Tail = parseTailBars(
+    fiveText,
+    files.bars5.rows,
+    FIVE_MINUTE_FILE,
+  );
+  const bars60Tail = parseTailBars(
+    sixtyText,
+    files.bars60.rows,
+    SIXTY_MINUTE_FILE,
+  );
+  const rollovers = parseContractRollovers(
+    rolloverText,
+    ROLLOVER_FILE,
+    definition,
+  );
+  const mainContractMappings = parseMainContractMappings(
+    mappingText,
+    MAPPING_FILE,
+    definition,
+  );
+  if (bars1Tail.length !== files.bars1.rows
+    || bars5Tail.length !== files.bars5.rows
+    || bars60Tail.length !== files.bars60.rows
+    || rollovers.length !== files.rollovers.rows
+    || mainContractMappings.length !== files.mainContractMappings.rows) {
+    throw new Error('尾部快照记录数与元数据不一致');
+  }
+  const cutoffMs = parseBeijing(metadata.replacementCutoff);
+  const bars1 = mergeTailRecords(
+    base.bars1,
+    bars1Tail,
+    cutoffMs,
+    value => value.startMs + 60_000,
+    '1 分钟',
+  );
+  const bars5 = mergeTailRecords(
+    base.bars5,
+    bars5Tail,
+    cutoffMs,
+    value => value.endMs,
+    '5 分钟',
+  );
+  const bars60 = mergeTailRecords(
+    base.bars60,
+    bars60Tail,
+    cutoffMs,
+    value => value.endMs,
+    '60 分钟',
+  );
+  validateTailReplacement(
+    definition,
+    bars1.filter(record => record.startMs >= cutoffMs),
+    bars5.filter(bar => bar.startMs >= cutoffMs),
+    bars60.filter(bar => bar.startMs >= cutoffMs),
+  );
+  assertLoadedPeriods(metadata, bars1, bars5, bars60);
+  return {
+    source,
+    directory,
+    bars1,
+    bars5,
+    bars60,
+    mainContractMappings,
+    rollovers,
+    sourceLatestAt: metadata.sourceLatestAt,
+    snapshotUpdatedAt: metadata.generatedAt,
+    metadata,
+  };
+}
+
+async function loadMetadataSnapshotDirectory(
+  directory: string,
+  expectedId: string | undefined,
+  definition: InstrumentDefinition,
+  source: SnapshotSource,
+  fallback?: LoadedMarketSnapshot,
+): Promise<LoadedMarketSnapshot> {
+  const metadata = parseMetadata(
+    await readFile(join(directory, METADATA_FILE), 'utf8'),
+    expectedId,
+    definition,
+  );
+  if (metadata.schemaVersion === 6) {
+    return loadTailLayerSnapshotDirectory(
+      directory,
+      definition,
+      metadata,
+      source,
+    );
+  }
+  return loadStandaloneMetadataSnapshotDirectory(
+    directory,
+    expectedId,
+    definition,
+    metadata,
+    source,
+    fallback,
+  );
 }
 
 async function loadLegacyBuiltinSnapshot(
@@ -406,7 +971,7 @@ async function loadLegacyBuiltinSnapshot(
   const bars5 = parseBars(fiveText, FIVE_MINUTE_FILE);
   const bars60 = parseBars(sixtyText, SIXTY_MINUTE_FILE);
   const rollovers = parseContractRollovers(rolloverText, ROLLOVER_FILE, definition);
-  validateSnapshotData(definition, bars1, bars5, bars60);
+  validateSnapshotData(definition, bars1, bars5, bars60, 3);
   return {
     source: 'builtin',
     directory,
@@ -446,7 +1011,7 @@ async function readCurrentPointer(directory: string): Promise<CurrentPointer> {
     await readFile(join(directory, POINTER_FILE), 'utf8'),
     POINTER_FILE,
   );
-  if (![1, 2, 3, SNAPSHOT_SCHEMA_VERSION].includes(value.schemaVersion as number)
+  if (!SUPPORTED_SCHEMA_VERSIONS.has(value.schemaVersion as number)
     || typeof value.updatedAt !== 'string'
     || Number.isNaN(Date.parse(value.updatedAt))) {
     throw new Error('当前快照指针无效');
@@ -501,7 +1066,7 @@ async function snapshotCandidates(directory: string): Promise<string[]> {
 async function firstValidUserSnapshot(
   directory: string,
   definition: InstrumentDefinition,
-  builtin: LoadedMarketSnapshot,
+  builtin?: LoadedMarketSnapshot,
 ): Promise<LoadedMarketSnapshot | undefined> {
   for (const snapshotId of await snapshotCandidates(directory)) {
     try {
@@ -519,16 +1084,28 @@ async function firstValidUserSnapshot(
   return undefined;
 }
 
-function serializeCandidate(
+function serializedSnapshot(
   definition: InstrumentDefinition,
   candidate: SnapshotCandidate,
 ): SerializedSnapshot {
-  validateSnapshotData(
-    definition,
-    candidate.bars1,
-    candidate.bars5,
-    candidate.bars60,
-  );
+  return {
+    oneText: candidate.bars1.length
+      ? serializeMinuteRecords(candidate.bars1, definition.tradingSessions)
+      : undefined,
+    fiveText: serializeBars(candidate.bars5),
+    sixtyText: serializeBars(candidate.bars60),
+    rolloverText: serializeContractRollovers(candidate.rollovers, definition),
+    mappingText: serializeMainContractMappings(
+      candidate.mainContractMappings,
+      definition,
+    ),
+  };
+}
+
+function serializedTailSnapshot(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+): SerializedSnapshot {
   return {
     oneText: serializeMinuteRecords(
       candidate.bars1,
@@ -544,15 +1121,101 @@ function serializeCandidate(
   };
 }
 
-function buildMetadata(
+function inheritCandidateProvenance(
+  candidate: SnapshotCandidate,
+  current?: LoadedMarketSnapshot,
+): SnapshotCandidate {
+  const metadata = current?.metadata;
+  if (metadata?.schemaVersion !== 5 && metadata?.schemaVersion !== 6) {
+    return candidate;
+  }
+  return {
+    ...candidate,
+    source: candidate.source ?? metadata.source,
+    sourceSegments: candidate.sourceSegments ?? metadata.sourceSegments,
+    redistribution: candidate.redistribution ?? metadata.redistribution,
+  };
+}
+
+function prepareCandidateV5(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+): PreparedSnapshot {
+  if (!candidate.bars5.length) throw new Error('快照缺少必要的 5 分钟行情');
+  const bars60 = aggregateFiveMinuteBars(
+    candidate.bars5,
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  if (!bars60.length) throw new Error('快照缺少可由 5 分钟重建的完整 60 分钟行情');
+  const preparedCandidate = {
+    ...candidate,
+    bars60,
+  };
+  validateSnapshotData(
+    definition,
+    preparedCandidate.bars1,
+    preparedCandidate.bars5,
+    preparedCandidate.bars60,
+    5,
+  );
+  return {
+    candidate: preparedCandidate,
+    serialized: serializedSnapshot(definition, preparedCandidate),
+  };
+}
+
+function prepareCandidateV4(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+): PreparedSnapshot {
+  validateSnapshotData(
+    definition,
+    candidate.bars1,
+    candidate.bars5,
+    candidate.bars60,
+    4,
+  );
+  const serialized = serializedSnapshot(definition, candidate);
+  if (!serialized.oneText) throw new Error('旧版快照必须包含 1 分钟行情');
+  return { candidate, serialized };
+}
+
+function prepareCandidateV6(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+  replacementCutoff: string,
+): PreparedSnapshot {
+  if (!candidate.bars5.length) throw new Error('快照缺少必要的 5 分钟行情');
+  if (!candidate.bars60.length) throw new Error('快照缺少必要的 60 分钟行情');
+  const cutoffMs = parseBeijing(replacementCutoff);
+  const preparedCandidate = {
+    ...candidate,
+    bars1: candidate.bars1.filter(record => record.startMs >= cutoffMs),
+    bars5: candidate.bars5.filter(bar => bar.startMs >= cutoffMs),
+    bars60: candidate.bars60.filter(bar => bar.startMs >= cutoffMs),
+  };
+  validateTailReplacement(
+    definition,
+    preparedCandidate.bars1,
+    preparedCandidate.bars5,
+    preparedCandidate.bars60,
+  );
+  return {
+    candidate: preparedCandidate,
+    serialized: serializedTailSnapshot(definition, preparedCandidate),
+  };
+}
+
+function buildMetadataV4(
   definition: InstrumentDefinition,
   snapshotId: string,
   candidate: SnapshotCandidate,
   generatedAt: string,
   serialized: SerializedSnapshot,
 ): MarketSnapshotMetadataV4 {
+  if (!serialized.oneText) throw new Error('旧版快照必须包含 1 分钟行情');
   return {
-    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    schemaVersion: 4,
     snapshotId,
     instrumentId: definition.id,
     mainSymbol: definition.mainSymbol,
@@ -596,13 +1259,273 @@ function buildMetadata(
   };
 }
 
+function defaultSourceSegment(
+  candidate: SnapshotCandidate,
+  serialized: SerializedSnapshot,
+  generatedAt: string,
+): MarketSnapshotSourceSegment {
+  const coverageFirst = candidate.bars1[0]?.start ?? candidate.bars5[0].start;
+  const coverageLast = candidate.bars1.at(-1)?.start
+    ?? candidate.bars5.at(-1)!.end;
+  const rawFile = serialized.oneText
+    ? {
+        name: 'edb-api-minute-response.csv',
+        sha256: sha256(serialized.oneText),
+        rows: candidate.bars1.length,
+      }
+    : {
+        name: 'five-minute-source.csv',
+        sha256: sha256(serialized.fiveText),
+        rows: candidate.bars5.length,
+      };
+  return {
+    sourceId: 'edb-main-continuous',
+    sourceName: 'EDB 主连分钟接口',
+    kind: 'edb-tail',
+    acquiredAt: generatedAt,
+    coverage: {
+      first: coverageFirst,
+      last: coverageLast,
+    },
+    rawFiles: [rawFile],
+    importerVersion: 'moneycoming-snapshot-v5',
+    license: {
+      identifier: 'EDB account terms',
+      redistributionAllowed: false,
+      conclusion: '仅供当前用户本机使用，未确认可随产品再分发',
+    },
+  };
+}
+
+function snapshotProvenance(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+  serialized: SerializedSnapshot,
+  generatedAt: string,
+): Pick<
+  MarketSnapshotMetadataV5,
+  'source' | 'sourceSegments' | 'redistribution'
+> {
+  const sourceSegments = candidate.sourceSegments?.length
+    ? candidate.sourceSegments
+    : [defaultSourceSegment(candidate, serialized, generatedAt)];
+  const redistribution = candidate.redistribution ?? (
+    sourceSegments.every(segment => segment.license.redistributionAllowed)
+      ? {
+          allowed: true,
+          conclusion: '全部来源均已确认允许随产品再分发',
+        }
+      : {
+          allowed: false,
+          conclusion: '至少一个来源未确认允许随产品再分发',
+        }
+  );
+  return {
+    source: candidate.source ?? {
+      provider: sourceSegments.some(segment => segment.kind !== 'edb-tail')
+        ? 'MIXED'
+        : 'EDB',
+      endpoint: 'https://edb.shinnytech.com/md/kline',
+      symbol: definition.mainSymbol,
+    },
+    sourceSegments,
+    redistribution,
+  };
+}
+
+function snapshotPeriods(
+  candidate: SnapshotCandidate,
+): MarketSnapshotMetadataV5['periods'] {
+  return {
+    bars1: candidate.bars1.length ? {
+      first: candidate.bars1[0].start,
+      last: candidate.bars1.at(-1)!.start,
+      rows: candidate.bars1.length,
+    } : undefined,
+    bars5: {
+      first: candidate.bars5[0].start,
+      last: candidate.bars5.at(-1)!.end,
+      rows: candidate.bars5.length,
+    },
+    bars60: {
+      first: candidate.bars60[0].start,
+      last: candidate.bars60.at(-1)!.end,
+      rows: candidate.bars60.length,
+    },
+  };
+}
+
+function buildMetadataV5(
+  definition: InstrumentDefinition,
+  snapshotId: string,
+  candidate: SnapshotCandidate,
+  generatedAt: string,
+  serialized: SerializedSnapshot,
+): MarketSnapshotMetadataV5 {
+  const provenance = snapshotProvenance(
+    definition,
+    candidate,
+    serialized,
+    generatedAt,
+  );
+  const bars1File = serialized.oneText ? {
+    name: ONE_MINUTE_FILE,
+    sha256: sha256(serialized.oneText),
+    rows: candidate.bars1.length,
+  } : undefined;
+  return {
+    schemaVersion: 5,
+    snapshotId,
+    instrumentId: definition.id,
+    mainSymbol: definition.mainSymbol,
+    parameterVersion: definition.parameterVersion,
+    source: provenance.source,
+    generatedAt,
+    requestStart: candidate.requestStart,
+    requestEnd: candidate.requestEnd,
+    sourceLatestAt: candidate.sourceLatestAt,
+    sourceSegments: provenance.sourceSegments,
+    redistribution: provenance.redistribution,
+    periods: snapshotPeriods(candidate),
+    files: {
+      bars1: bars1File,
+      bars5: {
+        name: FIVE_MINUTE_FILE,
+        sha256: sha256(serialized.fiveText),
+        rows: candidate.bars5.length,
+      },
+      bars60: {
+        name: SIXTY_MINUTE_FILE,
+        sha256: sha256(serialized.sixtyText),
+        rows: candidate.bars60.length,
+      },
+      rollovers: {
+        name: ROLLOVER_FILE,
+        sha256: sha256(serialized.rolloverText),
+        rows: candidate.rollovers.length,
+      },
+      mainContractMappings: {
+        name: MAPPING_FILE,
+        sha256: sha256(serialized.mappingText),
+        rows: candidate.mainContractMappings.length,
+      },
+    },
+  };
+}
+
+function buildMetadataV6(
+  definition: InstrumentDefinition,
+  snapshotId: string,
+  mergedCandidate: SnapshotCandidate,
+  tail: PreparedSnapshot,
+  generatedAt: string,
+  plan: TailLayerPlan,
+): MarketSnapshotMetadataV6 {
+  if (!tail.serialized.oneText) {
+    throw new Error('尾部快照必须包含 1 分钟文件');
+  }
+  const provenance = snapshotProvenance(
+    definition,
+    mergedCandidate,
+    tail.serialized,
+    generatedAt,
+  );
+  return {
+    schemaVersion: 6,
+    snapshotId,
+    instrumentId: definition.id,
+    mainSymbol: definition.mainSymbol,
+    parameterVersion: definition.parameterVersion,
+    source: provenance.source,
+    generatedAt,
+    requestStart: mergedCandidate.requestStart,
+    requestEnd: mergedCandidate.requestEnd,
+    sourceLatestAt: mergedCandidate.sourceLatestAt,
+    sourceSegments: provenance.sourceSegments,
+    redistribution: provenance.redistribution,
+    base: plan.base,
+    replacementCutoff: plan.replacementCutoff,
+    layerSequence: plan.layerSequence,
+    periods: snapshotPeriods(mergedCandidate),
+    files: {
+      bars1: {
+        name: ONE_MINUTE_FILE,
+        sha256: sha256(tail.serialized.oneText),
+        rows: tail.candidate.bars1.length,
+      },
+      bars5: {
+        name: FIVE_MINUTE_FILE,
+        sha256: sha256(tail.serialized.fiveText),
+        rows: tail.candidate.bars5.length,
+      },
+      bars60: {
+        name: SIXTY_MINUTE_FILE,
+        sha256: sha256(tail.serialized.sixtyText),
+        rows: tail.candidate.bars60.length,
+      },
+      rollovers: {
+        name: ROLLOVER_FILE,
+        sha256: sha256(tail.serialized.rolloverText),
+        rows: tail.candidate.rollovers.length,
+      },
+      mainContractMappings: {
+        name: MAPPING_FILE,
+        sha256: sha256(tail.serialized.mappingText),
+        rows: tail.candidate.mainContractMappings.length,
+      },
+    },
+  };
+}
+
+async function tailLayerPlan(
+  candidate: SnapshotCandidate,
+  options: SaveSnapshotOptions,
+): Promise<TailLayerPlan | undefined> {
+  const threshold = options.tailCompactionThreshold
+    ?? DEFAULT_TAIL_COMPACTION_THRESHOLD;
+  const current = options.current;
+  const metadata = current?.metadata;
+  if (options.intent !== 'tail'
+    || current?.source !== 'user'
+    || (metadata?.schemaVersion !== 5 && metadata?.schemaVersion !== 6)
+    || !Number.isSafeInteger(threshold)
+    || threshold <= 0) {
+    return undefined;
+  }
+  const layerSequence = metadata.schemaVersion === 5
+    ? 1
+    : metadata.layerSequence + 1;
+  if (layerSequence >= threshold) return undefined;
+  const replacementCutoff = metadata.schemaVersion === 5
+    ? candidate.requestStart
+    : metadata.replacementCutoff;
+  if (parseBeijing(candidate.requestStart) < parseBeijing(replacementCutoff)) {
+    return undefined;
+  }
+  if (metadata.schemaVersion === 6) {
+    return {
+      base: metadata.base,
+      replacementCutoff,
+      layerSequence,
+    };
+  }
+  const metadataText = await readFile(join(current.directory, METADATA_FILE), 'utf8');
+  return {
+    base: {
+      snapshotId: metadata.snapshotId,
+      metadataSha256: sha256(metadataText),
+    },
+    replacementCutoff,
+    layerSequence,
+  };
+}
+
 async function writeSerializedSnapshot(
   directory: string,
-  metadata: MarketSnapshotMetadataV4,
+  metadata: PersistedSnapshotMetadata,
   serialized: SerializedSnapshot,
 ): Promise<void> {
-  await Promise.all([
-    writeFile(join(directory, ONE_MINUTE_FILE), serialized.oneText, 'utf8'),
+  const writes: Array<Promise<void>> = [
     writeFile(join(directory, FIVE_MINUTE_FILE), serialized.fiveText, 'utf8'),
     writeFile(join(directory, SIXTY_MINUTE_FILE), serialized.sixtyText, 'utf8'),
     writeFile(join(directory, ROLLOVER_FILE), serialized.rolloverText, 'utf8'),
@@ -612,7 +1535,15 @@ async function writeSerializedSnapshot(
       `${JSON.stringify(metadata, null, 2)}\n`,
       'utf8',
     ),
-  ]);
+  ];
+  if (serialized.oneText) {
+    writes.push(writeFile(
+      join(directory, ONE_MINUTE_FILE),
+      serialized.oneText,
+      'utf8',
+    ));
+  }
+  await Promise.all(writes);
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -645,20 +1576,20 @@ async function migrateLegacyBuiltin(
     requestEnd: legacy.sourceLatestAt,
     sourceLatestAt: legacy.sourceLatestAt,
   };
-  const serialized = serializeCandidate(DEFAULT_INSTRUMENT, candidate);
-  const metadata = buildMetadata(
+  const prepared = prepareCandidateV4(DEFAULT_INSTRUMENT, candidate);
+  const metadata = buildMetadataV4(
     DEFAULT_INSTRUMENT,
     'builtin-main_continuous',
-    candidate,
+    prepared.candidate,
     generatedAt,
-    serialized,
+    prepared.serialized,
   );
   const parent = dirname(target);
   const staging = join(parent, `.migrating-main_continuous-${randomBytes(4).toString('hex')}`);
   await mkdir(parent, { recursive: true });
   try {
     await mkdir(staging);
-    await writeSerializedSnapshot(staging, metadata, serialized);
+    await writeSerializedSnapshot(staging, metadata, prepared.serialized);
     await loadMetadataSnapshotDirectory(
       staging,
       undefined,
@@ -760,13 +1691,31 @@ async function migrateLegacyUserSnapshot(
   return true;
 }
 
-export async function migrateLegacySoymealData(
+async function performLegacySoymealMigration(
   paths: MarketDataPaths,
-): Promise<{ builtinMigrated: boolean; userSnapshotMigrated: boolean }> {
+): Promise<LegacyMigrationResult> {
   const builtinMigrated = await migrateLegacyBuiltin(paths);
   const builtin = await loadBuiltinSnapshot(paths, DEFAULT_INSTRUMENT);
   const userSnapshotMigrated = await migrateLegacyUserSnapshot(paths, builtin);
   return { builtinMigrated, userSnapshotMigrated };
+}
+
+export function migrateLegacySoymealData(
+  paths: MarketDataPaths,
+): Promise<LegacyMigrationResult> {
+  const key = resolve(paths.marketDataDirectory);
+  const running = legacyMigrationFlights.get(key);
+  if (running) return running;
+
+  const migration = performLegacySoymealMigration(paths);
+  legacyMigrationFlights.set(key, migration);
+  const clear = () => {
+    if (legacyMigrationFlights.get(key) === migration) {
+      legacyMigrationFlights.delete(key);
+    }
+  };
+  void migration.then(clear, clear);
+  return migration;
 }
 
 export async function loadEffectiveSnapshot(
@@ -776,9 +1725,15 @@ export async function loadEffectiveSnapshot(
   if (definition.id === DEFAULT_INSTRUMENT.id && paths.legacyBuiltinDataDirectory) {
     await migrateLegacySoymealData(paths).catch(() => undefined);
   }
-  const builtin = await loadBuiltinSnapshot(paths, definition);
   const userDirectory = instrumentMarketDataDirectory(paths, definition);
-  return await firstValidUserSnapshot(userDirectory, definition, builtin) ?? builtin;
+  const standaloneUser = await firstValidUserSnapshot(
+    userDirectory,
+    definition,
+  );
+  if (standaloneUser) return standaloneUser;
+  const builtin = await loadBuiltinSnapshot(paths, definition);
+  return await firstValidUserSnapshot(userDirectory, definition, builtin)
+    ?? builtin;
 }
 
 export function resolveMarketDataPaths(
@@ -812,7 +1767,23 @@ export async function saveMarketSnapshot(
   parseBeijing(candidate.requestStart);
   parseBeijing(candidate.requestEnd);
   parseBeijing(candidate.sourceLatestAt);
-  const serialized = serializeCandidate(definition, candidate);
+  const effectiveCandidate = inheritCandidateProvenance(
+    candidate,
+    options.current,
+  );
+  const serializationStarted = performance.now();
+  const plan = await tailLayerPlan(effectiveCandidate, options);
+  const prepared = plan
+    ? prepareCandidateV6(
+        definition,
+        effectiveCandidate,
+        plan.replacementCutoff,
+      )
+    : prepareCandidateV5(definition, effectiveCandidate);
+  options.onTiming?.(
+    'serialization',
+    performance.now() - serializationStarted,
+  );
   const now = options.now?.() ?? new Date();
   const snapshotId = options.idFactory?.() ?? defaultSnapshotId(now);
   assertSnapshotId(snapshotId);
@@ -820,49 +1791,82 @@ export async function saveMarketSnapshot(
   const snapshotsDirectory = join(marketDataDirectory, 'snapshots');
   const stagingDirectory = join(marketDataDirectory, `.staging-${snapshotId}`);
   const finalDirectory = join(snapshotsDirectory, snapshotId);
-  const metadata = buildMetadata(
-    definition,
-    snapshotId,
-    candidate,
-    now.toISOString(),
-    serialized,
-  );
+  const generatedAt = now.toISOString();
+  const metadata = plan
+    ? buildMetadataV6(
+        definition,
+        snapshotId,
+        effectiveCandidate,
+        prepared,
+        generatedAt,
+        plan,
+      )
+    : buildMetadataV5(
+        definition,
+        snapshotId,
+        prepared.candidate,
+        generatedAt,
+        prepared.serialized,
+      );
   await mkdir(snapshotsDirectory, { recursive: true });
   await rm(stagingDirectory, { recursive: true, force: true });
+  let finalRenamed = false;
+  let pointerSwitched = false;
   try {
     await mkdir(stagingDirectory);
-    await writeSerializedSnapshot(stagingDirectory, metadata, serialized);
-    const builtin = await loadBuiltinSnapshot(paths, definition);
+    const writeStarted = performance.now();
+    await writeSerializedSnapshot(
+      stagingDirectory,
+      metadata,
+      prepared.serialized,
+    );
+    options.onTiming?.('write', performance.now() - writeStarted);
+    const validationStarted = performance.now();
     await loadMetadataSnapshotDirectory(
       stagingDirectory,
       snapshotId,
       definition,
       'user',
-      builtin,
     );
+    options.onTiming?.(
+      'validation',
+      performance.now() - validationStarted,
+    );
+    const activationStarted = performance.now();
     await options.beforePointerSwitch?.();
     await rename(stagingDirectory, finalDirectory);
+    finalRenamed = true;
     const pointer: CurrentPointer = {
-      schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+      schemaVersion: metadata.schemaVersion,
       snapshotId,
-      updatedAt: now.toISOString(),
+      updatedAt: generatedAt,
     };
     await writeCurrentPointer(marketDataDirectory, pointer);
+    pointerSwitched = true;
     await writeFile(
       join(finalDirectory, ACTIVATED_FILE),
-      `${JSON.stringify({ activatedAt: now.toISOString() })}\n`,
+      `${JSON.stringify({ activatedAt: generatedAt })}\n`,
       'utf8',
     );
     await cleanupSnapshots(paths, definition, snapshotId);
-    return loadMetadataSnapshotDirectory(
+    options.onTiming?.(
+      'activation',
+      performance.now() - activationStarted,
+    );
+    const reloadStarted = performance.now();
+    const loaded = await loadMetadataSnapshotDirectory(
       finalDirectory,
       snapshotId,
       definition,
       'user',
-      builtin,
     );
+    options.onTiming?.('reload', performance.now() - reloadStarted);
+    return loaded;
   } catch (error) {
     await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined);
+    if (finalRenamed && !pointerSwitched) {
+      await rm(finalDirectory, { recursive: true, force: true }).catch(() => undefined);
+    }
     throw error;
   }
 }
@@ -876,14 +1880,14 @@ export async function writeBuiltinMarketSnapshot(
   parseBeijing(candidate.requestStart);
   parseBeijing(candidate.requestEnd);
   parseBeijing(candidate.sourceLatestAt);
-  const serialized = serializeCandidate(definition, candidate);
+  const prepared = prepareCandidateV5(definition, candidate);
   const snapshotId = `builtin-${definition.id}`;
-  const metadata = buildMetadata(
+  const metadata = buildMetadataV5(
     definition,
     snapshotId,
-    candidate,
+    prepared.candidate,
     (options.now?.() ?? new Date()).toISOString(),
-    serialized,
+    prepared.serialized,
   );
   const finalDirectory = instrumentBuiltinDirectory(paths, definition);
   const parentDirectory = dirname(finalDirectory);
@@ -902,7 +1906,11 @@ export async function writeBuiltinMarketSnapshot(
   let backedUp = false;
   try {
     await mkdir(stagingDirectory);
-    await writeSerializedSnapshot(stagingDirectory, metadata, serialized);
+    await writeSerializedSnapshot(
+      stagingDirectory,
+      metadata,
+      prepared.serialized,
+    );
     await loadMetadataSnapshotDirectory(
       stagingDirectory,
       undefined,
@@ -965,6 +1973,20 @@ export async function cleanupSnapshots(
     if (keep.size >= 2) break;
   }
   const snapshotsDirectory = join(marketDataDirectory, 'snapshots');
+  for (const id of [...keep]) {
+    try {
+      const metadata = parseMetadata(
+        await readFile(join(snapshotsDirectory, id, METADATA_FILE), 'utf8'),
+        id,
+        definition,
+      );
+      if (metadata.schemaVersion === 6) {
+        keep.add(metadata.base.snapshotId);
+      }
+    } catch {
+      // Invalid retained snapshots will be skipped by normal fallback loading.
+    }
+  }
   let entries;
   try {
     entries = await readdir(snapshotsDirectory, { withFileTypes: true });

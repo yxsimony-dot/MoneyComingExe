@@ -1,0 +1,1243 @@
+{
+  "schemaVersion": 1,
+  "purpose": "history-extension-prechange-baseline",
+  "capturedAt": "2026-10-22T11:55:13.757Z",
+  "instrumentCount": 15,
+  "instruments": [
+    {
+      "instrumentId": "main_continuous",
+      "name": "豆粕主连",
+      "mainSymbol": "KQ.m@DCE.m",
+      "snapshotId": "builtin-main_continuous",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "64725751b00d14e5127c79845185f89920472450e186e4a2597600c7a880f329",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "d9bf0207a65a354ae04764a5fedd9f3b438a341c95b7b44bbcc1da84dfb6bc30",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "f9ae45c5eba58a6f0bab4e8a8dff1f76b83c87396dab28598e27b2b7c745dd13",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "m2201",
+        "lastContract": "m2701",
+        "distinctContracts": [
+          "m2201",
+          "m2205",
+          "m2209",
+          "m2301",
+          "m2305",
+          "m2309",
+          "m2401",
+          "m2405",
+          "m2409",
+          "m2501",
+          "m2505",
+          "m2509",
+          "m2601",
+          "m2605",
+          "m2609",
+          "m2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "6ba8dcda4be793fb6cf00694a1b92eb6bb49f65a8f2942ae1d616f66c6960ab2",
+        "rows": 15,
+        "first": {
+          "tradingDate": "2021-11-25",
+          "time": "2021-11-24 21:00:00",
+          "fromContract": "m2201",
+          "toContract": "m2205"
+        },
+        "last": {
+          "tradingDate": "2026-08-06",
+          "time": "2026-08-05 21:00:00",
+          "fromContract": "m2609",
+          "toContract": "m2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "9c3c9a97279e3811a4d2ae45fe489e7921f546acfeee1b1ce9e87c2398d20dc7",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.m"
+        }
+      }
+    },
+    {
+      "instrumentId": "rapeseed_meal_main",
+      "name": "菜粕主连",
+      "mainSymbol": "KQ.m@CZCE.RM",
+      "snapshotId": "builtin-rapeseed_meal_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "f78138d09a725a7e4abea181553b607943f0fa85c80baa89a5e4c1cf64e47bd1",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "3bcbe50da25efa6480ad7507737c5e1500751e3b8724d1c358cedd7a4d6fb9d1",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "27741972b65b539e1525522402b640270ebcbf18ea8bd7fd6d02ae7fb8813ea7",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "RM2201",
+        "lastContract": "RM701",
+        "distinctContracts": [
+          "RM2201",
+          "RM2205",
+          "RM2209",
+          "RM2301",
+          "RM2305",
+          "RM2309",
+          "RM2311",
+          "RM2401",
+          "RM2403",
+          "RM2405",
+          "RM2409",
+          "RM2501",
+          "RM2505",
+          "RM2509",
+          "RM2601",
+          "RM2605",
+          "RM2609",
+          "RM2701",
+          "RM701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "6bb5b3df5ded8d8435b38e56886ee0ab62275ef0641ed46ffdab28793d7f9b8e",
+        "rows": 18,
+        "first": {
+          "tradingDate": "2021-12-09",
+          "time": "2021-12-08 21:00:00",
+          "fromContract": "RM2201",
+          "toContract": "RM2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "RM2701",
+          "toContract": "RM701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "3b39d3b62a62b485f534c48e4ab902313af9decf5ec23f5fee018dea7ca7fe1e",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.RM"
+        }
+      }
+    },
+    {
+      "instrumentId": "pvc_main",
+      "name": "PVC主连",
+      "mainSymbol": "KQ.m@DCE.v",
+      "snapshotId": "builtin-pvc_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "10ad6faa80399ac3d78be7424254039ad91e62361b6d17c07b2bd61a5e412570",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "f383e4409f8f92b60e76f454059e43f2e673f533707cd414f2d761f46d0d68f7",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "93c292f8af0a9b8d4d5ecef6c8a4d03836143e79e11d405355594cd0f2b37d5c",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "v2201",
+        "lastContract": "v2701",
+        "distinctContracts": [
+          "v2201",
+          "v2205",
+          "v2209",
+          "v2301",
+          "v2305",
+          "v2309",
+          "v2401",
+          "v2405",
+          "v2409",
+          "v2501",
+          "v2505",
+          "v2509",
+          "v2601",
+          "v2605",
+          "v2609",
+          "v2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "e05a6ede3339fc1d6a68b087bff3b1b301e67dfe6a8d4b0cb3cee0f6f393fa8b",
+        "rows": 15,
+        "first": {
+          "tradingDate": "2021-12-10",
+          "time": "2021-12-09 21:00:00",
+          "fromContract": "v2201",
+          "toContract": "v2205"
+        },
+        "last": {
+          "tradingDate": "2026-08-19",
+          "time": "2026-08-18 21:00:00",
+          "fromContract": "v2609",
+          "toContract": "v2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "e615ea018bd841758c5d16b2eddcb285100c0fb6713008900f61d75cd798a5ba",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.v"
+        }
+      }
+    },
+    {
+      "instrumentId": "rebar_main",
+      "name": "螺纹钢主连",
+      "mainSymbol": "KQ.m@SHFE.rb",
+      "snapshotId": "builtin-rebar_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "48e950575e0d76ed6b5fd886c1030120f3cd645e51fa73cbf04dfe883f51ab46",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "7a8dcf9d45ce689be95cb0acd9017d8799df9c96f74cb08d41ce3d0f6058d533",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "722363355b01c25bcc778becb06c1f34e5888b0da0fb9ee3dfee2e0bb44b0fae",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "rb2201",
+        "lastContract": "rb2701",
+        "distinctContracts": [
+          "rb2201",
+          "rb2205",
+          "rb2210",
+          "rb2301",
+          "rb2305",
+          "rb2310",
+          "rb2401",
+          "rb2405",
+          "rb2410",
+          "rb2501",
+          "rb2505",
+          "rb2510",
+          "rb2601",
+          "rb2605",
+          "rb2610",
+          "rb2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "e0c00d41005437628d15deeeb4b38081cde9951a9d53a29bd390db5109834c8d",
+        "rows": 15,
+        "first": {
+          "tradingDate": "2021-11-18",
+          "time": "2021-11-17 21:00:00",
+          "fromContract": "rb2201",
+          "toContract": "rb2205"
+        },
+        "last": {
+          "tradingDate": "2026-09-01",
+          "time": "2026-08-31 21:00:00",
+          "fromContract": "rb2610",
+          "toContract": "rb2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "21ae18ee63b225850cde4ceba231101d7cce5e41a99297698c384d9a11a73319",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@SHFE.rb"
+        }
+      }
+    },
+    {
+      "instrumentId": "glass_main",
+      "name": "玻璃主连",
+      "mainSymbol": "KQ.m@CZCE.FG",
+      "snapshotId": "builtin-glass_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "a1760fb8abecb492a0cb663d3f70337313bf3f75c74699086fcc90fe09306c2a",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "b2a4f29494f6e6be22b52bc64e11ba94641965ecd10a25ef89652b27da68ea05",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "8bd9b3ec48558560426459a1ece73ae46d4d1cf54d5197be20511232c6b7b398",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "FG2201",
+        "lastContract": "FG701",
+        "distinctContracts": [
+          "FG2201",
+          "FG2205",
+          "FG2209",
+          "FG2301",
+          "FG2305",
+          "FG2309",
+          "FG2401",
+          "FG2405",
+          "FG2409",
+          "FG2501",
+          "FG2505",
+          "FG2509",
+          "FG2601",
+          "FG2605",
+          "FG2609",
+          "FG2701",
+          "FG701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "f94ac17a163b8a7854a6da1d534b491bcbe24cd725815d1a18f5e6b14c24f69c",
+        "rows": 16,
+        "first": {
+          "tradingDate": "2021-12-10",
+          "time": "2021-12-09 21:00:00",
+          "fromContract": "FG2201",
+          "toContract": "FG2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "FG2701",
+          "toContract": "FG701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "8450b4eb46f519a993f847a8557a60b4fde11eca8258ed24da19f7416e5cb7e5",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.FG"
+        }
+      }
+    },
+    {
+      "instrumentId": "rapeseed_oil_main",
+      "name": "菜油主连",
+      "mainSymbol": "KQ.m@CZCE.OI",
+      "snapshotId": "builtin-rapeseed_oil_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "35fe82231190e5ef73f6517246ee19c802ee0de09b5a979316615b2299d6d44a",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "74086471db60e09bb7bb26a412c718fb3acb24738ffb4ce7a077a1c4543468c2",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "4486be34330d568e6609db674ab2e1c309653e77fa1449460305c7a205af185d",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "OI2201",
+        "lastContract": "OI701",
+        "distinctContracts": [
+          "OI2201",
+          "OI2205",
+          "OI2209",
+          "OI2301",
+          "OI2305",
+          "OI2309",
+          "OI2311",
+          "OI2401",
+          "OI2403",
+          "OI2405",
+          "OI2409",
+          "OI2501",
+          "OI2505",
+          "OI2509",
+          "OI2601",
+          "OI2605",
+          "OI2609",
+          "OI2611",
+          "OI2701",
+          "OI701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "1cd7a2118ae254e4f81acaa8aaa8d593f19e7b89c182e553206c7eb79401c0b2",
+        "rows": 19,
+        "first": {
+          "tradingDate": "2021-12-10",
+          "time": "2021-12-09 21:00:00",
+          "fromContract": "OI2201",
+          "toContract": "OI2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "OI2701",
+          "toContract": "OI701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "a2875f3251737ffb00d6f28535fe72fb47968dadeb2f27b2c08a192d194d42d1",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.OI"
+        }
+      }
+    },
+    {
+      "instrumentId": "palm_oil_main",
+      "name": "棕榈油主连",
+      "mainSymbol": "KQ.m@DCE.p",
+      "snapshotId": "builtin-palm_oil_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "466be27eaae6a6673afa8fd60d5ab160c823cc30651fb86e083efa2ab3df579b",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "f4ceecdc9effd78f5515aec4a0b5582df30a4737031a24374246240bc75923a4",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "4cbd6578fa87266de9059b7f08fed7170179ae2c3bb082e8a9932a37f6182dd7",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "p2201",
+        "lastContract": "p2701",
+        "distinctContracts": [
+          "p2201",
+          "p2205",
+          "p2209",
+          "p2301",
+          "p2305",
+          "p2309",
+          "p2401",
+          "p2405",
+          "p2409",
+          "p2501",
+          "p2505",
+          "p2509",
+          "p2601",
+          "p2605",
+          "p2609",
+          "p2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "d5330386843f8273bb537bb2895787948e538d4a562e6b74ff0799eea5f7fbcf",
+        "rows": 15,
+        "first": {
+          "tradingDate": "2021-12-09",
+          "time": "2021-12-08 21:00:00",
+          "fromContract": "p2201",
+          "toContract": "p2205"
+        },
+        "last": {
+          "tradingDate": "2026-08-11",
+          "time": "2026-08-10 21:00:00",
+          "fromContract": "p2609",
+          "toContract": "p2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "69eac30203fd97c232ea0369fa8d8f2a108420ade3e63463c97c74ffb3fac05e",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.p"
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_oil_main",
+      "name": "豆油主连",
+      "mainSymbol": "KQ.m@DCE.y",
+      "snapshotId": "builtin-soybean_oil_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "8247be4cc01b9dfef49cdd64e204444f9d3479495fba4c59c42b3a4713c76076",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "e76e109385454a8bfa2ca480334d02a51afd714bda23e12e22c9f370b3ab9f2b",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "4d4d21e1bd2845898ca275886b9f7ecb58f63874f844d0600c0545bcecbafdbd",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "y2201",
+        "lastContract": "y2701",
+        "distinctContracts": [
+          "y2201",
+          "y2205",
+          "y2209",
+          "y2301",
+          "y2305",
+          "y2309",
+          "y2401",
+          "y2405",
+          "y2409",
+          "y2501",
+          "y2505",
+          "y2509",
+          "y2601",
+          "y2605",
+          "y2609",
+          "y2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "540c1695fa7e47144833e9a9ce194a7a292473ffd6a6202bf6dfadc9220e45f4",
+        "rows": 15,
+        "first": {
+          "tradingDate": "2021-12-06",
+          "time": "2021-12-03 21:00:00",
+          "fromContract": "y2201",
+          "toContract": "y2205"
+        },
+        "last": {
+          "tradingDate": "2026-08-04",
+          "time": "2026-08-03 21:00:00",
+          "fromContract": "y2609",
+          "toContract": "y2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "9cfe41f93b602f50bd25bef0fcaa18bd20b11cd5c2e08f46174027cfbd3053e3",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.y"
+        }
+      }
+    },
+    {
+      "instrumentId": "pulp_main",
+      "name": "纸浆主连",
+      "mainSymbol": "KQ.m@SHFE.sp",
+      "snapshotId": "builtin-pulp_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "fa5e453a44350a6b389d9ead025e4c1c7abb7c995a0a2e96d333e1c15974b369",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "a2551871058c7ad556eda7a85dff8b419cbe26a4cb3e581154bc15ade4e8c87b",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "d1c5e08a055853aae6a04c76e81f8ad17a9bc9eefcb9abeea09ba52c04ea7f9f",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "sp2111",
+        "lastContract": "sp2701",
+        "distinctContracts": [
+          "sp2111",
+          "sp2112",
+          "sp2201",
+          "sp2205",
+          "sp2209",
+          "sp2301",
+          "sp2305",
+          "sp2309",
+          "sp2401",
+          "sp2405",
+          "sp2409",
+          "sp2501",
+          "sp2503",
+          "sp2505",
+          "sp2507",
+          "sp2509",
+          "sp2511",
+          "sp2601",
+          "sp2605",
+          "sp2609",
+          "sp2611",
+          "sp2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "6129d051eeaaa7cb04252a329a6872f247c77d58c0f860ba00299c930408b313",
+        "rows": 21,
+        "first": {
+          "tradingDate": "2021-10-20",
+          "time": "2021-10-19 21:00:00",
+          "fromContract": "sp2111",
+          "toContract": "sp2112"
+        },
+        "last": {
+          "tradingDate": "2026-10-12",
+          "time": "2026-10-09 21:00:00",
+          "fromContract": "sp2611",
+          "toContract": "sp2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "562dd705311079b0bbf6fe91a68576c9bdda7d53ebb67d95683a07476a22a7ef",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@SHFE.sp"
+        }
+      }
+    },
+    {
+      "instrumentId": "corn_main",
+      "name": "玉米主连",
+      "mainSymbol": "KQ.m@DCE.c",
+      "snapshotId": "builtin-corn_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "439a07097777a311d4962ce1280071ba1fd08a8a565820faa467f7cd8f71c114",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "91b7d77b1551302bcfc9f2846498d43f4be4087efb260a220243674a5434902d",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "eead231b5397c57109fa74aa7531124b600aaec3c0b7859ca4ed2b848f2e7083",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "c2201",
+        "lastContract": "c2701",
+        "distinctContracts": [
+          "c2201",
+          "c2205",
+          "c2209",
+          "c2301",
+          "c2303",
+          "c2305",
+          "c2307",
+          "c2309",
+          "c2311",
+          "c2401",
+          "c2405",
+          "c2407",
+          "c2409",
+          "c2411",
+          "c2501",
+          "c2505",
+          "c2507",
+          "c2509",
+          "c2511",
+          "c2601",
+          "c2603",
+          "c2605",
+          "c2607",
+          "c2609",
+          "c2611",
+          "c2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "3a1c38e754b5df07ec3fe1cb95250c92c22ae94c5b8ae7ff07b9b098dfa0ffb8",
+        "rows": 25,
+        "first": {
+          "tradingDate": "2021-12-03",
+          "time": "2021-12-02 21:00:00",
+          "fromContract": "c2201",
+          "toContract": "c2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-16",
+          "time": "2026-10-15 21:00:00",
+          "fromContract": "c2611",
+          "toContract": "c2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "e3930156e327b08ddda3f4330bbbcb5c8cda0f85b194b7fe9dbc6b7275f1f3bb",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.c"
+        }
+      }
+    },
+    {
+      "instrumentId": "soda_ash_main",
+      "name": "纯碱主连",
+      "mainSymbol": "KQ.m@CZCE.SA",
+      "snapshotId": "builtin-soda_ash_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "33c6d5491259c14b24a286da730ab0fa282d9feb24ec4035e661f0e8db181736",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "aeea89671c872c3b6fe01f13bf79436d6f8b479c86e880e618b282c7813d0a85",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "bc15ba906fc553ed52abffd7d35669c0ca4baa7b72f5876be1995c50aa56821c",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "SA2201",
+        "lastContract": "SA701",
+        "distinctContracts": [
+          "SA2201",
+          "SA2205",
+          "SA2209",
+          "SA2301",
+          "SA2305",
+          "SA2309",
+          "SA2401",
+          "SA2405",
+          "SA2409",
+          "SA2501",
+          "SA2505",
+          "SA2509",
+          "SA2601",
+          "SA2605",
+          "SA2609",
+          "SA2701",
+          "SA701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "36d91a3b1df3d92b141e1171126ca9d6b27728a7d10068bbca11d78eac5298fd",
+        "rows": 16,
+        "first": {
+          "tradingDate": "2021-12-03",
+          "time": "2021-12-02 21:00:00",
+          "fromContract": "SA2201",
+          "toContract": "SA2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "SA2701",
+          "toContract": "SA701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "233bd0883153943900771d51568e6237cdf90554c1767de0e8c4504a50cf1b32",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.SA"
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_1_main",
+      "name": "豆一主连",
+      "mainSymbol": "KQ.m@DCE.a",
+      "snapshotId": "builtin-soybean_1_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "726028adc69aaaadb11ab72b8044245fe33268f349e00a71ede917375c66f1a4",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "20563ea72c7bec8b13eb330e76addaeb5ef615645378c931fd34f6a5d8eb036d",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "5f609b3d069b456b3f3c0aced136d518542816022d2d05bd8ae993add5873c98",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "a2201",
+        "lastContract": "a2701",
+        "distinctContracts": [
+          "a2201",
+          "a2203",
+          "a2205",
+          "a2207",
+          "a2209",
+          "a2211",
+          "a2301",
+          "a2305",
+          "a2307",
+          "a2309",
+          "a2311",
+          "a2401",
+          "a2403",
+          "a2405",
+          "a2407",
+          "a2409",
+          "a2501",
+          "a2505",
+          "a2507",
+          "a2509",
+          "a2511",
+          "a2601",
+          "a2605",
+          "a2607",
+          "a2609",
+          "a2611",
+          "a2701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "0f2c2ecfe4d0feafacada21e5bdd2c7c263b50c6155ff004097c3d98db0dff22",
+        "rows": 26,
+        "first": {
+          "tradingDate": "2021-12-02",
+          "time": "2021-12-01 21:00:00",
+          "fromContract": "a2201",
+          "toContract": "a2203"
+        },
+        "last": {
+          "tradingDate": "2026-10-13",
+          "time": "2026-10-12 21:00:00",
+          "fromContract": "a2611",
+          "toContract": "a2701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "2230f0c7f393d01c1f36dbbfe78121feb5461470459cd309936a1dd762d40154",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.a"
+        }
+      }
+    },
+    {
+      "instrumentId": "methanol_main",
+      "name": "甲醇主连",
+      "mainSymbol": "KQ.m@CZCE.MA",
+      "snapshotId": "builtin-methanol_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "7084dcfcef833f925356f5b28817d5c430d2fcecae6aa1d99537815a4a94a43f",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "198c0629fc1df8cd232a96698ba3e312772e189f0bfef46eb61f74ffd51eef63",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "435dced1b9493c486ff902f51ca1800de8ce992de8b50cb1e7b1d85ee527cd5d",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "MA2201",
+        "lastContract": "MA611",
+        "distinctContracts": [
+          "MA2201",
+          "MA2205",
+          "MA2209",
+          "MA2301",
+          "MA2305",
+          "MA2309",
+          "MA2401",
+          "MA2405",
+          "MA2409",
+          "MA2501",
+          "MA2505",
+          "MA2509",
+          "MA2601",
+          "MA2605",
+          "MA2609",
+          "MA2610",
+          "MA2611",
+          "MA611"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "8a75a6c349118d17f937241a2deda192a0553a2481e4fef573664bdae5036d68",
+        "rows": 17,
+        "first": {
+          "tradingDate": "2021-12-15",
+          "time": "2021-12-14 21:00:00",
+          "fromContract": "MA2201",
+          "toContract": "MA2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "MA2611",
+          "toContract": "MA611"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "0c7450268627195d0573f3e9136c893eee089fb2e50ece92ba65fc154a3fcc39",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.MA"
+        }
+      }
+    },
+    {
+      "instrumentId": "sugar_main",
+      "name": "白糖主连",
+      "mainSymbol": "KQ.m@CZCE.SR",
+      "snapshotId": "builtin-sugar_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "7d5106f82473df92cc4797efd39faed600bf41e57db0d19d43985d12b99f1b6f",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "399a16b4a49aea4cfa6314c4701c6b3a7ee131fd4b515cf42b627b35bc41af78",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "3a6e02c63e0b2a6847075bf0607f2c502dc8b20bb2ce9d589b324df30bc3ceff",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "SR2201",
+        "lastContract": "SR701",
+        "distinctContracts": [
+          "SR2201",
+          "SR2205",
+          "SR2209",
+          "SR2301",
+          "SR2303",
+          "SR2305",
+          "SR2307",
+          "SR2309",
+          "SR2401",
+          "SR2405",
+          "SR2409",
+          "SR2501",
+          "SR2505",
+          "SR2509",
+          "SR2601",
+          "SR2605",
+          "SR2609",
+          "SR2701",
+          "SR701"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "23f1caf605aecc66200bc2dfddfb1e31abbec874c4a3a6bb66ea39f12236eb76",
+        "rows": 18,
+        "first": {
+          "tradingDate": "2021-12-06",
+          "time": "2021-12-03 21:00:00",
+          "fromContract": "SR2201",
+          "toContract": "SR2205"
+        },
+        "last": {
+          "tradingDate": "2026-10-15",
+          "time": "2026-10-14 21:00:00",
+          "fromContract": "SR2701",
+          "toContract": "SR701"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "7b2b59ca643649af2137dd3d55faa1d4dd754ab767dcdc92e81389063eace813",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@CZCE.SR"
+        }
+      }
+    },
+    {
+      "instrumentId": "soybean_2_main",
+      "name": "豆二主连",
+      "mainSymbol": "KQ.m@DCE.b",
+      "snapshotId": "builtin-soybean_2_main",
+      "snapshotGeneratedAt": "2026-10-22T11:55:13.757Z",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "periods": {
+        "bars1": null,
+        "bars5": {
+          "file": "edb_main_continuous_5m.csv",
+          "sha256": "a36d299913ca58248d1a0ebc35acd31a9173a7235e9cc712d618da91e748eedf",
+          "rows": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        },
+        "bars60": {
+          "file": "edb_main_continuous_60m.csv",
+          "sha256": "a103971b2b93cc9e57d39cd2c8f944a1597aed7c0e04af67cc46dba257ce9112",
+          "rows": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 23:00:00"
+        }
+      },
+      "mainContractMappings": {
+        "file": "edb_main_contract_mapping.csv",
+        "sha256": "cec5c3ceafce50324be3187ef9342c8f01e53a07c41c401eec664bcf7ebb6e58",
+        "rows": 1213,
+        "firstTradingDate": "2021-10-18",
+        "lastTradingDate": "2026-10-19",
+        "firstContract": "b2112",
+        "lastContract": "b2611",
+        "distinctContracts": [
+          "b2112",
+          "b2201",
+          "b2202",
+          "b2203",
+          "b2204",
+          "b2205",
+          "b2206",
+          "b2207",
+          "b2209",
+          "b2210",
+          "b2211",
+          "b2212",
+          "b2301",
+          "b2302",
+          "b2303",
+          "b2304",
+          "b2305",
+          "b2306",
+          "b2307",
+          "b2308",
+          "b2309",
+          "b2310",
+          "b2311",
+          "b2312",
+          "b2401",
+          "b2402",
+          "b2403",
+          "b2405",
+          "b2409",
+          "b2410",
+          "b2411",
+          "b2501",
+          "b2505",
+          "b2509",
+          "b2511",
+          "b2601",
+          "b2605",
+          "b2607",
+          "b2609",
+          "b2611"
+        ]
+      },
+      "rollovers": {
+        "file": "edb_main_continuous_rollovers.csv",
+        "sha256": "99ca1982bc93f493c7f2ff4cb0ca35b1cf9f539ff278ae5d7e7035b14955df30",
+        "rows": 39,
+        "first": {
+          "tradingDate": "2021-11-01",
+          "time": "2021-10-29 21:00:00",
+          "fromContract": "b2112",
+          "toContract": "b2201"
+        },
+        "last": {
+          "tradingDate": "2026-08-14",
+          "time": "2026-08-13 21:00:00",
+          "fromContract": "b2609",
+          "toContract": "b2611"
+        }
+      },
+      "metadata": {
+        "file": "metadata.json",
+        "sha256": "157d35be201928da9e4fa609a584af8832ceba93910d700faee704bef0226fe7",
+        "schemaVersion": 5,
+        "source": {
+          "provider": "MIXED",
+          "symbol": "KQ.m@DCE.b"
+        }
+      }
+    }
+  ]
+}

@@ -5,9 +5,12 @@ import type {
   InstrumentDefinition,
   MinuteDecisionGranularity,
 } from '../shared/types';
+import type { BeijingDateRange } from './time';
 import {
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
   entryLifecycle,
+  entryStrategyDateRange,
+  filterEntryLifecycleByDateRange,
   validateEntryStrategySettings,
   type EntryExitType,
   type EntryLifecycle,
@@ -104,6 +107,12 @@ export interface ProfitLossReviewResult {
   incompleteTrades: ProfitLossReviewIncompleteTrade[];
   equityCurve: ProfitLossReviewEquityPoint[];
   statistics: ProfitLossReviewStatistics;
+}
+
+export interface ProfitLossReviewLifecycleCandidate {
+  entry: WeeklyEntry;
+  lifecycle: EntryLifecycle;
+  sourceIndex: number;
 }
 
 function entryId(
@@ -209,12 +218,45 @@ export function reviewProfitLoss(
   settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): ProfitLossReviewResult {
   validateEntryStrategySettings(settings);
+  return reviewProfitLossLifecycles(
+    entries.map((entry, sourceIndex) => ({
+      entry,
+      lifecycle: entryLifecycle(
+        entry,
+        bars5,
+        bars1,
+        definition.priceTick,
+        settings,
+      ),
+      sourceIndex,
+    })),
+    definition,
+    entryStrategyDateRange(settings),
+  );
+}
+
+/**
+ * Replays already-computed complete lifecycles. The optional date range only
+ * selects attempts by their actual entry bar; it never truncates later analysis
+ * bars or exit evidence.
+ */
+export function reviewProfitLossLifecycles(
+  candidates: readonly ProfitLossReviewLifecycleCandidate[],
+  definition: InstrumentDefinition,
+  range?: BeijingDateRange,
+): ProfitLossReviewResult {
   const completedDrafts: CompletedTradeDraft[] = [];
   const incompleteDrafts: IncompleteTradeDraft[] = [];
   let ignoredNoEntryCount = 0;
+  let candidateCount = 0;
 
-  entries.forEach((entry, sourceIndex) => {
-    const lifecycle = entryLifecycle(entry, bars5, bars1, definition.priceTick, settings);
+  candidates.forEach(({ entry, lifecycle: completeLifecycle, sourceIndex }) => {
+    const lifecycle = range
+      ? filterEntryLifecycleByDateRange(completeLifecycle, range)
+      : completeLifecycle;
+    if (!lifecycle) return;
+
+    candidateCount += 1;
     let hasTrueEntry = false;
 
     lifecycle.attempts.forEach(attempt => {
@@ -261,7 +303,7 @@ export function reviewProfitLoss(
       });
     });
 
-    if (!hasTrueEntry) ignoredNoEntryCount += 1;
+    if (!hasTrueEntry && !range) ignoredNoEntryCount += 1;
   });
 
   const replayEvents: ReplayEvent[] = [
@@ -366,7 +408,7 @@ export function reviewProfitLoss(
     incompleteTrades,
     equityCurve,
     statistics: {
-      candidateCount: entries.length,
+      candidateCount,
       ignoredNoEntryCount,
       validEntryCount: completedWithCapital.length + incompleteTrades.length,
       completedTradeCount: completedWithCapital.length,

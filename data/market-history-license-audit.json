@@ -1,0 +1,803 @@
+{
+  "schemaVersion": 1,
+  "purpose": "market-history-code-and-data-rights-audit",
+  "reviewedOn": "2026-10-20",
+  "inputs": {
+    "tdxProbe": {
+      "path": "data/tdx-tq-history-probe.json",
+      "capturedAt": "2026-10-19T18:19:33+08:00",
+      "probeStatus": "credential-blocked"
+    },
+    "publicHistorySource": {
+      "path": "data/public-history-source-audit.json",
+      "acquiredOn": "2026-10-19",
+      "commit": "1a402721d639432875504a343e2b9ffe9508cd36"
+    },
+    "pytdxProbe": {
+      "path": "data/pytdx-public-exhq-probe.json",
+      "capturedAt": "2026-10-20T00:34:03+08:00",
+      "probeStatus": "success",
+      "summaryOnly": true
+    },
+    "modelscopeProbe": {
+      "path": "data/modelscope-tick-source-probe.json",
+      "capturedAt": "2026-10-19T21:55:05.741Z",
+      "commit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+      "technicalGapCoverageConfirmed": true,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "kaggleProbe": {
+      "path": "data/kaggle-high-frequency-futures-data-china-probe.json",
+      "capturedAt": "2026-10-19T20:23:57.173409Z",
+      "datasetVersion": 1,
+      "targetGapCoverageConfirmed": false,
+      "summaryOnly": true
+    },
+    "huggingfaceProbe": {
+      "path": "data/huggingface-domestic-futures-ticks-probe.json",
+      "capturedAt": "2026-10-19T20:50:57.269589Z",
+      "commit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+      "presentInstrumentCount": 13,
+      "targetGapCoverageConfirmed": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "tushareProbe": {
+      "path": "data/tushare-ft-mins-probe.json",
+      "capturedAt": "2026-10-19T20:33:09.470Z",
+      "probeStatus": "blocked-no-token",
+      "tokenPresent": false,
+      "sampleAccessConfirmed": false,
+      "summaryOnly": true
+    },
+    "tonghuashunProbe": {
+      "path": "data/tonghuashun-local-export-probe.json",
+      "capturedOn": "2026-10-20",
+      "privateTcpMarketPathObserved": true,
+      "localThreeYearFiveMinuteExportCapabilityConfirmed": false,
+      "nativeSdkVersion": "3.0.0",
+      "nativeSdkAuthenticationSucceeded": true,
+      "nativeSdkSecurityDiscoverySucceeded": true,
+      "nativeSdkHistoricalKlineAccessConfirmed": false,
+      "nativeSdkSuccessfulHistoricalKlineRequestCount": 0,
+      "nativeSdkSessionFilePersistedAfterProbe": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "enterpriseAuthorizationInquiry": {
+      "path": "docs/历史分钟数据OEM授权询价.md",
+      "preparedOn": "2026-10-20",
+      "providerCount": 5,
+      "writtenQuotesReceived": 0,
+      "redistributionPermissionConfirmed": false
+    }
+  },
+  "policy": {
+    "codeLicenseAndMarketDataRightsAreIndependent": true,
+    "ambiguousOrAccountOnlyDataMayEnterGit": false,
+    "ambiguousOrAccountOnlyDataMayEnterPackagedApplication": false,
+    "privateClientProtocolExtractionAllowed": false,
+    "temporaryProbeMayStoreRawMarketDataInRepository": false
+  },
+  "assessments": [
+    {
+      "sourceId": "tdxaidata-client-code",
+      "subject": "tdxaidata Python 包、封装代码和随包动态库",
+      "codeLicense": {
+        "identifier": "MIT",
+        "confirmed": true,
+        "evidence": {
+          "path": "tdxaidata-1.2.2.dist-info/licenses/LICENSE",
+          "bytes": 1065,
+          "sha256": "98d3900b48e8e1de04915b5ffb07ee35cb63f8cbd180edad52cbceed86ec5cee"
+        }
+      },
+      "marketDataRights": {
+        "coveredByCodeLicense": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "not-applicable-to-returned-market-data",
+        "reason": "MIT 许可覆盖软件代码，不自动授予接口返回行情的复制或再分发权。"
+      }
+    },
+    {
+      "sourceId": "tdx-tq-market-data",
+      "subject": "通达信 TQ/TdxAiData 返回的期货行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是服务返回数据，不是客户端代码。"
+      },
+      "marketDataRights": {
+        "queryCapabilityConfirmed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-without-separate-written-authorization",
+        "reason": "官方用户协议限制未经授权复制、制作衍生作品、公开传播运行数据及客户端/服务端交互数据；当前未取得允许提交 Git 并随 EXE/安装包再分发的单独书面授权。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-documentation",
+          "url": "https://help.tdx.com.cn/quant/docs/markdown/mindoc-1hjbgqpdhv114.html",
+          "conclusion": "后台模式需要数据服务 Key，接口能力本身不构成行情再分发授权。"
+        },
+        {
+          "type": "official-api-documentation",
+          "url": "https://help.tdx.com.cn/quant/docs/markdown/mindoc-1ctuhthaq5qmg/mindoc-1h10g60jt68sc.html",
+          "conclusion": "长时间段分钟数据可能消耗较多积分；未公开本次短区间扣点和每秒限流数字。"
+        },
+        {
+          "type": "official-user-agreement",
+          "url": "https://www.tdx.com.cn/about/yhxy/index.html?tabindex=0",
+          "clause": "10",
+          "conclusion": "未获得单独授权前，不得将查询结果放入 Git、EXE 或安装包。"
+        }
+      ]
+    },
+    {
+      "sourceId": "pytdx-client-code",
+      "subject": "pytdx Python 客户端代码",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "evidence": {
+          "metadataLicense": null,
+          "bundledLicenseFilePresent": false,
+          "bundledLicenseFiles": [],
+          "codeLicenseConfirmed": false,
+          "note": "当前安装包元数据未声明 License，且未随包提供 LICENSE/COPYING；客户端代码许可不能从该安装物中确认。"
+        },
+        "note": "已安装 pytdx 1.72 的包元数据没有 License 字段，分发包与核验的上游提交均未发现 LICENSE/COPYING，当前不能确认客户端代码许可。"
+      },
+      "marketDataRights": {
+        "coveredByCodeLicense": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "not-applicable-to-returned-market-data",
+        "reason": "即使后续确认客户端代码许可，也不会自动授予公共服务器返回行情的复制或再分发权。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "installed-package-metadata",
+          "package": {
+            "name": "pytdx",
+            "version": "1.72",
+            "summary": "A Python Interface to TDX protocol",
+            "homePage": "https://github.com/rainx/pytdx",
+            "metadata": {
+              "bytes": 402,
+              "sha256": "ff498f00863b7571adf635f03e179f0451af4ef3e7a165b0f5712938613f0448"
+            },
+            "license": {
+              "metadataLicense": null,
+              "bundledLicenseFilePresent": false,
+              "bundledLicenseFiles": [],
+              "codeLicenseConfirmed": false,
+              "note": "当前安装包元数据未声明 License，且未随包提供 LICENSE/COPYING；客户端代码许可不能从该安装物中确认。"
+            }
+          }
+        },
+        {
+          "type": "upstream-client-repository",
+          "url": "https://github.com/rainx/pytdx",
+          "commit": "2857fdad08534533610bd2aeca387f760c4baa42"
+        }
+      ]
+    },
+    {
+      "sourceId": "pytdx-public-exhq-market-data",
+      "subject": "pytdx 公共扩展行情服务器返回的连续合约 5 分钟行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是服务器返回行情，不是客户端代码。"
+      },
+      "marketDataRights": {
+        "queryCapabilityConfirmed": true,
+        "specificContractAttributionConfirmed": false,
+        "historicalMainContractMappingConfirmed": false,
+        "redistributionPermissionConfirmed": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "releaseEligibility": "blocked-no-contract-attribution-and-no-redistribution-rights",
+        "reason": "连续 L9 数据能够覆盖目标缺口并返回所需数值字段，但没有具体合约归属，无法独立生成历史主力映射；同时没有公共服务器运营方、交易所或其他权利方允许将返回行情写入 Git 并随 EXE/安装包分发的明确书面许可。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/pytdx-public-exhq-probe.json",
+          "capturedAt": "2026-10-20T00:34:03+08:00",
+          "server": {
+            "host": "116.205.143.214",
+            "port": 7727,
+            "accountRequiredByProbe": false,
+            "marketCount": 52,
+            "instrumentCount": 108874
+          },
+          "retention": {
+            "rawMarketRowsPersisted": false,
+            "rawPricesPersisted": false,
+            "rawVolumeOrPositionPersisted": false,
+            "summaryOnly": true
+          }
+        }
+      ]
+    },
+    {
+      "sourceId": "github-china-futures-5min-2015-2025",
+      "subject": "Freddy-Hexas/china-futures-5min-2015-2025 数据集",
+      "codeLicense": {
+        "identifier": "CC0-1.0",
+        "confirmed": true,
+        "note": "仓库根 LICENSE 与 README 对数据集声明 CC0。"
+      },
+      "marketDataRights": {
+        "repositoryDatasetAssertionConfirmed": true,
+        "upstreamProvenanceDocumented": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-until-upstream-rights-confirmed",
+        "reason": "仓库声明 CC0，但没有记录原始行情上游、取得方式或上游权利链；在第三方行情权利边界独立确认前，只能用于临时结构与质量验证。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "repository",
+          "url": "https://github.com/Freddy-Hexas/china-futures-5min-2015-2025.git",
+          "commit": "1a402721d639432875504a343e2b9ffe9508cd36"
+        },
+        {
+          "type": "repository-license",
+          "identifier": "CC0-1.0",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+        }
+      ]
+    },
+    {
+      "sourceId": "kaggle-wentinglu-highfrequency-futures-data-china",
+      "subject": "Kaggle wentinglu/highfrequency-futures-data-china 分钟数据集",
+      "codeLicense": {
+        "identifier": "CC BY-SA 4.0",
+        "confirmed": true,
+        "note": "Kaggle 数据集页声明 CC BY-SA 4.0；该声明未说明原始行情提供方、取得方式或上传者获得的上游再分发权。"
+      },
+      "marketDataRights": {
+        "repositoryDatasetAssertionConfirmed": true,
+        "upstreamProvenanceDocumented": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "technicalGapCoverageConfirmed": false,
+        "absolutePriceScaleAvailable": false,
+        "concreteContractAttributionAvailable": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-target-gap-no-absolute-prices-no-contract-attribution",
+        "reason": "数据版本早于目标缺口，豆粕样本只有归一化价格且没有具体合约字段；同时上游行情来源和权利链未说明，不能作为当前产品发布数据。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/kaggle-high-frequency-futures-data-china-probe.json",
+          "capturedAt": "2026-10-19T20:23:57.173409Z",
+          "datasetRef": "wentinglu/highfrequency-futures-data-china",
+          "datasetVersion": 1,
+          "sampleFirstTimestamp": "2013-09-17 08:59:00.005004",
+          "sampleLastTimestamp": "2021-02-01 22:59:00.213",
+          "sampleArchiveSha256": "1cdbd42d6e9937f9b4a64f7e0f7759ec8c042d4d04f692a9f6b09f2d93e7214f",
+          "sampleCsvSha256": "35496890a8cbb94aea84cbb7114721f468088f9c8c611c53c22d9c0d1d3d850a",
+          "retention": {
+            "sampleArchiveStoredOnlyInTemporaryDirectory": true,
+            "temporarySampleDeletedAfterProbe": true,
+            "rawCsvPersisted": false,
+            "rawRowsPersisted": false,
+            "summaryOnly": true
+          }
+        },
+        {
+          "type": "dataset-page",
+          "url": "https://www.kaggle.com/datasets/wentinglu/highfrequency-futures-data-china",
+          "declaredLicense": "CC BY-SA 4.0"
+        }
+      ]
+    },
+    {
+      "sourceId": "huggingface-edisonfu2025-domestic-futures-ticks",
+      "subject": "Hugging Face EdisonFU2025/Domestic_Futures_ticks 数据集",
+      "codeLicense": {
+        "identifier": "mit",
+        "confirmed": true,
+        "note": "数据集卡仅声明 MIT，未说明原始行情提供方、取得方式或上传者获得的上游再分发权。"
+      },
+      "marketDataRights": {
+        "repositoryDatasetAssertionConfirmed": true,
+        "upstreamProvenanceDocumented": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "technicalGapCoverageConfirmed": false,
+        "threeYearHistoryConfirmed": false,
+        "concreteContractAttributionAvailable": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-incomplete-target-set-and-gap-no-contract-attribution-and-upstream-rights-unconfirmed",
+        "reason": "The dataset contains 13 of 15 target products and omits RM and OI. The soybean-meal sample covers only part of the July-October 2025 gap, identifies a continuous 9999 symbol instead of concrete delivery contracts, and does not provide three years of history. Its dataset card declares MIT but does not document the upstream market-data provider, acquisition method, or redistribution authority."
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/huggingface-domestic-futures-ticks-probe.json",
+          "capturedAt": "2026-10-19T20:50:57.269589Z",
+          "datasetId": "EdisonFU2025/Domestic_Futures_ticks",
+          "commit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+          "targetInstrumentCount": 15,
+          "presentInstrumentCount": 13,
+          "sampleFirstTimestamp": "2025-01-02 08:59:00.008000",
+          "sampleLastTimestamp": "2025-08-22 22:59:59.976000",
+          "sampleSha256": "608d831c94ef323c89868e69d003d784b09066ac0a70defad68a6eb736d3aad9",
+          "retention": {
+            "sampleStoredOnlyInTemporaryDirectory": true,
+            "temporarySampleDeletedAfterProbe": true,
+            "temporaryPyarrowEnvironmentManagedByRunner": true,
+            "rawParquetPersisted": false,
+            "rawRowsPersisted": false,
+            "summaryOnly": true
+          }
+        },
+        {
+          "type": "dataset-page",
+          "url": "https://huggingface.co/datasets/EdisonFU2025/Domestic_Futures_ticks",
+          "declaredLicense": "mit"
+        }
+      ]
+    },
+    {
+      "sourceId": "tushare-ft-mins-market-data",
+      "subject": "Tushare Pro ft_mins 返回的期货分钟行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是付费数据服务返回的行情，不是客户端代码。"
+      },
+      "marketDataRights": {
+        "queryCapabilityDocumented": true,
+        "sampleAccessConfirmed": false,
+        "specificContractAttributionConfirmed": true,
+        "technicalGapCoverageConfirmed": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-token-and-non-commercial-license",
+        "reason": "本机未发现 TUSHARE_TOKEN 或 TS_TOKEN，未执行行情请求；即使后续开通期货历史分钟权限，公开数据服务协议仍只授予个人、不可转让、非商业用途，不能直接用于 Git、EXE 或安装包再分发。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/tushare-ft-mins-probe.json",
+          "capturedAt": "2026-10-19T20:33:09.470Z",
+          "probeStatus": "blocked-no-token",
+          "retention": {
+            "rawResponsePersisted": false,
+            "rawRowsPersisted": false,
+            "tokenPersisted": false,
+            "summaryOnly": true
+          }
+        },
+        {
+          "type": "official-api-documentation",
+          "url": "https://tushare.pro/document/2?doc_id=313"
+        },
+        {
+          "type": "official-data-service-agreement",
+          "url": "https://tushare.pro/document/1?doc_id=405"
+        }
+      ]
+    },
+    {
+      "sourceId": "tonghuashun-local-client-market-data",
+      "subject": "本机同花顺期货通客户端展示和私有 TCP 链路中的期货行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是客户端展示及服务返回行情，不是客户端程序代码。"
+      },
+      "marketDataRights": {
+        "clientDisplayCapabilityConfirmed": true,
+        "localHistoricalMinuteStoreConfirmed": false,
+        "supportedBulkExportConfirmed": false,
+        "privateTcpMarketPathObserved": true,
+        "publicHttpHistoricalKlineEndpointFound": false,
+        "packetCapturePerformed": false,
+        "privateProtocolReverseEngineeringPerformed": false,
+        "nativeSdkProbePerformed": true,
+        "nativeSdkVersion": "3.0.0",
+        "nativeSdkAuthenticationSucceeded": true,
+        "nativeSdkSecurityDiscoverySucceeded": true,
+        "nativeSdkHistoricalKlineRequestCount": 3,
+        "nativeSdkSuccessfulHistoricalKlineRequestCount": 0,
+        "nativeSdkHistoricalKlineAccessConfirmed": false,
+        "nativeSdkSessionFilePersistedAfterProbe": false,
+        "redistributionPermissionConfirmed": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "releaseEligibility": "blocked-private-client-path-no-supported-export-or-redistribution-rights",
+        "reason": "当前本机安装只发现配置和合约代码元数据，没有可读取的历史分钟 K 线表、CSV/Parquet 导出或公开批量历史下载入口。THSDK 可以完成认证和证券发现，但具体合约 5 分钟、主连日线和主连 5 分钟历史请求均失败，不能补齐目标缺口。运行中的客户端仍通过 123ths.com 私有 TCP 行情链路取数；继续从该链路取得数据将需要抓包、调用或逆向私有协议，超出本变更边界，且当前没有随 Git、EXE 或安装包再分发的授权依据。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-client-inspection",
+          "path": "data/tonghuashun-local-export-probe.json",
+          "capturedOn": "2026-10-20",
+          "executable": "G:\\同花顺期货通\\bin\\happ.exe",
+          "observationMethod": "操作系统进程连接表与日志中的主机名摘要；未读取网络载荷",
+          "retention": {
+            "summaryOnly": true,
+            "rawDatabaseRowsPersisted": false,
+            "rawKlineRowsPersisted": false,
+            "rawNetworkPayloadPersisted": false,
+            "rawLogLinesPersisted": false,
+            "userConfigurationValuesPersisted": false,
+            "accountIdentifiersPersisted": false,
+            "sessionFilePersisted": false,
+            "probeScriptsStoredInRepository": false
+          }
+        },
+        {
+          "type": "local-summary-only-native-sdk-probe",
+          "path": "data/tonghuashun-local-export-probe.json",
+          "startedAt": "2026-10-20T02:50:08.586948+00:00",
+          "completedAt": "2026-10-20T02:56:09.024948+00:00",
+          "sdkVersion": "3.0.0",
+          "authenticationSucceeded": true,
+          "historicalKlineRequests": [
+            {
+              "id": "specific-contract-5m",
+              "security": "UCFDm2701",
+              "interval": "5-minute",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "timeout",
+              "durationSeconds": 120.005
+            },
+            {
+              "id": "main-continuous-day",
+              "security": "UCFDm9999",
+              "interval": "day",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "query_failed",
+              "durationSeconds": 120.003
+            },
+            {
+              "id": "main-continuous-5m",
+              "security": "UCFDm9999",
+              "interval": "5-minute",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "query_failed",
+              "durationSeconds": 120.004
+            }
+          ],
+          "retention": {
+            "summaryOnly": true,
+            "rawDatabaseRowsPersisted": false,
+            "rawKlineRowsPersisted": false,
+            "rawNetworkPayloadPersisted": false,
+            "rawLogLinesPersisted": false,
+            "userConfigurationValuesPersisted": false,
+            "accountIdentifiersPersisted": false,
+            "sessionFilePersisted": false,
+            "probeScriptsStoredInRepository": false
+          }
+        }
+      ]
+    },
+    {
+      "sourceId": "wenhua-historical-data-service-market-data",
+      "subject": "文华财经历史数据服务返回的国内期货 K 线与 Tick",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是付费历史行情和 API 返回值，不是客户端程序代码。"
+      },
+      "marketDataRights": {
+        "historicalDataCapabilityDocumented": true,
+        "domesticFuturesHistoryFromListingAdvertised": true,
+        "documentedNativeOneMinuteBars": true,
+        "documentedApiAccess": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract",
+        "reason": "官方页面证明历史数据和 API 能力，但普通购买或单机 API 访问没有公开授予将行情保存到 Git、转换为主连 K 线并随第三方 EXE/安装包离线分发的权利。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-historical-data-service",
+          "url": "https://www.wenhua.com.cn/guide/lssj.htm",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "prepared-written-license-inquiry",
+          "path": "docs/历史分钟数据OEM授权询价.md",
+          "status": "awaiting-provider-written-quote"
+        }
+      ]
+    },
+    {
+      "sourceId": "wind-client-api-futures-market-data",
+      "subject": "Wind Client API 返回的期货高频历史行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是 Wind 数据服务返回的行情，不是 API 示例代码。"
+      },
+      "marketDataRights": {
+        "clientApiCapabilityDocumented": true,
+        "highFrequencyHistoricalDataAdvertised": true,
+        "futuresCoverageAdvertised": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract",
+        "reason": "Wind Client API 的机构查询能力不自动包含第三方产品中的静态离线再分发权，且仍需确认大商所、郑商所和上期所行情权利链。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-client-api-product-page",
+          "url": "https://www.wind.com.cn/portal/zh/WDS/ClientApi.html",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "prepared-written-license-inquiry",
+          "path": "docs/历史分钟数据OEM授权询价.md",
+          "status": "awaiting-provider-written-quote"
+        }
+      ]
+    },
+    {
+      "sourceId": "ifind-enterprise-interface-market-data",
+      "subject": "同花顺 iFinD 企业数据接口返回的期货日内行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是正式企业接口返回的行情，与本机期货通私有 TCP 链路分开审计。"
+      },
+      "marketDataRights": {
+        "officialEnterpriseInterfaceDocumented": true,
+        "futuresIntradayDataAdvertised": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract",
+        "reason": "正式企业接口是合法商务路径，但终端或 API 订阅没有公开授予把返回行情固化并随 MoneyComing 离线发布的权利。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-enterprise-data-interface",
+          "url": "https://quantapi.51ifind.com/",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "prepared-written-license-inquiry",
+          "path": "docs/历史分钟数据OEM授权询价.md",
+          "status": "awaiting-provider-written-quote"
+        }
+      ]
+    },
+    {
+      "sourceId": "rqdata-enterprise-futures-market-data",
+      "subject": "RQData 企业数据服务返回的期货分钟行情",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是付费数据服务返回的行情，不是 Python 客户端代码。"
+      },
+      "marketDataRights": {
+        "institutionalDataServiceDocumented": true,
+        "minuteHistoryCapabilityDocumented": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract",
+        "reason": "企业账号和分钟数据访问权不等于产品再分发权；尚未取得覆盖 Git、派生主连和 EXE/安装包的 OEM 合同。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-institutional-data-service",
+          "url": "https://www.ricequant.com/doc/rqdata-institution",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "prepared-written-license-inquiry",
+          "path": "docs/历史分钟数据OEM授权询价.md",
+          "status": "awaiting-provider-written-quote"
+        }
+      ]
+    },
+    {
+      "sourceId": "csmar-futures-high-frequency-market-data",
+      "subject": "CSMAR 中国商品期货高频数据库与定制交付数据",
+      "codeLicense": {
+        "identifier": null,
+        "confirmed": false,
+        "note": "本项审计对象是数据库和定制数据交付，不是客户端代码。"
+      },
+      "marketDataRights": {
+        "commodityFuturesDataAdvertised": true,
+        "customizedDataServiceAdvertised": true,
+        "standardDatabaseLicenseAllowsThirdPartyTransfer": false,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "derivedBarsRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-standard-license-prohibits-transfer-until-separate-oem-contract",
+        "reason": "官方数据库使用说明将普通许可限定为注册用户内部使用并禁止向第三方转移、出售或公开；只有单独 OEM 合同可以改变当前结论。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "official-provider-product-page",
+          "url": "https://www.csmar.com/channels/31.html",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "official-database-user-guide-license-notice",
+          "url": "https://rs.csmar.com/",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "prepared-written-license-inquiry",
+          "path": "docs/历史分钟数据OEM授权询价.md",
+          "status": "awaiting-provider-written-quote"
+        }
+      ]
+    },
+    {
+      "sourceId": "modelscope-ylzmota1-chinese-commodity-tick",
+      "subject": "ModelScope ylzmota1/chinese-commodity 期货 Tick 数据集",
+      "codeLicense": {
+        "identifier": "Apache-2.0",
+        "confirmed": true,
+        "note": "数据集卡对仓库文件声明 Apache-2.0。该声明本身不能补足第三方行情的上游权利链。"
+      },
+      "marketDataRights": {
+        "repositoryDatasetAssertionConfirmed": true,
+        "upstreamProvenanceDocumented": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "technicalGapCoverageConfirmed": true,
+        "technicalThreeYearCoveragePotentialConfirmed": true,
+        "repositoryArchiveRange": {
+          "firstPeriod": "202211",
+          "lastPeriod": "20260730",
+          "archiveCount": 66,
+          "totalBytes": 118695945459
+        },
+        "redistributionPermissionConfirmed": false,
+        "gitStorageAllowed": false,
+        "packagedApplicationRedistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "releaseEligibility": "blocked-until-upstream-rights-confirmed",
+        "reason": "数据集卡声明 Apache-2.0，但使用默认模板，未记录原始行情提供方、取得方式或上传者获得的上游再分发权。即使技术探测已覆盖目标缺口并确认三年以上历史潜力，仍只能保留摘要和哈希，不得将原始 Tick 或派生 K 线提交 Git 或随 EXE/安装包分发。"
+      },
+      "reviewedEvidence": [
+        {
+          "type": "local-summary-only-range-probe",
+          "path": "data/modelscope-tick-source-probe.json",
+          "capturedAt": "2026-10-19T21:55:05.741Z",
+          "commit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+          "technicalGapCoverageConfirmed": true,
+          "technicalThreeYearCoveragePotentialConfirmed": true,
+          "repositoryManifestSha256": "d25a5c676809a60a4debd3286f9e51b931dc26fc0a13308c9d7c7f4cb762de77",
+          "retention": {
+            "fullArchivesDownloaded": false,
+            "centralDirectoriesOnlyForProbedArchives": true,
+            "probedArchiveCount": 9,
+            "rawTickFilesPersisted": false,
+            "reportContainsRawTickRows": false,
+            "reportContainsDerivedBarRows": false
+          }
+        },
+        {
+          "type": "uploader-git-author-contact",
+          "account": "ylzmota1",
+          "email": "ylzmota1@163.com",
+          "commit": "52a15a8a00eef67c25755a2aa1a830741ec25755",
+          "commitSubject": "Upload 202211.zip"
+        },
+        {
+          "type": "dataset-card",
+          "url": "https://www.modelscope.cn/datasets/ylzmota1/chinese-commodity",
+          "declaredLicense": "Apache License 2.0",
+          "defaultTemplateOnly": true
+        }
+      ]
+    }
+  ],
+  "releaseDecision": {
+    "allCandidateMarketDataRedistributionRightsConfirmed": false,
+    "baselineReplacementAllowed": false,
+    "blockedSources": [
+      {
+        "sourceId": "tdxaidata-client-code",
+        "releaseEligibility": "not-applicable-to-returned-market-data"
+      },
+      {
+        "sourceId": "tdx-tq-market-data",
+        "releaseEligibility": "blocked-without-separate-written-authorization"
+      },
+      {
+        "sourceId": "pytdx-client-code",
+        "releaseEligibility": "not-applicable-to-returned-market-data"
+      },
+      {
+        "sourceId": "pytdx-public-exhq-market-data",
+        "releaseEligibility": "blocked-no-contract-attribution-and-no-redistribution-rights"
+      },
+      {
+        "sourceId": "github-china-futures-5min-2015-2025",
+        "releaseEligibility": "blocked-until-upstream-rights-confirmed"
+      },
+      {
+        "sourceId": "kaggle-wentinglu-highfrequency-futures-data-china",
+        "releaseEligibility": "blocked-no-target-gap-no-absolute-prices-no-contract-attribution"
+      },
+      {
+        "sourceId": "huggingface-edisonfu2025-domestic-futures-ticks",
+        "releaseEligibility": "blocked-incomplete-target-set-and-gap-no-contract-attribution-and-upstream-rights-unconfirmed"
+      },
+      {
+        "sourceId": "tushare-ft-mins-market-data",
+        "releaseEligibility": "blocked-no-token-and-non-commercial-license"
+      },
+      {
+        "sourceId": "tonghuashun-local-client-market-data",
+        "releaseEligibility": "blocked-private-client-path-no-supported-export-or-redistribution-rights"
+      },
+      {
+        "sourceId": "wenhua-historical-data-service-market-data",
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract"
+      },
+      {
+        "sourceId": "wind-client-api-futures-market-data",
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract"
+      },
+      {
+        "sourceId": "ifind-enterprise-interface-market-data",
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract"
+      },
+      {
+        "sourceId": "rqdata-enterprise-futures-market-data",
+        "releaseEligibility": "blocked-until-oem-static-redistribution-contract"
+      },
+      {
+        "sourceId": "csmar-futures-high-frequency-market-data",
+        "releaseEligibility": "blocked-standard-license-prohibits-transfer-until-separate-oem-contract"
+      },
+      {
+        "sourceId": "modelscope-ylzmota1-chinese-commodity-tick",
+        "releaseEligibility": "blocked-until-upstream-rights-confirmed"
+      }
+    ],
+    "note": "当前候选只保留临时验证结果，现有内置基线不得被这些候选行情替换。"
+  }
+}

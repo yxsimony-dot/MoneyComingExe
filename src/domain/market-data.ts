@@ -1,13 +1,27 @@
-import type { Bar, EdbMinuteRecord, MarketUpdateCounts, Period } from '../shared/types';
+import type {
+  Bar,
+  EdbMinuteRecord,
+  MainContractMapping,
+  MarketUpdateCounts,
+  Period,
+} from '../shared/types';
 import {
   DEFAULT_INSTRUMENT,
+  type InstrumentDefinition,
   type TradingSchedule,
   type TradingSessionDefinition,
 } from '../shared/instruments';
 import { formatBeijing } from './time';
 
 const MINUTE_MS = 60_000;
+const CALENDAR_DAY_MS = 24 * 60 * MINUTE_MS;
+const MINIMUM_THREE_YEAR_TRADING_DAYS = 600;
+const MAXIMUM_TRADING_DATE_GAP_DAYS = 14;
 const NANO_PER_MINUTE = 60_000_000_000n;
+const SPECIAL_MARKET_SUSPENSION_MINUTES = new Set([
+  '2022-12-06 10:00:00',
+  '2022-12-06 10:01:00',
+]);
 const REQUIRED_COLUMNS = [
   'datetime_nano',
   'open',
@@ -69,6 +83,16 @@ export interface TradingMinute {
   date: string;
 }
 
+interface TradingSegmentMinute {
+  session: Bar['session'];
+  segmentIndex: number;
+  index: number;
+  total: number;
+  startMinute: number;
+  endMinute: number;
+  date: string;
+}
+
 function sessionTotal(session: TradingSessionDefinition): number {
   return session.segments.reduce(
     (total, segment) => total + segment.endMinute - segment.startMinute,
@@ -127,6 +151,36 @@ export function tradingMinuteAt(
   throw new Error(`非交易分钟：${text}`);
 }
 
+function tradingSegmentMinuteAt(
+  ms: number,
+  schedule: TradingSchedule,
+): TradingSegmentMinute {
+  assertTradingSchedule(schedule);
+  const text = formatBeijing(ms);
+  const hour = Number(text.slice(11, 13));
+  const minute = Number(text.slice(14, 16));
+  const second = Number(text.slice(17, 19));
+  if (second !== 0 || ms % MINUTE_MS !== 0) throw new Error(`非整分钟时间：${text}`);
+  const wallMinuteValue = hour * 60 + minute;
+  for (const session of schedule) {
+    for (let segmentIndex = 0; segmentIndex < session.segments.length; segmentIndex += 1) {
+      const segment = session.segments[segmentIndex];
+      if (wallMinuteValue >= segment.startMinute && wallMinuteValue < segment.endMinute) {
+        return {
+          session: session.id,
+          segmentIndex,
+          index: wallMinuteValue - segment.startMinute,
+          total: segment.endMinute - segment.startMinute,
+          startMinute: segment.startMinute,
+          endMinute: segment.endMinute,
+          date: text.slice(0, 10),
+        };
+      }
+    }
+  }
+  throw new Error(`非交易分钟：${text}`);
+}
+
 function wallMinute(
   sessionId: Bar['session'],
   index: number,
@@ -148,6 +202,40 @@ function wallMinute(
 function dateStartUtcMs(date: string): number {
   const [year, month, day] = date.split('-').map(Number);
   return Date.UTC(year, month - 1, day) - 8 * 60 * MINUTE_MS;
+}
+
+function isExpectedTradingMinute(startMs: number): boolean {
+  return !SPECIAL_MARKET_SUSPENSION_MINUTES.has(formatBeijing(startMs));
+}
+
+function expectedSessionMinuteStarts(
+  date: string,
+  session: Bar['session'],
+  startIndex: number,
+  stopIndex: number,
+  schedule: TradingSchedule,
+): number[] {
+  const dayStart = dateStartUtcMs(date);
+  const starts: number[] = [];
+  for (let index = startIndex; index < stopIndex; index += 1) {
+    const startMs = dayStart + wallMinute(session, index, schedule) * MINUTE_MS;
+    if (isExpectedTradingMinute(startMs)) starts.push(startMs);
+  }
+  return starts;
+}
+
+function expectedWallMinuteStarts(
+  date: string,
+  startMinute: number,
+  stopMinute: number,
+): number[] {
+  const dayStart = dateStartUtcMs(date);
+  const starts: number[] = [];
+  for (let minute = startMinute; minute < stopMinute; minute += 1) {
+    const startMs = dayStart + minute * MINUTE_MS;
+    if (isExpectedTradingMinute(startMs)) starts.push(startMs);
+  }
+  return starts;
 }
 
 export function parseEdbMinuteCsv(
@@ -257,6 +345,13 @@ export function aggregateMinutes(
     const endMs = dayStart + (wallMinute(group.minute.session, stopIndex - 1, schedule) + 1) * MINUTE_MS;
     if (endMs > coverageEndMs) continue;
     const part = group.records.sort((left, right) => left.startMs - right.startMs);
+    const expectedMinutes = expectedSessionMinuteStarts(
+      group.minute.date,
+      group.minute.session,
+      startIndex,
+      stopIndex,
+      schedule,
+    ).length;
     bars.push({
       startMs,
       endMs,
@@ -271,11 +366,83 @@ export function aggregateMinutes(
       closeOi: part.at(-1)!.closeOi,
       session: group.minute.session,
       observedMinutes: part.length,
-      expectedMinutes: stopIndex - startIndex,
-      complete: part.length === stopIndex - startIndex,
+      expectedMinutes,
+      complete: part.length === expectedMinutes,
     });
   }
   return bars.sort((left, right) => left.startMs - right.startMs);
+}
+
+export function aggregateFiveMinuteBars(
+  bars5: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): Bar[] {
+  assertBarsValid(bars5, 5, schedule);
+  const groups = new Map<string, {
+    minute: TradingSegmentMinute;
+    bucket: number;
+    bars: Bar[];
+  }>();
+  for (const bar of bars5) {
+    const minute = tradingSegmentMinuteAt(bar.startMs, schedule);
+    const bucket = Math.floor(minute.index / 60);
+    const startIndex = bucket * 60;
+    const stopIndex = Math.min(startIndex + 60, minute.total);
+    const segmentEndMs = dateStartUtcMs(minute.date) + minute.endMinute * MINUTE_MS;
+    if (bar.session !== minute.session
+      || bar.startMs + 5 * MINUTE_MS !== bar.endMs
+      || bar.endMs > segmentEndMs
+      || minute.index % 5 !== 0
+      || (stopIndex - startIndex) % 5 !== 0) {
+      throw new Error(`5 分钟行情不能按交易分段聚合：${bar.start}`);
+    }
+    const key = `${minute.date}|${minute.session}|${minute.segmentIndex}|${bucket}`;
+    const group = groups.get(key) ?? { minute, bucket, bars: [] };
+    group.bars.push(bar);
+    groups.set(key, group);
+  }
+
+  const bars60: Bar[] = [];
+  for (const group of groups.values()) {
+    const startIndex = group.bucket * 60;
+    const stopIndex = Math.min(startIndex + 60, group.minute.total);
+    const dayStart = dateStartUtcMs(group.minute.date);
+    const startMs = dayStart + (group.minute.startMinute + startIndex) * MINUTE_MS;
+    const endMs = dayStart + (group.minute.startMinute + stopIndex) * MINUTE_MS;
+    const expectedMinutes = expectedWallMinuteStarts(
+      group.minute.date,
+      group.minute.startMinute + startIndex,
+      group.minute.startMinute + stopIndex,
+    ).length;
+    const children = group.bars.sort((left, right) => left.startMs - right.startMs);
+    const expectedChildren = (endMs - startMs) / (5 * MINUTE_MS);
+    const contiguous = children.length === expectedChildren
+      && children.every((bar, index) => (
+        bar.startMs === startMs + index * 5 * MINUTE_MS
+        && bar.endMs === startMs + (index + 1) * 5 * MINUTE_MS
+      ));
+    const observedMinutes = children.reduce((sum, bar) => sum + bar.observedMinutes, 0);
+    bars60.push({
+      startMs,
+      endMs,
+      start: formatBeijing(startMs),
+      end: formatBeijing(endMs),
+      open: children[0].open,
+      high: Math.max(...children.map(bar => bar.high)),
+      low: Math.min(...children.map(bar => bar.low)),
+      close: children.at(-1)!.close,
+      volume: children.reduce((sum, bar) => sum + bar.volume, 0),
+      openOi: children[0].openOi,
+      closeOi: children.at(-1)!.closeOi,
+      session: group.minute.session,
+      observedMinutes,
+      expectedMinutes,
+      complete: contiguous
+        && observedMinutes === expectedMinutes
+        && children.every(bar => bar.complete),
+    });
+  }
+  return bars60.sort((left, right) => left.startMs - right.startMs);
 }
 
 function equalNumber(left: number, right: number): boolean {
@@ -364,11 +531,26 @@ export function completeMinutesForFiveMinuteBar(
   records: readonly EdbMinuteRecord[],
   schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
 ): EdbMinuteRecord[] | undefined {
-  if (bar.expectedMinutes !== 5 || bar.endMs - bar.startMs !== 5 * MINUTE_MS) return undefined;
+  try {
+    assertBarsValid([bar], 5, schedule);
+  } catch {
+    return undefined;
+  }
+  if (!bar.complete) return undefined;
+  const minute = tradingMinuteAt(bar.startMs, schedule);
+  const startIndex = Math.floor(minute.index / 5) * 5;
+  const stopIndex = Math.min(startIndex + 5, minute.total);
+  const expectedStarts = expectedSessionMinuteStarts(
+    minute.date,
+    minute.session,
+    startIndex,
+    stopIndex,
+    schedule,
+  );
   const candidates = records.filter(record => record.startMs >= bar.startMs && record.startMs < bar.endMs);
-  if (candidates.length !== 5) return undefined;
+  if (candidates.length !== expectedStarts.length) return undefined;
   for (let index = 0; index < candidates.length; index += 1) {
-    if (candidates[index].startMs !== bar.startMs + index * MINUTE_MS) return undefined;
+    if (candidates[index].startMs !== expectedStarts[index]) return undefined;
     try {
       assertMinuteRecordsValid([candidates[index]], schedule);
     } catch {
@@ -390,8 +572,40 @@ export function completeMinutesForFiveMinuteBar(
   return matches ? candidates : undefined;
 }
 
+export function assertMinuteCoverageMatchesFiveMinuteBars(
+  records: readonly EdbMinuteRecord[],
+  bars5: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): void {
+  assertMinuteRecordsValid(records, schedule);
+  assertBarsValid(bars5, 5, schedule);
+  let minuteIndex = 0;
+  for (const bar of bars5) {
+    while (records[minuteIndex]?.startMs < bar.startMs) minuteIndex += 1;
+    let stopIndex = minuteIndex;
+    while (records[stopIndex]?.startMs < bar.endMs) stopIndex += 1;
+    const candidates = records.slice(minuteIndex, stopIndex);
+    const minute = tradingMinuteAt(bar.startMs, schedule);
+    const startIndex = Math.floor(minute.index / 5) * 5;
+    const expectedStarts = expectedSessionMinuteStarts(
+      minute.date,
+      minute.session,
+      startIndex,
+      Math.min(startIndex + 5, minute.total),
+      schedule,
+    );
+    const completeCoverage = candidates.length === expectedStarts.length
+      && candidates.every((record, index) => record.startMs === expectedStarts[index]);
+    if (completeCoverage
+      && !completeMinutesForFiveMinuteBar(bar, candidates, schedule)) {
+      throw new Error(`1 分钟与 5 分钟行情对账不一致：${bar.start}`);
+    }
+    minuteIndex = stopIndex;
+  }
+}
+
 export function assertBarsValid(
-  bars: Bar[],
+  bars: readonly Bar[],
   period: Period,
   schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
 ): void {
@@ -420,7 +634,14 @@ export function assertBarsValid(
     if (bar.startMs !== expectedStartMs || bar.endMs !== expectedEndMs || bar.session !== minute.session) {
       throw new Error(`${period} 分钟行情时间桶或交易时段无效：${bar.start}`);
     }
-    if (bar.expectedMinutes !== expectedStopIndex - expectedStartIndex
+    const expectedMinutes = expectedSessionMinuteStarts(
+      minute.date,
+      minute.session,
+      expectedStartIndex,
+      expectedStopIndex,
+      schedule,
+    ).length;
+    if (bar.expectedMinutes !== expectedMinutes
       || !Number.isInteger(bar.observedMinutes)
       || bar.observedMinutes < 0
       || bar.observedMinutes > bar.expectedMinutes
@@ -430,7 +651,282 @@ export function assertBarsValid(
   }
 }
 
-export function reconcileBars(bars5: Bar[], bars60: Bar[]): void {
+export function assertSegmentedSixtyMinuteBarsValid(
+  bars: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): void {
+  for (let index = 0; index < bars.length; index += 1) {
+    const bar = bars[index];
+    const previous = bars[index - 1];
+    if (previous && (bar.startMs <= previous.startMs || bar.startMs < previous.endMs)) {
+      throw new Error('60 分钟行情存在重复、倒序或重叠记录');
+    }
+    if (![bar.open, bar.high, bar.low, bar.close, bar.volume, bar.openOi, bar.closeOi]
+      .every(Number.isFinite)) {
+      throw new Error('60 分钟行情存在非有限数值');
+    }
+    if (bar.low > bar.high
+      || bar.open < bar.low
+      || bar.open > bar.high
+      || bar.close < bar.low
+      || bar.close > bar.high) {
+      throw new Error('60 分钟行情 OHLC 范围无效');
+    }
+    if (bar.volume < 0 || bar.openOi < 0 || bar.closeOi < 0) {
+      throw new Error('60 分钟行情成交量或持仓量为负');
+    }
+    const minute = tradingSegmentMinuteAt(bar.startMs, schedule);
+    const bucket = Math.floor(minute.index / 60);
+    const expectedStartIndex = bucket * 60;
+    const expectedStopIndex = Math.min(expectedStartIndex + 60, minute.total);
+    const dayStart = dateStartUtcMs(minute.date);
+    const expectedStartMs = dayStart
+      + (minute.startMinute + expectedStartIndex) * MINUTE_MS;
+    const expectedEndMs = dayStart
+      + (minute.startMinute + expectedStopIndex) * MINUTE_MS;
+    if (bar.startMs !== expectedStartMs
+      || bar.endMs !== expectedEndMs
+      || bar.session !== minute.session) {
+      throw new Error(`60 分钟行情跨越休息或交易时段边界：${bar.start}`);
+    }
+    const expectedMinutes = expectedWallMinuteStarts(
+      minute.date,
+      minute.startMinute + expectedStartIndex,
+      minute.startMinute + expectedStopIndex,
+    ).length;
+    if (bar.expectedMinutes !== expectedMinutes
+      || (expectedEndMs - expectedStartMs) % (5 * MINUTE_MS) !== 0
+      || !Number.isInteger(bar.observedMinutes)
+      || bar.observedMinutes < 0
+      || bar.observedMinutes > bar.expectedMinutes
+      || bar.complete !== (bar.observedMinutes === bar.expectedMinutes)) {
+      throw new Error(`60 分钟行情完整性字段无效：${bar.start}`);
+    }
+  }
+}
+
+function calendarDayNumber(date: string): number {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new Error(`交易日格式无效：${date}`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const milliseconds = Date.UTC(year, month - 1, day);
+  const parsed = new Date(milliseconds);
+  if (parsed.getUTCFullYear() !== year
+    || parsed.getUTCMonth() !== month - 1
+    || parsed.getUTCDate() !== day) {
+    throw new Error(`交易日格式无效：${date}`);
+  }
+  return milliseconds / CALENDAR_DAY_MS;
+}
+
+function subtractCalendarYearsFromDate(date: string, years: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const targetYear = year - years;
+  const lastDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate();
+  return [
+    targetYear,
+    String(month).padStart(2, '0'),
+    String(Math.min(day, lastDay)).padStart(2, '0'),
+  ].join('-');
+}
+
+function firstMappingAfter(
+  mappings: readonly MainContractMapping[],
+  naturalDate: string,
+): MainContractMapping | undefined {
+  let left = 0;
+  let right = mappings.length;
+  while (left < right) {
+    const middle = (left + right) >>> 1;
+    if (mappings[middle].tradingDate <= naturalDate) left = middle + 1;
+    else right = middle;
+  }
+  return mappings[left];
+}
+
+interface RepresentedTradingDate {
+  dayObserved: boolean;
+  nightNaturalDates: Set<string>;
+}
+
+function missingCoverageError(
+  definition: InstrumentDefinition,
+  tradingDate: string,
+  session: Bar['session'],
+  period: 5 | 60,
+  startMs: number,
+): Error {
+  const sessionLabel = session === 'day' ? '日盘' : '夜盘';
+  return new Error(
+    `${definition.name} ${tradingDate} ${sessionLabel}缺少 ${period} 分钟 K 线：${formatBeijing(startMs)}`,
+  );
+}
+
+export function assertContinuousBarCoverage(
+  definition: InstrumentDefinition,
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  mainContractMappings: readonly MainContractMapping[],
+): void {
+  if (!bars5.length || !bars60.length || !mainContractMappings.length) {
+    throw new Error(`${definition.name} 缺少连续覆盖校验所需的 5/60 分钟行情或主力映射`);
+  }
+  assertBarsValid(bars5, 5, definition.tradingSessions);
+  assertSegmentedSixtyMinuteBarsValid(bars60, definition.tradingSessions);
+
+  const mappingDates = new Set<string>();
+  for (let index = 0; index < mainContractMappings.length; index += 1) {
+    const mapping = mainContractMappings[index];
+    calendarDayNumber(mapping.tradingDate);
+    const previous = mainContractMappings[index - 1];
+    if (previous && mapping.tradingDate <= previous.tradingDate) {
+      throw new Error(`${definition.name} 主力映射交易日必须严格递增`);
+    }
+    mappingDates.add(mapping.tradingDate);
+  }
+
+  const represented = new Map<string, RepresentedTradingDate>();
+  const mapBars = (bars: readonly Bar[], period: 5 | 60): void => {
+    for (const bar of bars) {
+      const minute = tradingSegmentMinuteAt(bar.startMs, definition.tradingSessions);
+      let tradingDate: string;
+      if (minute.session === 'day') {
+        tradingDate = minute.date;
+        if (!mappingDates.has(tradingDate)) {
+          throw new Error(
+            `${definition.name} ${period} 分钟日盘 K 线无法映射到主力交易日：${bar.start}`,
+          );
+        }
+      } else {
+        const mapping = firstMappingAfter(mainContractMappings, minute.date);
+        if (!mapping) {
+          throw new Error(
+            `${definition.name} ${period} 分钟夜盘 K 线之后缺少主力交易日：${bar.start}`,
+          );
+        }
+        tradingDate = mapping.tradingDate;
+      }
+      const entry = represented.get(tradingDate) ?? {
+        dayObserved: false,
+        nightNaturalDates: new Set<string>(),
+      };
+      if (minute.session === 'day') entry.dayObserved = true;
+      else entry.nightNaturalDates.add(minute.date);
+      represented.set(tradingDate, entry);
+    }
+  };
+  mapBars(bars5, 5);
+  mapBars(bars60, 60);
+
+  const representedDates = [...represented.keys()].sort();
+  if (!representedDates.length) {
+    throw new Error(`${definition.name} 没有可映射的交易日`);
+  }
+  const firstRepresentedDate = representedDates[0];
+  const lastRepresentedDate = representedDates.at(-1)!;
+  const representedMappings = mainContractMappings.filter(mapping => (
+    mapping.tradingDate >= firstRepresentedDate
+    && mapping.tradingDate <= lastRepresentedDate
+  ));
+  if (!representedMappings.length
+    || representedMappings[0].tradingDate !== firstRepresentedDate
+    || representedMappings.at(-1)!.tradingDate !== lastRepresentedDate) {
+    throw new Error(
+      `${definition.name} 主力映射未覆盖完整行情交易日范围：${firstRepresentedDate} 至 ${lastRepresentedDate}`,
+    );
+  }
+
+  for (let index = 1; index < representedMappings.length; index += 1) {
+    const previous = representedMappings[index - 1].tradingDate;
+    const current = representedMappings[index].tradingDate;
+    const gapDays = calendarDayNumber(current) - calendarDayNumber(previous);
+    if (gapDays > MAXIMUM_TRADING_DATE_GAP_DAYS) {
+      throw new Error(
+        `${definition.name} 主力映射交易日间隔超过 ${MAXIMUM_TRADING_DATE_GAP_DAYS} 天：${previous} -> ${current}`,
+      );
+    }
+  }
+
+  const requiredStartDate = subtractCalendarYearsFromDate(lastRepresentedDate, 3);
+  const requiredWindowMappings = representedMappings.filter(mapping => (
+    mapping.tradingDate >= requiredStartDate
+  ));
+  if (requiredWindowMappings.length < MINIMUM_THREE_YEAR_TRADING_DAYS) {
+    throw new Error(
+      `${definition.name} 最近三年主力映射交易日不足 ${MINIMUM_THREE_YEAR_TRADING_DAYS} 日：`
+      + `${requiredStartDate} 至 ${lastRepresentedDate} 仅 ${requiredWindowMappings.length} 日`,
+    );
+  }
+
+  const bars5ByStart = new Map(bars5.map(bar => [bar.startMs, bar]));
+  const bars60ByStart = new Map(bars60.map(bar => [bar.startMs, bar]));
+  const assertExpected = (
+    barsByStart: ReadonlyMap<number, Bar>,
+    period: 5 | 60,
+    tradingDate: string,
+    naturalDate: string,
+    session: TradingSessionDefinition,
+    startMinute: number,
+  ): void => {
+    const startMs = dateStartUtcMs(naturalDate) + startMinute * MINUTE_MS;
+    const bar = barsByStart.get(startMs);
+    if (!bar) {
+      throw missingCoverageError(definition, tradingDate, session.id, period, startMs);
+    }
+    if (!bar.complete || bar.observedMinutes !== bar.expectedMinutes) {
+      throw new Error(
+        `${definition.name} ${tradingDate} ${session.id === 'day' ? '日盘' : '夜盘'}`
+        + `${period} 分钟 K 线不完整：${formatBeijing(startMs)}`,
+      );
+    }
+  };
+  const assertSession = (
+    tradingDate: string,
+    naturalDate: string,
+    session: TradingSessionDefinition,
+  ): void => {
+    for (const segment of session.segments) {
+      for (let minute = segment.startMinute; minute < segment.endMinute; minute += 5) {
+        assertExpected(bars5ByStart, 5, tradingDate, naturalDate, session, minute);
+      }
+      for (let minute = segment.startMinute; minute < segment.endMinute; minute += 60) {
+        assertExpected(bars60ByStart, 60, tradingDate, naturalDate, session, minute);
+      }
+    }
+  };
+
+  for (const mapping of representedMappings) {
+    const entry = represented.get(mapping.tradingDate)
+      ?? { dayObserved: false, nightNaturalDates: new Set<string>() };
+    const isTrailingNightOnlyTradingDate = mapping.tradingDate === lastRepresentedDate
+      && !entry.dayObserved
+      && entry.nightNaturalDates.size > 0;
+    for (const session of definition.tradingSessions) {
+      if (session.id === 'day') {
+        if (!isTrailingNightOnlyTradingDate) {
+          assertSession(mapping.tradingDate, mapping.tradingDate, session);
+        }
+        continue;
+      }
+      if (entry.nightNaturalDates.size > 1) {
+        throw new Error(
+          `${definition.name} ${mapping.tradingDate} 夜盘映射到多个自然日：`
+          + [...entry.nightNaturalDates].sort().join('、'),
+        );
+      }
+      for (const naturalDate of entry.nightNaturalDates) {
+        assertSession(mapping.tradingDate, naturalDate, session);
+      }
+    }
+  }
+}
+
+export function reconcileLegacyBars(
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+): void {
   let childIndex = 0;
   for (const parent of bars60) {
     while (childIndex < bars5.length && bars5[childIndex].endMs <= parent.startMs) childIndex += 1;
@@ -455,6 +951,33 @@ export function reconcileBars(bars5: Bar[], bars60: Bar[]): void {
   }
 }
 
+export type SixtyMinuteBarFormat = 'legacy' | 'segmented';
+
+export function detectSixtyMinuteBarFormat(
+  bars60: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+  ambiguousPreference: SixtyMinuteBarFormat = 'segmented',
+): SixtyMinuteBarFormat {
+  let segmentedError: unknown;
+  let segmentedValid = false;
+  try {
+    assertSegmentedSixtyMinuteBarsValid(bars60, schedule);
+    segmentedValid = true;
+  } catch (error) {
+    segmentedError = error;
+  }
+  let legacyValid = false;
+  try {
+    assertBarsValid(bars60, 60, schedule);
+    legacyValid = true;
+  } catch {
+    if (segmentedValid) return 'segmented';
+    throw segmentedError;
+  }
+  if (segmentedValid && legacyValid) return ambiguousPreference;
+  return legacyValid ? 'legacy' : 'segmented';
+}
+
 function sameBar(left: Bar, right: Bar): boolean {
   return left.startMs === right.startMs
     && left.endMs === right.endMs
@@ -469,6 +992,114 @@ function sameBar(left: Bar, right: Bar): boolean {
     && left.observedMinutes === right.observedMinutes
     && left.expectedMinutes === right.expectedMinutes
     && left.complete === right.complete;
+}
+
+export function reconcileBars(
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): void {
+  assertBarsValid(bars5, 5, schedule);
+  assertSegmentedSixtyMinuteBarsValid(bars60, schedule);
+  const rebuilt = aggregateFiveMinuteBars(bars5, schedule);
+  const completeRebuiltCount = rebuilt.reduce(
+    (count, bar) => count + Number(bar.complete),
+    0,
+  );
+  if (bars60.length !== completeRebuiltCount) {
+    if (bars60.length > completeRebuiltCount) {
+      const parent = bars60[completeRebuiltCount];
+      throw new Error(
+        `5 分钟与 60 分钟时间桶数量不一致（60 分钟行情组成 5 分钟数量不一致）：${parent.start}`,
+      );
+    }
+    throw new Error('5 分钟与 60 分钟时间桶数量不一致');
+  }
+
+  let barIndex = 0;
+  let completeIndex = 0;
+  for (const expected of rebuilt) {
+    const firstChildIndex = barIndex;
+    let contiguous = true;
+    while (barIndex < bars5.length && bars5[barIndex].startMs < expected.endMs) {
+      const child = bars5[barIndex];
+      const childIndex = barIndex - firstChildIndex;
+      if (
+        !child.complete
+        || child.startMs !== expected.startMs + childIndex * 5 * MINUTE_MS
+        || child.endMs !== expected.startMs + (childIndex + 1) * 5 * MINUTE_MS
+      ) {
+        contiguous = false;
+      }
+      barIndex += 1;
+    }
+    const childCount = barIndex - firstChildIndex;
+    const expectedChildren = (expected.endMs - expected.startMs) / (5 * MINUTE_MS);
+    if (!contiguous
+      || childCount === 0
+      || bars5[firstChildIndex].startMs !== expected.startMs
+      || bars5[barIndex - 1].endMs > expected.endMs) {
+      throw new Error(
+        `5 分钟与 60 分钟时间桶数量不一致（60 分钟行情组成 5 分钟数量不一致）：${expected.start}`,
+      );
+    }
+
+    if (!expected.complete) {
+      if (childCount >= expectedChildren) {
+        throw new Error('5 分钟与 60 分钟时间桶数量不一致');
+      }
+      continue;
+    }
+
+    const parent = bars60[completeIndex];
+    completeIndex += 1;
+    if (childCount !== expectedChildren) {
+      throw new Error(
+        `5 分钟与 60 分钟时间桶数量不一致（60 分钟行情组成 5 分钟数量不一致）：${parent.start}`,
+      );
+    }
+    if (parent.startMs !== expected.startMs
+      || parent.endMs !== expected.endMs
+      || parent.session !== expected.session) {
+      throw new Error(`5 分钟与 60 分钟时间桶不一致：${parent.start}`);
+    }
+    for (const field of [
+      'open',
+      'high',
+      'low',
+      'close',
+      'volume',
+      'openOi',
+      'closeOi',
+    ] as const) {
+      if (!equalNumber(parent[field], expected[field])) {
+        throw new Error(`5 分钟与 60 分钟 ${field} 对账不一致：${parent.start}`);
+      }
+    }
+    if (parent.observedMinutes !== expected.observedMinutes
+      || parent.expectedMinutes !== expected.expectedMinutes
+      || parent.complete !== expected.complete) {
+      throw new Error(`5 分钟与 60 分钟完整性对账不一致：${parent.start}`);
+    }
+  }
+  if (barIndex !== bars5.length || completeIndex !== bars60.length) {
+      throw new Error('5 分钟与 60 分钟时间桶数量不一致');
+  }
+}
+
+export function reconcileCompatibleBars(
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): SixtyMinuteBarFormat {
+  const format = detectSixtyMinuteBarFormat(bars60, schedule);
+  if (format === 'segmented') {
+    reconcileBars(bars5, bars60, schedule);
+  } else {
+    assertBarsValid(bars5, 5, schedule);
+    reconcileLegacyBars(bars5, bars60);
+  }
+  return format;
 }
 
 export interface MergeBarsResult {
@@ -492,6 +1123,27 @@ export function mergeBars(local: Bar[], replacement: Bar[], switchPointMs: numbe
       return old !== undefined && !sameBar(old, bar);
     }).length,
     removed: oldTail.filter(bar => !nextByStart.has(bar.startMs)).length,
+  };
+}
+
+export function mergeBarsPreservingHistory(
+  local: readonly Bar[],
+  replacement: readonly Bar[],
+): MergeBarsResult {
+  const barsByStart = new Map(local.map(bar => [bar.startMs, bar]));
+  let added = 0;
+  let replaced = 0;
+  for (const bar of replacement) {
+    const previous = barsByStart.get(bar.startMs);
+    if (!previous) added += 1;
+    else if (!sameBar(previous, bar)) replaced += 1;
+    barsByStart.set(bar.startMs, bar);
+  }
+  return {
+    bars: [...barsByStart.values()].sort((left, right) => left.startMs - right.startMs),
+    added,
+    replaced,
+    removed: 0,
   };
 }
 

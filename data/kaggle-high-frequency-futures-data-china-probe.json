@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "purpose": "kaggle-high-frequency-futures-data-china-probe",
+  "capturedAt": "2026-10-19T20:23:57.173409Z",
+  "source": {
+    "datasetRef": "wentinglu/highfrequency-futures-data-china",
+    "datasetId": 2181109,
+    "title": "High-Frequency Futures Data (China)",
+    "subtitle": "Chinese Futures Data (57 kinds in total) in minute frequency",
+    "description": "This is a dataset of high-frequency Chinese futures dataset. It is in minute frequency. Users/Researchers interested in high-frequency trading can utilize the dataset to create trading strategies, analyze futures market in China, and etc.",
+    "lastUpdated": "2022-05-15T22:46:54.49Z",
+    "currentVersionNumber": 1,
+    "declaredLicense": "CC BY-SA 4.0",
+    "datasetTotalBytes": 3124620337,
+    "fileCount": 57,
+    "normalizedManifestSha256": "fb6d716913369bdb9cd547441a2e0c90aa0f1e7e7881f6d43e81184577162520",
+    "viewEndpoint": "https://www.kaggle.com/api/v1/datasets/view/wentinglu/highfrequency-futures-data-china",
+    "filesEndpoint": "https://www.kaggle.com/api/v1/datasets/list/wentinglu/highfrequency-futures-data-china?pageSize=200"
+  },
+  "target": {
+    "instrumentCount": 15,
+    "allTargetFilesPresent": true,
+    "files": [
+      {
+        "instrumentId": "main_continuous",
+        "name": "豆粕主连",
+        "prefix": "M",
+        "file": "minDataSum/M.csv",
+        "present": true,
+        "bytes": 77201058
+      },
+      {
+        "instrumentId": "rapeseed_meal_main",
+        "name": "菜粕主连",
+        "prefix": "RM",
+        "file": "minDataSum/RM.csv",
+        "present": true,
+        "bytes": 74321380
+      },
+      {
+        "instrumentId": "pvc_main",
+        "name": "PVC主连",
+        "prefix": "V",
+        "file": "minDataSum/V.csv",
+        "present": true,
+        "bytes": 54737660
+      },
+      {
+        "instrumentId": "rebar_main",
+        "name": "螺纹钢主连",
+        "prefix": "RB",
+        "file": "minDataSum/RB.csv",
+        "present": true,
+        "bytes": 77073317
+      },
+      {
+        "instrumentId": "glass_main",
+        "name": "玻璃主连",
+        "prefix": "FG",
+        "file": "minDataSum/FG.csv",
+        "present": true,
+        "bytes": 72303478
+      },
+      {
+        "instrumentId": "rapeseed_oil_main",
+        "name": "菜油主连",
+        "prefix": "OI",
+        "file": "minDataSum/OI.csv",
+        "present": true,
+        "bytes": 72601131
+      },
+      {
+        "instrumentId": "palm_oil_main",
+        "name": "棕榈油主连",
+        "prefix": "P",
+        "file": "minDataSum/P.csv",
+        "present": true,
+        "bytes": 81605433
+      },
+      {
+        "instrumentId": "soybean_oil_main",
+        "name": "豆油主连",
+        "prefix": "Y",
+        "file": "minDataSum/Y.csv",
+        "present": true,
+        "bytes": 77274808
+      },
+      {
+        "instrumentId": "pulp_main",
+        "name": "纸浆主连",
+        "prefix": "SP",
+        "file": "minDataSum/SP.csv",
+        "present": true,
+        "bytes": 21392964
+      },
+      {
+        "instrumentId": "corn_main",
+        "name": "玉米主连",
+        "prefix": "C",
+        "file": "minDataSum/C.csv",
+        "present": true,
+        "bytes": 56321850
+      },
+      {
+        "instrumentId": "soda_ash_main",
+        "name": "纯碱主连",
+        "prefix": "SA",
+        "file": "minDataSum/SA.csv",
+        "present": true,
+        "bytes": 10588968
+      },
+      {
+        "instrumentId": "soybean_1_main",
+        "name": "豆一主连",
+        "prefix": "A",
+        "file": "minDataSum/A.csv",
+        "present": true,
+        "bytes": 75273491
+      },
+      {
+        "instrumentId": "methanol_main",
+        "name": "甲醇主连",
+        "prefix": "MA",
+        "file": "minDataSum/MA.csv",
+        "present": true,
+        "bytes": 67157597
+      },
+      {
+        "instrumentId": "sugar_main",
+        "name": "白糖主连",
+        "prefix": "SR",
+        "file": "minDataSum/SR.csv",
+        "present": true,
+        "bytes": 74321438
+      },
+      {
+        "instrumentId": "soybean_2_main",
+        "name": "豆二主连",
+        "prefix": "B",
+        "file": "minDataSum/B.csv",
+        "present": true,
+        "bytes": 33440822
+      }
+    ]
+  },
+  "sample": {
+    "prefix": "M",
+    "file": "minDataSum/M.csv",
+    "inventoryBytes": 77201058,
+    "download": {
+      "url": "https://www.kaggle.com/api/v1/datasets/download/wentinglu/highfrequency-futures-data-china?datasetVersionNumber=1&filename=minDataSum%2FM.csv",
+      "contentType": "application/zip",
+      "declaredContentLength": 12562942,
+      "downloadedBytes": 12562942,
+      "sha256": "1cdbd42d6e9937f9b4a64f7e0f7759ec8c042d4d04f692a9f6b09f2d93e7214f"
+    },
+    "archiveMember": "M.csv",
+    "uncompressedBytes": 77201058,
+    "compressedBytes": 12562794,
+    "rawCsvSha256": "35496890a8cbb94aea84cbb7114721f468088f9c8c611c53c22d9c0d1d3d850a",
+    "columns": [
+      "Time",
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume",
+      "Amount",
+      "Open Interest"
+    ],
+    "rowCount": 610004,
+    "firstTimestampInFile": "2013-09-17 08:59:00.005004",
+    "lastTimestampInFile": "2021-02-01 22:59:00.213",
+    "minimumTimestamp": "2013-09-17 08:59:00.005004",
+    "maximumTimestamp": "2021-02-01 22:59:00.213",
+    "timestampsSorted": true,
+    "fractionalSecondExamples": [
+      "000",
+      "000000",
+      "004995",
+      "004996",
+      "004997",
+      "004998",
+      "004999",
+      "005000",
+      "005001",
+      "005002",
+      "005003",
+      "005004",
+      "005005",
+      "400",
+      "403",
+      "472",
+      "492",
+      "505",
+      "510",
+      "525"
+    ],
+    "firstOhlc": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "minimumOhlc": 0.8248686663782541,
+    "maximumOhlc": 1.6644947588387362,
+    "normalizedPriceScaleObserved": true,
+    "absolutePriceScaleAvailable": false,
+    "contractColumnPresent": false
+  },
+  "rights": {
+    "datasetLicenseClaimPresent": true,
+    "datasetLicenseIdentifier": "CC BY-SA 4.0",
+    "upstreamMarketDataProviderDocumented": false,
+    "upstreamMarketDataAcquisitionDocumented": false,
+    "upstreamRedistributionAuthorityDocumented": false
+  },
+  "coverage": {
+    "targetGapFirstDate": "2025-07-01",
+    "targetGapCoverageConfirmed": false,
+    "sampleLatestTimestamp": "2021-02-01 22:59:00.213",
+    "absolutePriceScaleAvailable": false,
+    "concreteContractAttributionAvailable": false,
+    "historicalMainContractMappingCapabilityConfirmed": false
+  },
+  "retention": {
+    "sampleArchiveStoredOnlyInTemporaryDirectory": true,
+    "temporarySampleDeletedAfterProbe": true,
+    "rawCsvPersisted": false,
+    "rawRowsPersisted": false,
+    "summaryOnly": true
+  },
+  "conclusion": {
+    "technicalTargetGapCoverageConfirmed": false,
+    "releaseEligibility": "blocked-no-target-gap-no-absolute-prices-no-contract-attribution",
+    "note": "数据集当前版本停留在 2022 年；豆粕样本只到 2021-02-01，OHLC 为以 1.0 附近表示的归一化比例且没有基准价格字段，也没有具体合约代码。因此它既不能补齐 2025 年目标缺口，也不能恢复真实价格或生成可审计的主力换月映射。"
+  }
+}

@@ -1,0 +1,5848 @@
+{
+  "schemaVersion": 1,
+  "purpose": "sina-futures-specific-contract-five-minute-window-probe",
+  "capturedAt": "2026-10-19T23:02:58.915Z",
+  "source": {
+    "name": "新浪财经期货分钟接口",
+    "newEndpointFamily": "InnerFuturesNewService.getFewMinLine",
+    "legacyEndpointFamily": "IndexService.getInnerFuturesMiniKLine5m",
+    "intervalMinutes": 5,
+    "accessMode": "公开 HTTP 元数据探测"
+  },
+  "requestPlan": {
+    "firstContractMonth": "2025-07",
+    "lastContractMonth": "2026-01",
+    "instrumentCount": 15,
+    "symbolCount": 138,
+    "concurrency": 4,
+    "requestDelayMs": 100,
+    "timeoutMs": 20000,
+    "czceFourDigitAndThreeDigitAliasesCompared": true
+  },
+  "totals": {
+    "requestedSymbolCount": 138,
+    "successfulResponseCount": 138,
+    "failedResponseCount": 0,
+    "nonEmptyResponseCount": 104,
+    "gapOverlappingResponseCount": 58
+  },
+  "instruments": [
+    {
+      "instrumentId": "main_continuous",
+      "displayName": "豆粕主连",
+      "exchange": "DCE",
+      "productCode": "m",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-08"
+      },
+      "requestedSymbolCount": 7,
+      "successfulSymbolCount": 7,
+      "gapOverlappingSymbolCount": 3,
+      "observedGapTradingDateCount": 43,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-09-11",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "main_continuous",
+        "displayName": "豆粕主连",
+        "exchange": "DCE",
+        "productCode": "m",
+        "symbol": "M0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 09:20:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-08",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-10 21:25:00",
+            "lastTimestamp": "2025-07-08 10:35:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 51,
+            "observedTradingDateCount": 5,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-08 10:35:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-18 21:50:00",
+            "lastTimestamp": "2025-08-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 1023,
+            "observedTradingDateCount": 20,
+            "firstObservedTimestamp": "2025-07-18 21:50:00",
+            "lastObservedTimestamp": "2025-08-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-15 13:50:00",
+            "lastTimestamp": "2025-09-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-08-15 13:50:00",
+            "lastObservedTimestamp": "2025-09-11 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-17 09:40:00",
+            "lastTimestamp": "2025-11-13 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-12 13:55:00",
+            "lastTimestamp": "2025-12-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "main_continuous",
+          "displayName": "豆粕主连",
+          "exchange": "DCE",
+          "productCode": "m",
+          "symbol": "M2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-17 10:00:00",
+            "lastTimestamp": "2026-01-13 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-08",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "rapeseed_meal_main",
+      "displayName": "菜粕主连",
+      "exchange": "CZCE",
+      "productCode": "RM",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 11,
+      "successfulSymbolCount": 11,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 49,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "rapeseed_meal_main",
+        "displayName": "菜粕主连",
+        "exchange": "CZCE",
+        "productCode": "RM",
+        "symbol": "RM0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-16 09:35:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 309,
+            "observedTradingDateCount": 10,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-15 10:15:00",
+            "lastTimestamp": "2025-08-06 14:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-07-15 10:15:00",
+            "lastObservedTimestamp": "2025-08-06 14:55:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-15 13:40:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 20,
+            "firstObservedTimestamp": "2025-08-15 13:40:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-16 10:10:00",
+            "lastTimestamp": "2025-11-14 13:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 125,
+            "observedTradingDateCount": 2,
+            "firstObservedTimestamp": "2025-10-16 10:10:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-15 09:25:00",
+            "lastTimestamp": "2026-01-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM508",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_meal_main",
+          "displayName": "菜粕主连",
+          "exchange": "CZCE",
+          "productCode": "RM",
+          "symbol": "RM601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "pvc_main",
+      "displayName": "PVC主连",
+      "exchange": "DCE",
+      "productCode": "v",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 8,
+      "successfulSymbolCount": 8,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 64,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "pvc_main",
+        "displayName": "PVC主连",
+        "exchange": "DCE",
+        "productCode": "v",
+        "symbol": "V0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-17 22:15:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-12 22:15:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 252,
+            "observedTradingDateCount": 10,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-18 21:05:00",
+            "lastTimestamp": "2025-08-14 14:30:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 20,
+            "firstObservedTimestamp": "2025-07-18 21:05:00",
+            "lastObservedTimestamp": "2025-08-14 14:30:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-21 14:10:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-08-21 14:10:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-17 13:35:00",
+            "lastTimestamp": "2025-10-22 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 949,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-09-17 13:35:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-21 14:30:00",
+            "lastTimestamp": "2025-11-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-20 14:50:00",
+            "lastTimestamp": "2025-12-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pvc_main",
+          "displayName": "PVC主连",
+          "exchange": "DCE",
+          "productCode": "v",
+          "symbol": "V2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-23 11:20:00",
+            "lastTimestamp": "2026-01-16 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "rebar_main",
+      "displayName": "螺纹钢主连",
+      "exchange": "SHFE",
+      "productCode": "rb",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 8,
+      "successfulSymbolCount": 8,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 65,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-15",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "rebar_main",
+        "displayName": "螺纹钢主连",
+        "exchange": "SHFE",
+        "productCode": "rb",
+        "symbol": "RB0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-12 22:45:00",
+            "lastTimestamp": "2025-07-15 11:10:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 209,
+            "observedTradingDateCount": 11,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-15 11:10:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-21 11:10:00",
+            "lastTimestamp": "2025-08-15 14:50:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-07-21 11:10:00",
+            "lastObservedTimestamp": "2025-08-15 14:50:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-14 21:50:00",
+            "lastTimestamp": "2025-09-11 14:40:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 21,
+            "firstObservedTimestamp": "2025-08-14 21:50:00",
+            "lastObservedTimestamp": "2025-09-11 14:40:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-16 09:45:00",
+            "lastTimestamp": "2025-10-15 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 16,
+            "firstObservedTimestamp": "2025-09-16 09:45:00",
+            "lastObservedTimestamp": "2025-10-15 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-21 14:25:00",
+            "lastTimestamp": "2025-11-17 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-12 22:20:00",
+            "lastTimestamp": "2025-12-09 11:25:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rebar_main",
+          "displayName": "螺纹钢主连",
+          "exchange": "SHFE",
+          "productCode": "rb",
+          "symbol": "RB2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-18 14:30:00",
+            "lastTimestamp": "2026-01-15 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "glass_main",
+      "displayName": "玻璃主连",
+      "exchange": "CZCE",
+      "productCode": "FG",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 15,
+      "successfulSymbolCount": 15,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 64,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "glass_main",
+        "displayName": "玻璃主连",
+        "exchange": "CZCE",
+        "productCode": "FG",
+        "symbol": "FG0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-12 22:10:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 212,
+            "observedTradingDateCount": 10,
+            "firstObservedTimestamp": "2025-07-01 09:10:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-18 21:55:00",
+            "lastTimestamp": "2025-08-13 14:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-07-18 21:55:00",
+            "lastObservedTimestamp": "2025-08-13 14:55:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-20 22:10:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-08-20 22:10:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-12 10:45:00",
+            "lastTimestamp": "2025-10-22 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1010,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-09-12 10:45:00",
+            "lastObservedTimestamp": "2025-10-17 14:55:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-20 22:25:00",
+            "lastTimestamp": "2025-11-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-13 14:20:00",
+            "lastTimestamp": "2025-12-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-19 21:55:00",
+            "lastTimestamp": "2026-01-15 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG508",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG510",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG512",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "glass_main",
+          "displayName": "玻璃主连",
+          "exchange": "CZCE",
+          "productCode": "FG",
+          "symbol": "FG601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "rapeseed_oil_main",
+      "displayName": "菜油主连",
+      "exchange": "CZCE",
+      "productCode": "OI",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 9,
+      "successfulSymbolCount": 9,
+      "gapOverlappingSymbolCount": 3,
+      "observedGapTradingDateCount": 21,
+      "firstObservedGapDate": "2025-07-04",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "rapeseed_oil_main",
+        "displayName": "菜油主连",
+        "exchange": "CZCE",
+        "productCode": "OI",
+        "symbol": "OI0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-05 10:05:00",
+            "lastTimestamp": "2025-07-07 13:40:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 2,
+            "observedTradingDateCount": 2,
+            "firstObservedTimestamp": "2025-07-04 09:45:00",
+            "lastObservedTimestamp": "2025-07-07 13:40:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-15 10:05:00",
+            "lastTimestamp": "2025-09-09 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-08-15 10:05:00",
+            "lastObservedTimestamp": "2025-09-09 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-17 14:25:00",
+            "lastTimestamp": "2025-11-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 32,
+            "observedTradingDateCount": 1,
+            "firstObservedTimestamp": "2025-10-17 14:25:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-17 22:40:00",
+            "lastTimestamp": "2026-01-15 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "rapeseed_oil_main",
+          "displayName": "菜油主连",
+          "exchange": "CZCE",
+          "productCode": "OI",
+          "symbol": "OI601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "palm_oil_main",
+      "displayName": "棕榈油主连",
+      "exchange": "DCE",
+      "productCode": "p",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 8,
+      "successfulSymbolCount": 8,
+      "gapOverlappingSymbolCount": 5,
+      "observedGapTradingDateCount": 62,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "palm_oil_main",
+        "displayName": "棕榈油主连",
+        "exchange": "DCE",
+        "productCode": "p",
+        "symbol": "P0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 09:10:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-06 21:05:00",
+            "lastTimestamp": "2025-07-09 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 24,
+            "observedTradingDateCount": 5,
+            "firstObservedTimestamp": "2025-07-01 09:20:00",
+            "lastObservedTimestamp": "2025-07-09 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-14 10:40:00",
+            "lastTimestamp": "2025-08-13 14:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-07-14 10:40:00",
+            "lastObservedTimestamp": "2025-08-13 14:55:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-15 22:20:00",
+            "lastTimestamp": "2025-09-10 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-08-15 22:20:00",
+            "lastObservedTimestamp": "2025-09-10 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-12 22:40:00",
+            "lastTimestamp": "2025-10-15 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-09-12 22:40:00",
+            "lastObservedTimestamp": "2025-10-15 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-14 21:20:00",
+            "lastTimestamp": "2025-11-07 14:45:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 228,
+            "observedTradingDateCount": 4,
+            "firstObservedTimestamp": "2025-10-14 21:20:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-07 11:25:00",
+            "lastTimestamp": "2025-12-08 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "palm_oil_main",
+          "displayName": "棕榈油主连",
+          "exchange": "DCE",
+          "productCode": "p",
+          "symbol": "P2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-16 14:05:00",
+            "lastTimestamp": "2026-01-16 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "soybean_oil_main",
+      "displayName": "豆油主连",
+      "exchange": "DCE",
+      "productCode": "y",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 7,
+      "successfulSymbolCount": 7,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 44,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "soybean_oil_main",
+        "displayName": "豆油主连",
+        "exchange": "DCE",
+        "productCode": "y",
+        "symbol": "Y0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-17 22:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-09 11:20:00",
+            "lastTimestamp": "2025-07-03 13:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 9,
+            "observedTradingDateCount": 3,
+            "firstObservedTimestamp": "2025-07-01 09:15:00",
+            "lastObservedTimestamp": "2025-07-03 13:55:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-11 09:15:00",
+            "lastTimestamp": "2025-08-13 10:10:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-07-11 09:15:00",
+            "lastObservedTimestamp": "2025-08-13 10:10:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-15 21:50:00",
+            "lastTimestamp": "2025-09-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 20,
+            "firstObservedTimestamp": "2025-08-15 21:50:00",
+            "lastObservedTimestamp": "2025-09-11 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-16 11:10:00",
+            "lastTimestamp": "2025-11-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 116,
+            "observedTradingDateCount": 2,
+            "firstObservedTimestamp": "2025-10-16 11:10:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-11 14:55:00",
+            "lastTimestamp": "2025-12-05 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_oil_main",
+          "displayName": "豆油主连",
+          "exchange": "DCE",
+          "productCode": "y",
+          "symbol": "Y2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-16 09:20:00",
+            "lastTimestamp": "2026-01-09 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "pulp_main",
+      "displayName": "纸浆主连",
+      "exchange": "SHFE",
+      "productCode": "sp",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 8,
+      "successfulSymbolCount": 8,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 61,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-14",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "pulp_main",
+        "displayName": "纸浆主连",
+        "exchange": "SHFE",
+        "productCode": "sp",
+        "symbol": "SP0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:00:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-17 21:05:00",
+            "lastTimestamp": "2025-07-15 13:40:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 383,
+            "observedTradingDateCount": 11,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-15 13:40:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-15 09:35:00",
+            "lastTimestamp": "2025-08-14 14:30:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 21,
+            "firstObservedTimestamp": "2025-07-15 09:35:00",
+            "lastObservedTimestamp": "2025-08-14 14:30:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-22 09:15:00",
+            "lastTimestamp": "2025-09-15 14:50:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-08-22 09:15:00",
+            "lastObservedTimestamp": "2025-09-15 14:50:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-09 10:00:00",
+            "lastTimestamp": "2025-10-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-09-09 10:00:00",
+            "lastObservedTimestamp": "2025-10-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-23 22:30:00",
+            "lastTimestamp": "2025-11-17 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-20 10:50:00",
+            "lastTimestamp": "2025-12-15 14:50:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "pulp_main",
+          "displayName": "纸浆主连",
+          "exchange": "SHFE",
+          "productCode": "sp",
+          "symbol": "SP2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-18 22:25:00",
+            "lastTimestamp": "2026-01-15 14:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "corn_main",
+      "displayName": "玉米主连",
+      "exchange": "DCE",
+      "productCode": "c",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 5,
+      "successfulSymbolCount": 5,
+      "gapOverlappingSymbolCount": 3,
+      "observedGapTradingDateCount": 33,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "corn_main",
+        "displayName": "玉米主连",
+        "exchange": "DCE",
+        "productCode": "c",
+        "symbol": "C0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 13:35:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "corn_main",
+          "displayName": "玉米主连",
+          "exchange": "DCE",
+          "productCode": "c",
+          "symbol": "C2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-12 09:25:00",
+            "lastTimestamp": "2025-07-11 14:30:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 136,
+            "observedTradingDateCount": 9,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-11 14:30:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "corn_main",
+          "displayName": "玉米主连",
+          "exchange": "DCE",
+          "productCode": "c",
+          "symbol": "C2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-13 23:00:00",
+            "lastTimestamp": "2025-09-11 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 22,
+            "firstObservedTimestamp": "2025-08-13 23:00:00",
+            "lastObservedTimestamp": "2025-09-11 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "corn_main",
+          "displayName": "玉米主连",
+          "exchange": "DCE",
+          "productCode": "c",
+          "symbol": "C2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-16 10:00:00",
+            "lastTimestamp": "2025-11-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 127,
+            "observedTradingDateCount": 2,
+            "firstObservedTimestamp": "2025-10-16 10:00:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "corn_main",
+          "displayName": "玉米主连",
+          "exchange": "DCE",
+          "productCode": "c",
+          "symbol": "C2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-15 10:50:00",
+            "lastTimestamp": "2026-01-16 14:35:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "soda_ash_main",
+      "displayName": "纯碱主连",
+      "exchange": "CZCE",
+      "productCode": "SA",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 15,
+      "successfulSymbolCount": 15,
+      "gapOverlappingSymbolCount": 4,
+      "observedGapTradingDateCount": 56,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "soda_ash_main",
+        "displayName": "纯碱主连",
+        "exchange": "CZCE",
+        "productCode": "SA",
+        "symbol": "SA0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-13 14:25:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 289,
+            "observedTradingDateCount": 10,
+            "firstObservedTimestamp": "2025-07-01 09:15:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-23 09:10:00",
+            "lastTimestamp": "2025-08-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 16,
+            "firstObservedTimestamp": "2025-07-23 09:10:00",
+            "lastObservedTimestamp": "2025-08-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-22 10:00:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 16,
+            "firstObservedTimestamp": "2025-08-22 10:00:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-22 21:50:00",
+            "lastTimestamp": "2025-10-22 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 857,
+            "observedTradingDateCount": 14,
+            "firstObservedTimestamp": "2025-09-22 21:50:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-23 09:35:00",
+            "lastTimestamp": "2025-11-14 14:45:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-19 15:00:00",
+            "lastTimestamp": "2025-12-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-23 09:25:00",
+            "lastTimestamp": "2026-01-16 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA508",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA510",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA512",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soda_ash_main",
+          "displayName": "纯碱主连",
+          "exchange": "CZCE",
+          "productCode": "SA",
+          "symbol": "SA601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "soybean_1_main",
+      "displayName": "豆一主连",
+      "exchange": "DCE",
+      "productCode": "a",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 5,
+      "successfulSymbolCount": 5,
+      "gapOverlappingSymbolCount": 3,
+      "observedGapTradingDateCount": 27,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "soybean_1_main",
+        "displayName": "豆一主连",
+        "exchange": "DCE",
+        "productCode": "a",
+        "symbol": "A0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:00:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "soybean_1_main",
+          "displayName": "豆一主连",
+          "exchange": "DCE",
+          "productCode": "a",
+          "symbol": "A2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-10 13:35:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 47,
+            "observedTradingDateCount": 6,
+            "firstObservedTimestamp": "2025-07-01 11:10:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_1_main",
+          "displayName": "豆一主连",
+          "exchange": "DCE",
+          "productCode": "a",
+          "symbol": "A2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-13 22:25:00",
+            "lastTimestamp": "2025-09-10 10:35:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-08-13 22:25:00",
+            "lastObservedTimestamp": "2025-09-10 10:35:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_1_main",
+          "displayName": "豆一主连",
+          "exchange": "DCE",
+          "productCode": "a",
+          "symbol": "A2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-16 21:50:00",
+            "lastTimestamp": "2025-11-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 84,
+            "observedTradingDateCount": 2,
+            "firstObservedTimestamp": "2025-10-16 21:50:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_1_main",
+          "displayName": "豆一主连",
+          "exchange": "DCE",
+          "productCode": "a",
+          "symbol": "A2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-15 22:00:00",
+            "lastTimestamp": "2026-01-09 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    },
+    {
+      "instrumentId": "methanol_main",
+      "displayName": "甲醇主连",
+      "exchange": "CZCE",
+      "productCode": "MA",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 15,
+      "successfulSymbolCount": 15,
+      "gapOverlappingSymbolCount": 5,
+      "observedGapTradingDateCount": 61,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "methanol_main",
+        "displayName": "甲醇主连",
+        "exchange": "CZCE",
+        "productCode": "MA",
+        "symbol": "MA0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-06 09:55:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 39,
+            "observedTradingDateCount": 7,
+            "firstObservedTimestamp": "2025-07-01 13:55:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-11 14:35:00",
+            "lastTimestamp": "2025-08-05 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-07-11 14:35:00",
+            "lastObservedTimestamp": "2025-08-05 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-19 09:35:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-08-19 09:35:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-12 21:15:00",
+            "lastTimestamp": "2025-10-17 14:25:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-09-12 21:15:00",
+            "lastObservedTimestamp": "2025-10-17 14:25:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-15 22:15:00",
+            "lastTimestamp": "2025-11-14 14:50:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 148,
+            "observedTradingDateCount": 3,
+            "firstObservedTimestamp": "2025-10-15 22:15:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-12 09:15:00",
+            "lastTimestamp": "2025-12-08 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-19 10:35:00",
+            "lastTimestamp": "2026-01-16 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA508",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA510",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA512",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "methanol_main",
+          "displayName": "甲醇主连",
+          "exchange": "CZCE",
+          "productCode": "MA",
+          "symbol": "MA601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "sugar_main",
+      "displayName": "白糖主连",
+      "exchange": "CZCE",
+      "productCode": "SR",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 9,
+      "successfulSymbolCount": 9,
+      "gapOverlappingSymbolCount": 3,
+      "observedGapTradingDateCount": 33,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "sugar_main",
+        "displayName": "白糖主连",
+        "exchange": "CZCE",
+        "productCode": "SR",
+        "symbol": "SR0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:05:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-11 14:50:00",
+            "lastTimestamp": "2025-07-14 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 232,
+            "observedTradingDateCount": 10,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-14 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-18 10:35:00",
+            "lastTimestamp": "2025-09-12 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 20,
+            "firstObservedTimestamp": "2025-08-18 10:35:00",
+            "lastObservedTimestamp": "2025-09-12 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-15 09:10:00",
+            "lastTimestamp": "2025-11-13 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 206,
+            "observedTradingDateCount": 3,
+            "firstObservedTimestamp": "2025-10-15 09:10:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-22 14:35:00",
+            "lastTimestamp": "2026-01-16 14:55:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": [
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR507",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR509",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR511",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "sugar_main",
+          "displayName": "白糖主连",
+          "exchange": "CZCE",
+          "productCode": "SR",
+          "symbol": "SR601",
+          "symbolKind": "specific-contract-three-digit-alias",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 0,
+            "timestampCount": 0,
+            "fields": [],
+            "firstTimestamp": null,
+            "lastTimestamp": null
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ]
+    },
+    {
+      "instrumentId": "soybean_2_main",
+      "displayName": "豆二主连",
+      "exchange": "DCE",
+      "productCode": "b",
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "requestedSymbolCount": 8,
+      "successfulSymbolCount": 8,
+      "gapOverlappingSymbolCount": 5,
+      "observedGapTradingDateCount": 59,
+      "firstObservedGapDate": "2025-07-01",
+      "lastObservedGapDate": "2025-10-17",
+      "candidateWindowsReachBothCalendarBoundaries": false,
+      "technicalGapCompletenessConfirmed": false,
+      "technicalGapCompletenessReason": "接口每个代码只返回短滚动窗口；跨合约观察到日期不等于已验证的逐交易时段完整主连，且仍需每日主力映射和缺行校验。",
+      "mainContinuousProbe": {
+        "instrumentId": "soybean_2_main",
+        "displayName": "豆二主连",
+        "exchange": "DCE",
+        "productCode": "b",
+        "symbol": "B0",
+        "symbolKind": "main-continuous",
+        "contractMonth": null,
+        "probeStatus": "success",
+        "request": {
+          "intervalMinutes": 5,
+          "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+        },
+        "response": {
+          "httpStatus": 200,
+          "contentType": "application/javascript; charset=gbk",
+          "rowCount": 1023,
+          "timestampCount": 1023,
+          "fields": [
+            "c",
+            "d",
+            "h",
+            "l",
+            "o",
+            "p",
+            "v"
+          ],
+          "firstTimestamp": "2026-09-18 14:00:00",
+          "lastTimestamp": "2026-10-19 23:00:00"
+        },
+        "targetGap": {
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19",
+          "rowCount": 0,
+          "observedTradingDateCount": 0,
+          "firstObservedTimestamp": null,
+          "lastObservedTimestamp": null,
+          "overlaps": false,
+          "wholeGapCoveredBySingleResponse": false
+        }
+      },
+      "fourDigitContractProbes": [
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2507",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-07",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-06-06 11:10:00",
+            "lastTimestamp": "2025-07-11 21:25:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 4,
+            "observedTradingDateCount": 3,
+            "firstObservedTimestamp": "2025-07-01 09:05:00",
+            "lastObservedTimestamp": "2025-07-11 21:25:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2508",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-08",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-07-14 09:05:00",
+            "lastTimestamp": "2025-08-13 10:40:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 19,
+            "firstObservedTimestamp": "2025-07-14 09:05:00",
+            "lastObservedTimestamp": "2025-08-13 10:40:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2509",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-09",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-08-12 10:45:00",
+            "lastTimestamp": "2025-09-04 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 17,
+            "firstObservedTimestamp": "2025-08-12 10:45:00",
+            "lastObservedTimestamp": "2025-09-04 15:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2510",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-10",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-09-10 21:50:00",
+            "lastTimestamp": "2025-10-14 21:10:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 1023,
+            "observedTradingDateCount": 18,
+            "firstObservedTimestamp": "2025-09-10 21:50:00",
+            "lastObservedTimestamp": "2025-10-14 21:10:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2511",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-11",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-10-14 21:05:00",
+            "lastTimestamp": "2025-11-05 15:00:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 231,
+            "observedTradingDateCount": 4,
+            "firstObservedTimestamp": "2025-10-14 21:05:00",
+            "lastObservedTimestamp": "2025-10-17 23:00:00",
+            "overlaps": true,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2512",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2025-12",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-11-10 21:20:00",
+            "lastTimestamp": "2025-12-10 14:05:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        },
+        {
+          "instrumentId": "soybean_2_main",
+          "displayName": "豆二主连",
+          "exchange": "DCE",
+          "productCode": "b",
+          "symbol": "B2601",
+          "symbolKind": "specific-contract-four-digit",
+          "contractMonth": "2026-01",
+          "probeStatus": "success",
+          "request": {
+            "intervalMinutes": 5,
+            "endpointFamily": "InnerFuturesNewService.getFewMinLine"
+          },
+          "response": {
+            "httpStatus": 200,
+            "contentType": "application/javascript; charset=gbk",
+            "rowCount": 1023,
+            "timestampCount": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2025-12-12 14:10:00",
+            "lastTimestamp": "2026-01-12 09:25:00"
+          },
+          "targetGap": {
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "rowCount": 0,
+            "observedTradingDateCount": 0,
+            "firstObservedTimestamp": null,
+            "lastObservedTimestamp": null,
+            "overlaps": false,
+            "wholeGapCoveredBySingleResponse": false
+          }
+        }
+      ],
+      "czceThreeDigitAliasProbes": []
+    }
+  ],
+  "legacyEndpointChecks": [
+    {
+      "symbol": "M0",
+      "probeStatus": "success",
+      "response": {
+        "httpStatus": 200,
+        "rowCount": 242,
+        "fields": [
+          "timestamp",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "firstTimestamp": "2023-10-31 14:55:00",
+        "lastTimestamp": "2023-11-27 21:05:00"
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-08",
+        "rowCount": 0,
+        "observedTradingDateCount": 0,
+        "firstObservedTimestamp": null,
+        "lastObservedTimestamp": null,
+        "overlaps": false,
+        "wholeGapCoveredBySingleResponse": false
+      }
+    },
+    {
+      "symbol": "M2509",
+      "probeStatus": "success",
+      "response": {
+        "httpStatus": 200,
+        "rowCount": 0,
+        "fields": [],
+        "firstTimestamp": null,
+        "lastTimestamp": null
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-08",
+        "rowCount": 0,
+        "observedTradingDateCount": 0,
+        "firstObservedTimestamp": null,
+        "lastObservedTimestamp": null,
+        "overlaps": false,
+        "wholeGapCoveredBySingleResponse": false
+      }
+    },
+    {
+      "symbol": "RM2509",
+      "probeStatus": "success",
+      "response": {
+        "httpStatus": 200,
+        "rowCount": 0,
+        "fields": [],
+        "firstTimestamp": null,
+        "lastTimestamp": null
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "rowCount": 0,
+        "observedTradingDateCount": 0,
+        "firstObservedTimestamp": null,
+        "lastObservedTimestamp": null,
+        "overlaps": false,
+        "wholeGapCoveredBySingleResponse": false
+      }
+    }
+  ],
+  "rights": {
+    "clientLibraryRequired": false,
+    "returnedMarketDataRedistributionPermissionConfirmed": false,
+    "gitStorageAllowed": false,
+    "packagedApplicationRedistributionAllowed": false,
+    "derivedBarsRedistributionAllowed": false,
+    "commercialUseAllowed": false,
+    "conclusion": "公开可访问不等于获得行情再分发权；未取得新浪或上游行情权利方的书面授权，本探测结果不能作为内置数据来源。"
+  },
+  "retention": {
+    "rawResponsesPersisted": false,
+    "rawRowsPersisted": false,
+    "timestampsPersisted": "仅保存每个响应和目标缺口的首末时间",
+    "summaryOnly": true
+  },
+  "releaseDecision": {
+    "technicalGapCoverageConfirmed": false,
+    "redistributionPermissionConfirmed": false,
+    "releasableGapSourceFound": false,
+    "baselineReplacementAllowed": false,
+    "task4_2MayBeMarkedComplete": false,
+    "note": "具体合约短窗口可用于技术核验，但不能证明目标主连缺口逐交易时段完整，且没有商业 EXE 再分发授权。"
+  }
+}

@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-soybean_2_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "soybean_2_main",
   "mainSymbol": "KQ.m@DCE.b",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.b"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "424fed90146a87325193597d9ac908df61c1fea77f331a0fa48bf828aff5eafa",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B主力连续.csv",
+          "sha256": "9262c92edf014c0d5dcbc9a52beec7e427aa7ce05f9abe571ad835256750d96e",
+          "rows": 769291
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2110.csv",
+          "sha256": "37f27125e386eeac40a01e6066390823b5e9cf911578d5a9252835c3e96c86cf",
+          "rows": 27770
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2111.csv",
+          "sha256": "9e9938233e47afbd8b57173f8e32108e83a34421633a438fc570e97402286771",
+          "rows": 24133
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2112.csv",
+          "sha256": "863ce8710de78b3ffbccf54ecbe35567b77d9f28e0f85a3f38c67b600f29d53c",
+          "rows": 24504
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2201.csv",
+          "sha256": "e30cd42e676175737a1653452b842ee228592ad9a9ff00867d92100faca78029",
+          "rows": 30663
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2202.csv",
+          "sha256": "b8b30a7c137f1ed6ab4597c99717b884c9d253bf96d893e7b01eff7341083089",
+          "rows": 27252
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2203.csv",
+          "sha256": "0f89ab5aabcb6fceacaafd7689623f918416a5a279e2f127048602884154a602",
+          "rows": 25632
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2204.csv",
+          "sha256": "84176ce0b1b59f1bd527060097ff2fffd3a7f3ce190f9604c938bb6162f7db86",
+          "rows": 22034
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2205.csv",
+          "sha256": "e832119e56247e8ead4891b956dd47cce564c8650e15f9a60d54c2ad299b7c7d",
+          "rows": 31460
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2206.csv",
+          "sha256": "6cbcdecbf48d03804a0b88c60f6468f92130fab8eec380efd2d1ba998590f675",
+          "rows": 25578
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2207.csv",
+          "sha256": "8a3af9215ec6ac2cf69c13b2159e8d68493c7bba184d69f91c7b9201652ece78",
+          "rows": 24820
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2208.csv",
+          "sha256": "55445144781fa7667688a77499cdba0b2e2316b3b1474b6ef243826fce73955c",
+          "rows": 16095
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2209.csv",
+          "sha256": "7675e56c8b2d18ed6f788ae62ba6360d7263863081fd0e79a79f77eb613a2430",
+          "rows": 32985
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2210.csv",
+          "sha256": "cb25940965d28f130a2117b7f11dc0231165eafc1e4c347d22c5e392bee4259b",
+          "rows": 24563
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2211.csv",
+          "sha256": "f793a6c4116aec1318981f442d384b6464c5b1d2c6426b87d1fd37e65b32c85b",
+          "rows": 26009
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2212.csv",
+          "sha256": "d86812110516369f974919c60a00027dcfa3264ab5068d48c8220d43988a821c",
+          "rows": 24023
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2301.csv",
+          "sha256": "4e08a7625f947f722346c9df7c09b6f252cea419f238fd59d08dbb7b68b061ab",
+          "rows": 27713
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2302.csv",
+          "sha256": "bba1eebe7fbb88799166f6dde491d43d0759d6c4102f788e1e7762300971d108",
+          "rows": 19768
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2303.csv",
+          "sha256": "a2bcb3c4fadb8430ffe9c5f9b8eb783c01a019f627b3c60bc407b34e33460ad2",
+          "rows": 19895
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2304.csv",
+          "sha256": "1d3b326f3221d8137e584b808719d60741d2b34d21e10e800f9bf917819da5d1",
+          "rows": 21347
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2305.csv",
+          "sha256": "4403a1196faa4f301f13e9a0ce95c8f9d0110df29e753eb0adb312b6da87fdda",
+          "rows": 32661
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2306.csv",
+          "sha256": "9d3ef3d7de9d00a39daf6522963771d92265a3d30b1b915be83eb9561c8dab95",
+          "rows": 23170
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2307.csv",
+          "sha256": "763eaeea2711e7572fe04a57e6cd8aad54736d7ea45d7cd96fad1290c8b0f2ef",
+          "rows": 26428
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2308.csv",
+          "sha256": "93c7196743a72d07f7c0284f92c055f68a4c46b6a8d4145bb6ecd933a9c28ee3",
+          "rows": 24144
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2309.csv",
+          "sha256": "942193c173171d618ce51f4d3831cd9db404a3529d99f9cd4edd591c87e8caec",
+          "rows": 31905
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2310.csv",
+          "sha256": "c0b4de8bf6c732209be5534e86ebf3f2fb3782c5590099a0d39d8d69c76d5629",
+          "rows": 26582
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2311.csv",
+          "sha256": "c64c6d2f2e13f030903f8c0b5f634145423b751a47a52323dd9d00b7b638abbc",
+          "rows": 24003
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2312.csv",
+          "sha256": "d942653027c3fbe4bde4a323cd4a4c93b0930d166ee551a3e012d746237b0c43",
+          "rows": 23237
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2401.csv",
+          "sha256": "3d96abedf29c8a7ea4f33296537d41dfda0e6ceb926b6fd7c3383319355ce35e",
+          "rows": 38084
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2402.csv",
+          "sha256": "e65131b1c107adeafc7fafb0ce2807dbc714664f3104184bc25fd775c976ca4f",
+          "rows": 27919
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2403.csv",
+          "sha256": "e098f776ec72e4801b72b7a87f2813b7f8d2bf42ef940b84e05d790a041bb6fa",
+          "rows": 27970
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2404.csv",
+          "sha256": "e6cd034cd85e2984a528bd1fb51f9dcf7925d6617692d8dbec697bed618b843c",
+          "rows": 20074
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2405.csv",
+          "sha256": "93ef52349eb3582304db2072e8b06094448f72f80002691fe049545c0a3a6046",
+          "rows": 48058
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2406.csv",
+          "sha256": "75cf2c83ded9b6d1dcb1ff07431391361018b8a94ac86fbf161047163e6eac79",
+          "rows": 23460
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2407.csv",
+          "sha256": "d6b37cf5995f4f379f80e08161a981f2cdb3f2d8232701dbaefe2738c77ae732",
+          "rows": 26742
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2408.csv",
+          "sha256": "82577d502b128f232ec3941364040b1f7196bad52be06bbf645d63ad2ed00b19",
+          "rows": 25967
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2409.csv",
+          "sha256": "6ad62dc15e4026f56ec5f255ae8d71378ae4019a808556c990471fc3e50ab639",
+          "rows": 48699
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2410.csv",
+          "sha256": "adc73f4101becdf838b5891054fab6d3113d787ac6c4ee5370640d274ea42280",
+          "rows": 31364
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2411.csv",
+          "sha256": "29348a02529714f7953d002f9333bbc11e6cd94e23dc8fafb0b4af674ece04e4",
+          "rows": 28828
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2412.csv",
+          "sha256": "fb756d724b061206e2e100037f6c52c264686f9dae72ee7949e67542a1cf95eb",
+          "rows": 21272
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2501.csv",
+          "sha256": "256ded90e6fb2e04ec7ee70c8370ab5ebdae9b610ef5dd4f6a6fc006978f8fac",
+          "rows": 46897
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2502.csv",
+          "sha256": "90c584654528dc1c332355ef11c460d061038e5e7faa2460b0791962e2f7fff1",
+          "rows": 27611
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2503.csv",
+          "sha256": "c81fdf080a30589f2176a0de03c6c9950b301582ff69f84049f062caca4fe5fe",
+          "rows": 28114
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2504.csv",
+          "sha256": "ad640fec1fdf61ffa39b9febbdec2a7a3033bf57cd2ffe52936b6f3d5a2a56ce",
+          "rows": 25017
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2505.csv",
+          "sha256": "0136ae64890e341330bf4978f67917005b361ed9b8f504fd3445d8ba41343c39",
+          "rows": 62132
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2506.csv",
+          "sha256": "c98b47e051951e8f7216d22e178326d29afcb6330dfff96f60c28443b6f624bc",
+          "rows": 38219
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2507.csv",
+          "sha256": "a37c3d285b45588f143a51f2488f65b6573c4af735d28e213eaec2ab71b80739",
+          "rows": 35309
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2508.csv",
+          "sha256": "cfa8540972e2b0d67fe4b45a0065b3643b6d74bb5d5e2b99facd50b8ce518bfb",
+          "rows": 33995
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2509.csv",
+          "sha256": "b8bfda5dd81eadd0ab45d1704d4becf726f41e2757071eaba97f4946efd7426e",
+          "rows": 62621
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2510.csv",
+          "sha256": "6da005f23c9534bb40721bfaa657f964b0ed7b8014654dc7e9e4e0c69625e119",
+          "rows": 33583
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2511.csv",
+          "sha256": "a60f7b367efffb760fb35011dc981b426d3ae5d04ee75337b3ebc9599f84217a",
+          "rows": 35433
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2512.csv",
+          "sha256": "368993518deb953e62d253926c067239e6c7d6e94e3c46b0188f70b10e2829c7",
+          "rows": 28300
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2601.csv",
+          "sha256": "e94d6804c71a354fe53443e35bb992049d4046b56839294f81a4ef5fb8786b7c",
+          "rows": 50018
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2602.csv",
+          "sha256": "39975e04592cc058388edc826dec490ea73a6927cef8046fe85b5695e307f3f5",
+          "rows": 28702
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2603.csv",
+          "sha256": "abe8ea5ed45a5997bad820e6cb9b03335d1b650957cc9e98123790f71c90bcb6",
+          "rows": 32726
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2604.csv",
+          "sha256": "d54c64ff93834657c8f8c011c723356eadbdb42599efb74ac2307ec160cd16ea",
+          "rows": 22533
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2605.csv",
+          "sha256": "0c5d79104df7b6d37b60fd8434012df41ebe67d8e4f98885b9c60695224ae5dc",
+          "rows": 58698
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2606.csv",
+          "sha256": "0e96dff3b7b67c75c5a4336d4b3848219cb17451f815898ea677f17b0e87d28b",
+          "rows": 30497
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2607.csv",
+          "sha256": "787bd5dfcee5949d99431de70c011c3d9bd61962c8a9bc2f0c4b111d2801323c",
+          "rows": 39831
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2608.csv",
+          "sha256": "91555dcca1e6441a3315a6aa6a020f3054ea5e47bb4722dba06e88e3e81ce62a",
+          "rows": 27194
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/B_豆二_退市.zip!/b2609.csv",
+          "sha256": "7a497c2d83c22831169dc25f644d3e08522e010f224ac3f88c35614dd90ae022",
+          "rows": 50898
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2610.csv",
+          "sha256": "271b03885314c1c7fb28318c6c68576941ea44807e1d41e8f132400c9598d0a1",
+          "rows": 34484
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2611.csv",
+          "sha256": "eec75c3b62baec5f09c99644f837da7c358bee07574aaa8740f4a3730714fbce",
+          "rows": 33070
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2612.csv",
+          "sha256": "a7c4f2a57d7a60de027a71cc09c45d5b70b35d4c51f9f8d8461c807b13b4b80b",
+          "rows": 22979
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2701.csv",
+          "sha256": "9a56a262398c4a93a4d49fd737a33234e9ef1a1d3ed30cb1393e96985c76e17a",
+          "rows": 29400
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2702.csv",
+          "sha256": "1d86592ef3c6fce89f5d8e62d16d2641d4c136b0ea7c0a2c6e58f678fcf1b7d9",
+          "rows": 13213
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2703.csv",
+          "sha256": "a2cfeb91cf70f867959e4529e9ec3407223adb0ac701ad4324f0b4c917666f00",
+          "rows": 8312
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2704.csv",
+          "sha256": "738dbdaf7bcf04a85dcf0e37f8de9e78376c3f0ec9e590b7ec7c89ac25b0f3eb",
+          "rows": 3843
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2705.csv",
+          "sha256": "3cf4288f18b077a15da95c02a887bb090da156d655692a54c33c8f15b864026c",
+          "rows": 21806
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2706.csv",
+          "sha256": "cff67e5b25a62a1d5e481ec2a3374210c89c3dc6ebdb5dfa80e410000594a813",
+          "rows": 2519
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2707.csv",
+          "sha256": "ddeb92899b17128256f8a95e129ca9d28c9789096909ebdf4beebaaae1651a06",
+          "rows": 3252
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2708.csv",
+          "sha256": "c9c077d72e66c8f31e268d0ef8e4a262fbc25153d2b2dae0d03a97215ad96f2e",
+          "rows": 360
+        },
+        {
+          "name": "DCE_大连商品交易所/B_豆二/b2709.csv",
+          "sha256": "e222780543cb48a1bc879f452af05a6ea0368f76b4b1cd0f31690bd922d4a641",
+          "rows": 579
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/soybean_2_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "424fed90146a87325193597d9ac908df61c1fea77f331a0fa48bf828aff5eafa",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "c61068f6f332b8a27408340c25c83390747e8ff4c3703f5b628bbd63bacdac70",
-      "rows": 16461
+      "sha256": "a36d299913ca58248d1a0ebc35acd31a9173a7235e9cc712d618da91e748eedf",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "e25dbfc057c9f563d111e48dd58710ad9eae124fefeb61a1e9d2cd03f9637159",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "ec8c7da4b0bfc6a20c0a2df4b35b8465ccb11150f901d560fef919fca18aeaaa",
-      "rows": 5
+      "sha256": "a103971b2b93cc9e57d39cd2c8f944a1597aed7c0e04af67cc46dba257ce9112",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "defc53fc78a2f573d47a18c5818729f6fc2c41366bc2e89387700e6196425a68",
-      "rows": 241
+      "sha256": "cec5c3ceafce50324be3187ef9342c8f01e53a07c41c401eec664bcf7ebb6e58",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "99ca1982bc93f493c7f2ff4cb0ca35b1cf9f539ff278ae5d7e7035b14955df30",
+      "rows": 39
     }
   }
 }

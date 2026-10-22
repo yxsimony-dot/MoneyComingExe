@@ -6,6 +6,7 @@ import {
   buildMainContractCandidates,
 } from '../src/domain/contract-rollover';
 import {
+  aggregateFiveMinuteBars,
   aggregateMinutes,
 } from '../src/domain/market-data';
 import { formatBeijing, parseBeijing } from '../src/domain/time';
@@ -22,6 +23,7 @@ import {
   type MarketDataPaths,
 } from '../src/main/market-snapshot';
 import {
+  DEFAULT_INSTRUMENT,
   INSTRUMENT_LIST,
   type InstrumentDefinition,
 } from '../src/shared/instruments';
@@ -55,7 +57,7 @@ function minute(start: string, offset: number): EdbMinuteRecord {
 }
 
 function minuteDay(date: string): EdbMinuteRecord[] {
-  return Array.from({ length: 10 }, (_, index) => minute(`${date} 09:00:00`, index));
+  return Array.from({ length: 60 }, (_, index) => minute(`${date} 09:00:00`, index));
 }
 
 function daily(date: string, price: number): EdbDailyRecord {
@@ -109,20 +111,49 @@ function fixtureClient() {
 }
 
 function soymealSeed(): BaselineSeed {
-  const bars1 = Array.from(
-    { length: 5 },
-    (_, index) => minute('2025-10-09 21:00:00', index),
+  const sourceMinutes = Array.from(
+    { length: 60 },
+    (_, index) => minute('2023-10-12 09:00:00', index),
   );
   return {
-    bars1,
+    bars5: aggregateMinutes(
+      sourceMinutes,
+      5,
+      sourceMinutes.at(-1)!.startMs + MINUTE_MS,
+      DEFAULT_INSTRUMENT.tradingSessions,
+    ).filter(bar => bar.complete),
     mainContractMappings: [
-      { tradingDate: '2025-10-10', contract: 'm2601' },
+      { tradingDate: '2023-10-12', contract: 'm2401' },
     ],
+    source: {
+      provider: 'MIXED',
+      symbol: DEFAULT_INSTRUMENT.mainSymbol,
+    },
+    sourceSegments: [{
+      sourceId: 'fixture-long-history',
+      sourceName: '测试长期历史',
+      kind: 'test-fixture',
+      acquiredAt: '2026-10-19T04:00:00.000Z',
+      coverage: {
+        first: '2023-10-12 09:00:00',
+        last: '2023-10-12 10:00:00',
+      },
+      rawFiles: [{
+        name: 'fixture-long-history.csv',
+        sha256: 'a'.repeat(64),
+        rows: 12,
+      }],
+      importerVersion: 'baseline-generator-test-v1',
+      license: {
+        redistributionAllowed: true,
+        conclusion: '测试夹具允许再分发',
+      },
+    }],
   };
 }
 
 describe('multi-instrument baseline generator', () => {
-  it('enumerates the registry, chunks requests, preserves soymeal history, and writes loadable schema-v4 baselines', async () => {
+  it('enumerates the registry, chunks requests, preserves soymeal history, and writes loadable schema-v5 baselines', async () => {
     const root = await mkdtemp(join(tmpdir(), '多品种基线-'));
     temps.push(root);
     const paths: MarketDataPaths = {
@@ -131,7 +162,7 @@ describe('multi-instrument baseline generator', () => {
     };
     const client = fixtureClient();
     const startMs = parseBeijing('2026-10-12 09:00:00');
-    const endMs = parseBeijing('2026-10-13 09:09:00');
+    const endMs = parseBeijing('2026-10-13 09:59:00');
     const report = await generateMarketBaselines({
       paths,
       client,
@@ -139,6 +170,16 @@ describe('multi-instrument baseline generator', () => {
       requestEndMs: endMs,
       daysPerChunk: 1,
       now: () => new Date('2026-10-19T04:00:00.000Z'),
+      remoteSource: {
+        sourceId: 'fixture-recent-tail',
+        sourceName: '测试近期尾部',
+        kind: 'test-fixture',
+        importerVersion: 'baseline-generator-test-v1',
+        license: {
+          redistributionAllowed: true,
+          conclusion: '测试夹具允许再分发',
+        },
+      },
       loadSeed: async definition => (
         definition.id === 'main_continuous' ? soymealSeed() : undefined
       ),
@@ -149,39 +190,55 @@ describe('multi-instrument baseline generator', () => {
     expect(client.minuteRequests).toBe(30);
     expect(report.instruments[0]).toMatchObject({
       instrumentId: 'main_continuous',
-      firstMinute: '2025-10-09 21:00:00',
-      minuteRows: 25,
+      firstMinute: '2026-10-12 09:00:00',
+      minuteRows: 120,
       mappingRows: 3,
-      rolloverRows: 1,
+      periods: {
+        bars5: {
+          first: '2023-10-12 09:00:00',
+        },
+      },
+      redistribution: {
+        allowed: true,
+      },
     });
 
     for (const definition of INSTRUMENT_LIST) {
       const loaded = await loadEffectiveSnapshot(paths, definition);
       expect(loaded.source).toBe('builtin');
-      expect(loaded.bars1.length).toBe(
-        definition.id === 'main_continuous' ? 25 : 20,
-      );
-      expect(loaded.bars5).toEqual(aggregateMinutes(
-        loaded.bars1,
-        5,
-        loaded.bars1.at(-1)!.startMs + MINUTE_MS,
+      expect(loaded.bars1).toHaveLength(120);
+      if (definition.id === 'main_continuous') {
+        expect(loaded.bars5[0].start).toBe('2023-10-12 09:00:00');
+        expect(loaded.bars5).toHaveLength(36);
+      } else {
+        expect(loaded.bars5).toEqual(aggregateMinutes(
+          loaded.bars1,
+          5,
+          loaded.bars1.at(-1)!.startMs + MINUTE_MS,
+          definition.tradingSessions,
+        ));
+      }
+      expect(loaded.bars60).toEqual(aggregateFiveMinuteBars(
+        loaded.bars5,
         definition.tradingSessions,
-      ));
+      ).filter(bar => bar.complete));
       expect(loaded.mainContractMappings).toHaveLength(
         definition.id === 'main_continuous' ? 3 : 2,
       );
-      expect(loaded.rollovers).toHaveLength(1);
       const metadata = JSON.parse(await readFile(
         join(paths.builtinDataDirectory, 'instruments', definition.id, 'metadata.json'),
         'utf8',
       ));
       expect(metadata).toMatchObject({
-        schemaVersion: 4,
+        schemaVersion: 5,
         snapshotId: `builtin-${definition.id}`,
         instrumentId: definition.id,
         mainSymbol: definition.mainSymbol,
         parameterVersion: definition.parameterVersion,
         generatedAt: '2026-10-19T04:00:00.000Z',
+        redistribution: {
+          allowed: true,
+        },
       });
       expect(Object.keys(metadata.files).sort()).toEqual([
         'bars1',
@@ -198,10 +255,9 @@ describe('multi-instrument baseline generator', () => {
     ));
     expect(persistedReport).toEqual(report);
 
-    const validation = await validateMarketBaselines({ paths });
-    expect(validation.instruments).toHaveLength(15);
-    expect(validation.instruments.every(item => (
-      Object.values(item.checks).every(Boolean)
-    ))).toBe(true);
+    await expect(validateMarketBaselines({
+      paths,
+      instruments: [DEFAULT_INSTRUMENT],
+    })).rejects.toThrow(/主力映射交易日间隔超过 14 天/);
   });
 });

@@ -63,6 +63,9 @@ try {
   const reactionOverlay = page.getByTestId('entry-reaction-range');
   const reactionOverlay2 = page.getByTestId('entry-reaction-range-2');
   const entryRangePercent = 25;
+  const sessionExitMinuteOptions = [0, 5, 10, 15, 20, 25, 30];
+  const beijingDateTime = ms => new Date(ms + 8 * 60 * 60_000).toISOString().slice(0, 16).replace('T', ' ');
+  const beijingClock = ms => beijingDateTime(ms).slice(11, 16);
   const chartRange = period => page.locator(`#card-${period}`).evaluate(element => ({
     from: Number(element.dataset.visibleFrom),
     to: Number(element.dataset.visibleTo),
@@ -73,47 +76,102 @@ try {
     await page.getByTestId('date-jump').click();
     await frame();
   };
+  const waitForChartRangeStability = async period => {
+    let previous = await chartRange(period);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await page.waitForTimeout(50);
+      const current = await chartRange(period);
+      if (Math.abs(current.from - previous.from) < .05
+        && Math.abs(current.to - previous.to) < .05
+        && Math.abs(current.span - previous.span) < .05) return current;
+      previous = current;
+    }
+    assert.fail(`Chart ${period} range did not stabilize: ${JSON.stringify(previous)}`);
+  };
+  const setSessionExitMinutes = async minutes => {
+    assert.ok(sessionExitMinuteOptions.includes(minutes));
+    await page.getByTestId('session-exit-minutes').selectOption(String(minutes));
+    await frame();
+    assert.equal(await html.getAttribute('data-session-exit-minutes'), String(minutes));
+  };
   const childrenFor = (parent, five) => five.filter(child => child.startMs >= parent.startMs && child.endMs <= parent.endMs);
   const observationFor = (entry, five) => {
     const index = five.findIndex(bar => bar.startMs === entry.child.startMs);
     assert.ok(index >= 0, `Missing trigger ${entry.child.start}`);
     return { index };
   };
-  const sessionPolicyFor = bar => {
+  const sessionPolicyFor = (bar, minutes = 15) => {
     const date = bar.start.slice(0, 10);
     const night = bar.start.slice(11, 16) >= '20:00';
     const boundary = wallTime => Date.parse(`${date}T${wallTime}:00+08:00`);
-    return night
-      ? {
-          entryCutoff: boundary('22:45'),
-          sessionEnd: boundary('23:00'),
-          forcedExitStart: boundary('22:40'),
-        }
-      : {
-          entryCutoff: boundary('14:45'),
-          sessionEnd: boundary('15:00'),
-          forcedExitStart: boundary('14:40'),
-        };
+    const sessionEnd = boundary(night ? '23:00' : '15:00');
+    const entryCutoff = sessionEnd - minutes * 60_000;
+    return {
+      entryCutoff,
+      sessionEnd,
+      forcedExitStart: minutes === 0 ? undefined : entryCutoff - 5 * 60_000,
+    };
   };
-  const reactionRangeFor = (direction, bars) => {
-    const reactionOffset = bars.findIndex(bar => direction === 'long' ? bar.close > bar.open : bar.close < bar.open);
-    if (reactionOffset < 0) return undefined;
-    const reaction = bars[reactionOffset];
-    let extremeOffset = 0;
-    for (let index = 1; index <= reactionOffset; index++) {
-      if (direction === 'long' ? bars[index].low < bars[extremeOffset].low : bars[index].high > bars[extremeOffset].high) {
-        extremeOffset = index;
+  const reactionRangeFor = (direction, history, attemptStartIndex, searchEndIndex) => {
+    let reactionIndex = -1;
+    let pricingMode = 'configured-percent';
+    for (let index = attemptStartIndex; index < searchEndIndex; index += 1) {
+      const bar = history[index];
+      const body = direction === 'long' ? bar.close - bar.open : bar.open - bar.close;
+      if (body < 1) continue;
+      const directionalWick = direction === 'long' ? bar.high - bar.close : bar.close - bar.low;
+      if (directionalWick >= body * 3) continue;
+      let oppositeCount = 0;
+      for (let previous = index - 1; previous >= 0; previous -= 1) {
+        const prior = history[previous];
+        if (prior.close === prior.open) continue;
+        const opposite = direction === 'long' ? prior.close < prior.open : prior.close > prior.open;
+        if (!opposite) break;
+        oppositeCount += 1;
+        if (oppositeCount >= 6) break;
+      }
+      if (oppositeCount >= 6) continue;
+      reactionIndex = index;
+      pricingMode = directionalWick >= body * 2 ? 'risk-edge' : 'configured-percent';
+      break;
+    }
+    if (reactionIndex < 0) return undefined;
+    const reaction = history[reactionIndex];
+    let extremeIndex = attemptStartIndex;
+    for (let index = attemptStartIndex + 1; index <= reactionIndex; index += 1) {
+      if (direction === 'long'
+        ? history[index].low < history[extremeIndex].low
+        : history[index].high > history[extremeIndex].high) {
+        extremeIndex = index;
       }
     }
-    const extreme = bars[extremeOffset];
+    const extreme = history[extremeIndex];
     return direction === 'long'
-      ? { reaction, extreme, reactionOffset, extremeOffset, high: reaction.high, low: extreme.low }
-      : { reaction, extreme, reactionOffset, extremeOffset, high: extreme.high, low: reaction.low };
+      ? {
+          reaction,
+          extreme,
+          reactionOffset: reactionIndex - attemptStartIndex,
+          extremeOffset: extremeIndex - attemptStartIndex,
+          pricingMode,
+          high: reaction.high,
+          low: extreme.low,
+        }
+      : {
+          reaction,
+          extreme,
+          reactionOffset: reactionIndex - attemptStartIndex,
+          extremeOffset: extremeIndex - attemptStartIndex,
+          pricingMode,
+          high: extreme.high,
+          low: reaction.low,
+        };
   };
   const quarterSignalFor = (direction, bars, reaction, entryCutoff) => {
     if (!reaction) return undefined;
     const rangeTicks = Math.round(reaction.high - reaction.low);
-    const entryDistanceTicks = Math.ceil(rangeTicks * entryRangePercent / 100);
+    const entryDistanceTicks = reaction.pricingMode === 'risk-edge'
+      ? 0
+      : Math.ceil(rangeTicks * entryRangePercent / 100);
     const price = direction === 'long'
       ? reaction.low + entryDistanceTicks
       : reaction.high - entryDistanceTicks;
@@ -190,6 +248,24 @@ try {
     assert.deepEqual(JSON.parse(await card5.getAttribute('data-true-entry-marker-ids')), []);
     assert.deepEqual(JSON.parse(await card5.getAttribute('data-risk-touch-marker-ids')), []);
     assert.deepEqual(JSON.parse(await card5.getAttribute('data-exit-marker-ids')), []);
+  };
+  const assertAttemptPlanLineEndpoints = async () => {
+    const attemptCount = Number(await card5.getAttribute('data-attempt-count'));
+    assert.ok(attemptCount === 1 || attemptCount === 2, `Unexpected attempt count ${attemptCount}`);
+    for (let attempt = 1; attempt <= attemptCount; attempt += 1) {
+      const analysisLastStart = await card5.getAttribute(`data-attempt${attempt}-analysis-last-start`);
+      assert.ok(analysisLastStart, `Missing attempt ${attempt} analysis endpoint`);
+      for (const prefix of ['quarter', 'stop-loss', 'take-profit']) {
+        const visible = await card5.getAttribute(`data-attempt${attempt}-${prefix}-line-visible`);
+        if (visible === 'true') {
+          assert.equal(
+            await card5.getAttribute(`data-attempt${attempt}-${prefix}-line-last-start`),
+            analysisLastStart,
+            `Attempt ${attempt} ${prefix} line endpoint`,
+          );
+        }
+      }
+    }
   };
   const stopLossSignalFor = (direction, reaction) => {
     if (!reaction) return undefined;
@@ -295,20 +371,43 @@ try {
     assert.equal(focusFirstIndex, index);
     assert.equal(focusLastIndex, index + focusCount - 1);
     assert.ok(focusCount <= 16);
-    const policy = sessionPolicyFor(entry.child);
-    const forcedExitBar = five.find((bar, barIndex) =>
-      barIndex >= index && bar.startMs === policy.forcedExitStart && bar.complete);
+    const sessionExitMinutes = Number(await html.getAttribute('data-session-exit-minutes'));
+    assert.ok(sessionExitMinuteOptions.includes(sessionExitMinutes), `Invalid session exit setting ${sessionExitMinutes}`);
+    const policy = sessionPolicyFor(entry.child, sessionExitMinutes);
+    const forcedExitBar = policy.forcedExitStart === undefined
+      ? undefined
+      : five.find((bar, barIndex) =>
+          barIndex >= index && bar.startMs === policy.forcedExitStart && bar.complete);
     const endReason = await card5.getAttribute('data-lifecycle-end-reason');
     const observation = { index, bars, focusBars, focusFirstIndex, focusLastIndex, endReason };
     const lastIndex = observation.index + observation.bars.length - 1;
     const attemptCount = Number(await card5.getAttribute('data-attempt-count'));
     const firstAttemptCount = Number(await card5.getAttribute('data-attempt1-analysis-count'));
+    const firstAttemptStartIndex =
+      Number(await card5.getAttribute('data-attempt1-analysis-first-index'));
     assert.ok(attemptCount === 1 || attemptCount === 2, `Unexpected attempt count ${attemptCount}`);
     assert.ok(firstAttemptCount > 0 && firstAttemptCount <= observation.bars.length,
       JSON.stringify({ firstAttemptCount, selectedCount }));
-    const firstAttemptBars = observation.bars.slice(0, firstAttemptCount);
-    const firstAttemptLastIndex = observation.index + firstAttemptBars.length - 1;
-    const reaction = reactionRangeFor(entry.direction, firstAttemptBars);
+    assert.ok(
+      Number.isInteger(firstAttemptStartIndex)
+        && firstAttemptStartIndex >= observation.index
+        && firstAttemptStartIndex <= lastIndex,
+      JSON.stringify({ firstAttemptStartIndex, observationIndex: observation.index, lastIndex }),
+    );
+    const firstAttemptBars =
+      five.slice(firstAttemptStartIndex, firstAttemptStartIndex + firstAttemptCount);
+    assert.equal(firstAttemptBars.length, firstAttemptCount);
+    const firstAttemptLastIndex = firstAttemptStartIndex + firstAttemptBars.length - 1;
+    assert.equal(
+      await card5.getAttribute('data-attempt1-analysis-last-index'),
+      String(firstAttemptLastIndex),
+    );
+    const reaction = reactionRangeFor(
+      entry.direction,
+      five,
+      firstAttemptStartIndex,
+      firstAttemptStartIndex + firstAttemptCount,
+    );
     const quarter = quarterSignalFor(entry.direction, firstAttemptBars, reaction, policy.entryCutoff);
     const stopLoss = stopLossSignalFor(entry.direction, reaction);
     const takeProfit = takeProfitSignalFor(entry.direction, firstAttemptBars, reaction, quarter);
@@ -362,8 +461,8 @@ try {
     assert.equal(await card5.getAttribute('data-take-profit-signal-present'), String(!!takeProfit));
     assert.equal(await reactionOverlay.getAttribute('data-present'), String(!!reaction));
     if (reaction) {
-      const firstIndex = observation.index + reaction.extremeOffset;
-      const reactionIndex = observation.index + reaction.reactionOffset;
+      const firstIndex = firstAttemptStartIndex + reaction.extremeOffset;
+      const reactionIndex = firstAttemptStartIndex + reaction.reactionOffset;
       assert.equal(await card5.getAttribute('data-reaction-range-direction'), entry.direction);
       assert.equal(await card5.getAttribute('data-reaction-range-first-start'), String(reaction.extreme.startMs));
       assert.equal(await card5.getAttribute('data-reaction-range-last-start'), String(reaction.reaction.startMs));
@@ -415,12 +514,14 @@ try {
         quarter.searchStartOffset === undefined ? '' : String(firstAttemptBars[quarter.searchStartOffset].startMs));
       assert.equal(await card5.getAttribute('data-quarter-signal-entry-start'),
         quarter.entryOffset === undefined ? '' : String(firstAttemptBars[quarter.entryOffset].startMs));
-      assert.equal(Number(await card5.getAttribute('data-quarter-signal-line-start-index')), observation.index + quarter.lineStartOffset);
-      assert.equal(Number(await card5.getAttribute('data-quarter-signal-reaction-index')), observation.index + quarter.reactionOffset);
+      assert.equal(Number(await card5.getAttribute('data-quarter-signal-line-start-index')),
+        firstAttemptStartIndex + quarter.lineStartOffset);
+      assert.equal(Number(await card5.getAttribute('data-quarter-signal-reaction-index')),
+        firstAttemptStartIndex + quarter.reactionOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-search-start-index')),
-        quarter.searchStartOffset === undefined ? -1 : observation.index + quarter.searchStartOffset);
+        quarter.searchStartOffset === undefined ? -1 : firstAttemptStartIndex + quarter.searchStartOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-signal-entry-index')),
-        quarter.entryOffset === undefined ? -1 : observation.index + quarter.entryOffset);
+        quarter.entryOffset === undefined ? -1 : firstAttemptStartIndex + quarter.entryOffset);
       assert.equal(await card5.getAttribute('data-quarter-line-visible'), 'true');
       assert.equal(await card5.getAttribute('data-quarter-line-style'), 'solid');
       assert.equal(await card5.getAttribute('data-quarter-line-color'), '#ffffff');
@@ -437,7 +538,8 @@ try {
       assert.equal(Number(await card5.getAttribute('data-quarter-line-point-count')), firstAttemptBars.length - quarter.lineStartOffset);
       assert.equal(await card5.getAttribute('data-quarter-line-first-start'), String(firstAttemptBars[quarter.lineStartOffset].startMs));
       assert.equal(await card5.getAttribute('data-quarter-line-last-start'), String(firstAttemptBars.at(-1).startMs));
-      assert.equal(Number(await card5.getAttribute('data-quarter-line-first-index')), observation.index + quarter.lineStartOffset);
+      assert.equal(Number(await card5.getAttribute('data-quarter-line-first-index')),
+        firstAttemptStartIndex + quarter.lineStartOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-line-last-index')), firstAttemptLastIndex);
       assert.equal(await card5.getAttribute('data-stop-loss-signal-direction'), entry.direction);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-price')), stopLoss.price);
@@ -447,7 +549,7 @@ try {
       assert.equal(await card5.getAttribute('data-stop-loss-signal-line-start'),
         String(firstAttemptBars[stopLoss.lineStartOffset].startMs));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-line-start-index')),
-        observation.index + stopLoss.lineStartOffset);
+        firstAttemptStartIndex + stopLoss.lineStartOffset);
       assert.equal(await card5.getAttribute('data-stop-loss-line-visible'), 'true');
       assert.equal(await card5.getAttribute('data-stop-loss-line-style'), 'solid');
       assert.equal(await card5.getAttribute('data-stop-loss-line-color'), '#f4c95d');
@@ -478,9 +580,9 @@ try {
         String(stopLossBars[0].startMs));
       assert.equal(await card5.getAttribute('data-stop-loss-line-last-start'), String(stopLossBars.at(-1).startMs));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-line-first-index')),
-        observation.index + firstAttemptBars.indexOf(stopLossBars[0]));
+        firstAttemptStartIndex + firstAttemptBars.indexOf(stopLossBars[0]));
       assert.equal(Number(await card5.getAttribute('data-stop-loss-line-last-index')),
-        observation.index + firstAttemptBars.indexOf(stopLossBars.at(-1)));
+        firstAttemptStartIndex + firstAttemptBars.indexOf(stopLossBars.at(-1)));
       const takeProfitBars = firstAttemptBars
         .slice(takeProfit.lineStartOffset)
         .filter(bar => exitLineEndMs === undefined || bar.endMs <= exitLineEndMs);
@@ -502,11 +604,11 @@ try {
       assert.equal(await card5.getAttribute('data-take-profit-signal-risk-touch-start'),
         takeProfit.riskTouchOffset === undefined ? '' : String(firstAttemptBars[takeProfit.riskTouchOffset].startMs));
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-line-start-index')),
-        observation.index + takeProfit.lineStartOffset);
+        firstAttemptStartIndex + takeProfit.lineStartOffset);
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-entry-index')),
-        takeProfit.entryOffset === undefined ? -1 : observation.index + takeProfit.entryOffset);
+        takeProfit.entryOffset === undefined ? -1 : firstAttemptStartIndex + takeProfit.entryOffset);
       assert.equal(Number(await card5.getAttribute('data-take-profit-signal-risk-touch-index')),
-        takeProfit.riskTouchOffset === undefined ? -1 : observation.index + takeProfit.riskTouchOffset);
+        takeProfit.riskTouchOffset === undefined ? -1 : firstAttemptStartIndex + takeProfit.riskTouchOffset);
       assert.equal(await card5.getAttribute('data-take-profit-line-visible'), 'true');
       assert.equal(await card5.getAttribute('data-take-profit-line-style'), 'solid');
       assert.equal(await card5.getAttribute('data-take-profit-line-type'), 'with-steps');
@@ -523,14 +625,14 @@ try {
         String(takeProfitBars[0].startMs));
       assert.equal(await card5.getAttribute('data-take-profit-line-last-start'), String(takeProfitBars.at(-1).startMs));
       assert.equal(Number(await card5.getAttribute('data-take-profit-line-first-index')),
-        observation.index + firstAttemptBars.indexOf(takeProfitBars[0]));
+        firstAttemptStartIndex + firstAttemptBars.indexOf(takeProfitBars[0]));
       assert.equal(Number(await card5.getAttribute('data-take-profit-line-last-index')),
-        observation.index + firstAttemptBars.indexOf(takeProfitBars.at(-1)));
+        firstAttemptStartIndex + firstAttemptBars.indexOf(takeProfitBars.at(-1)));
       assert.deepEqual(JSON.parse(await card5.getAttribute('data-take-profit-line-values')), takeProfitValues);
       assert.equal(await card5.getAttribute('data-take-profit-line-switch-start'),
         riskTouchStart === undefined ? null : String(riskTouchStart));
       assert.equal(await card5.getAttribute('data-take-profit-line-switch-index'),
-        riskTouchOffset === undefined ? null : String(observation.index + riskTouchOffset));
+        riskTouchOffset === undefined ? null : String(firstAttemptStartIndex + riskTouchOffset));
       const trueEntryMarkerCount = Number(await card5.getAttribute('data-true-entry-marker-count'));
       assert.ok(quarter.entryOffset === undefined ? trueEntryMarkerCount === 0 : trueEntryMarkerCount >= 1);
       if (quarter.entryOffset === undefined) {
@@ -613,8 +715,26 @@ try {
     assert.ok(selectionText.includes(entry.child.start.slice(0, 16)), selectionText);
     assert.match(selectionText, /回调线/);
     assert.ok(selectionText.includes(`${observation.bars.length} 根 5 分钟`), selectionText);
-    const range = await chartRange(5);
+    if (sessionExitMinutes === 0) {
+      assert.match(selectionText, /休市离场已关闭/);
+      assert.ok(selectionText.includes(`自然休市 ${beijingDateTime(policy.sessionEnd)}`), selectionText);
+      assert.doesNotMatch(selectionText, /休市出场K线/);
+    } else {
+      assert.match(selectionText, /入场截止/);
+      assert.ok(selectionText.includes(beijingDateTime(policy.entryCutoff)), selectionText);
+      assert.match(selectionText, /休市出场K线/);
+      assert.ok(selectionText.includes(beijingDateTime(policy.forcedExitStart)), selectionText);
+      assert.ok(selectionText.includes(beijingClock(policy.entryCutoff)), selectionText);
+    }
     const expectedSpan = Math.min(five.length, Math.max(sourceSpan, observation.focusBars.length + 4));
+    let range = await chartRange(5);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const spanMatches = Math.abs(range.span - expectedSpan) < .05;
+      const focusVisible = range.from <= focusFirstIndex - .5 && range.to >= focusLastIndex + .5;
+      if (spanMatches && focusVisible) break;
+      await page.waitForTimeout(50);
+      range = await chartRange(5);
+    }
     assert.ok(Math.abs(range.span - expectedSpan) < .05, JSON.stringify({ sourceSpan, expectedSpan, range }));
     assert.ok(range.from <= focusFirstIndex - .5 && range.to >= focusLastIndex + .5,
       JSON.stringify({ range, focusFirstIndex, focusLastIndex, lastIndex }));
@@ -634,9 +754,7 @@ try {
   };
   const clickConcreteMarker = async (entry, five) => {
     const point = await findParentPoint(entry.parent);
-    const volumeTop = Number.parseFloat(await card60.locator('.volume-label').evaluate(element => element.style.top));
-    const priceHeight = Number.isFinite(volumeTop) ? volumeTop - 7 : point.box.height * .64;
-    for (let offset = 3; offset < priceHeight - 3; offset += 2) {
+    for (let offset = 1; offset < point.box.height - 1; offset += 1) {
       await html.evaluate(element => { delete element.dataset.entrySelectionSource; });
       await page.mouse.click(point.x, point.box.y + offset);
       await frame();
@@ -675,10 +793,95 @@ try {
     }
   report.instruments[instrument] = { long, short, conservativeSkippedHours: Number(await card60.getAttribute('data-entry-incomplete-hours')) };
   await page.getByTestId('mode-dual').click();
+  await frame();
+  await waitForChartRangeStability(60);
   const { entries, hours, five } = oracle.main_continuous;
-  const longEntry = entries.find(entry => entry.direction === 'long' && entry.parent.start > '2026-03-01');
-  const shortEntry = entries.find(entry => entry.direction === 'short' && entry.parent.start > '2026-03-01');
+  const findFormalEntry = async direction => {
+    for (const entry of entries) {
+      if (entry.direction !== direction || entry.parent.start <= '2026-03-01') continue;
+      const attemptCount = await page.evaluate(
+        triggerStartMs => window.moneyComingTest.entryLifecycleAttemptCount(triggerStartMs),
+        entry.child.startMs,
+      );
+      if (attemptCount > 0) return entry;
+    }
+    return undefined;
+  };
+  const longEntry = await findFormalEntry('long');
+  const shortEntry = await findFormalEntry('short');
   assert.ok(longEntry && shortEntry);
+
+  await setSessionExitMinutes(0);
+  const comparisonSourceRange = await waitForChartRangeStability(60);
+  const comparisonSelected = await page.evaluate(() => window.moneyComingTest.selectSessionExitComparisonEntry());
+  await frame();
+  assert.equal(comparisonSelected, true);
+  assert.deepEqual(await chartRange(60), comparisonSourceRange);
+  const comparisonMinutes = Number(await html.getAttribute('data-session-exit-comparison-minutes'));
+  assert.ok(sessionExitMinuteOptions.includes(comparisonMinutes) && comparisonMinutes > 0);
+  const comparisonTriggerStart = Number(await html.getAttribute('data-entry-trigger-start'));
+  const comparisonEntry = entries.find(entry => entry.child.startMs === comparisonTriggerStart);
+  assert.ok(comparisonEntry, `Missing comparison entry ${comparisonTriggerStart}`);
+  const comparisonSourceSpan = comparisonSourceRange.span;
+  const zeroSelection = await assertEntrySelection(comparisonEntry, five, 'marker', comparisonSourceSpan);
+  const zeroPolicy = sessionPolicyFor(comparisonEntry.child, 0);
+  assert.equal(await html.getAttribute('data-entry-lifecycle-forced-exit-start'), '');
+  assert.equal(await card5.getAttribute('data-lifecycle-forced-exit-start'), '');
+  assert.ok(
+    zeroSelection.endReason === 'open-position-session-end'
+      || zeroSelection.endReason === 'no-entry-session-end',
+    `Unexpected zero-minute end reason ${zeroSelection.endReason}`,
+  );
+  assert.equal(zeroSelection.bars.at(-1).startMs, zeroPolicy.sessionEnd - 5 * 60_000);
+  const zeroExitMarkerIds = JSON.parse(await card5.getAttribute('data-exit-marker-ids'));
+  assert.ok(zeroExitMarkerIds.every(id => !id.includes('session-close')));
+  assert.notEqual(await card5.getAttribute('data-exit-marker-text'), '休市出场');
+  await assertAttemptPlanLineEndpoints();
+
+  await setSessionExitMinutes(comparisonMinutes);
+  assert.equal(await html.getAttribute('data-entry-trigger-start'), String(comparisonTriggerStart));
+  const enabledSelection = await assertEntrySelection(comparisonEntry, five, 'marker', comparisonSourceSpan);
+  const enabledPolicy = sessionPolicyFor(comparisonEntry.child, comparisonMinutes);
+  assert.equal(await html.getAttribute('data-entry-lifecycle-entry-cutoff'), String(enabledPolicy.entryCutoff));
+  assert.equal(await html.getAttribute('data-entry-lifecycle-session-end'), String(enabledPolicy.sessionEnd));
+  assert.equal(await html.getAttribute('data-entry-lifecycle-forced-exit-start'), String(enabledPolicy.forcedExitStart));
+  assert.equal(await card5.getAttribute('data-lifecycle-forced-exit-start'), String(enabledPolicy.forcedExitStart));
+  assert.ok(enabledSelection.bars.at(-1).endMs <= enabledPolicy.sessionEnd);
+  await assertAttemptPlanLineEndpoints();
+  const enabledExitMarkerIds = JSON.parse(await card5.getAttribute('data-exit-marker-ids'));
+  const enabledHasSessionClose = enabledExitMarkerIds.some(id => id.includes('session-close'));
+  if (await html.getAttribute('data-session-exit-comparison-enabled-end-reason') === 'session-close') {
+    assert.equal(enabledSelection.endReason, 'session-close');
+    assert.equal(enabledHasSessionClose, true);
+    assert.ok(
+      enabledExitMarkerIds.some(id =>
+        id.includes('session-close') && id.endsWith(`-${enabledPolicy.forcedExitStart}`)),
+      JSON.stringify(enabledExitMarkerIds),
+    );
+  }
+
+  await setSessionExitMinutes(0);
+  assert.equal(await html.getAttribute('data-entry-trigger-start'), String(comparisonTriggerStart));
+  const zeroSelectionAgain = await assertEntrySelection(comparisonEntry, five, 'marker', comparisonSourceSpan);
+  assert.equal(zeroSelectionAgain.endReason, zeroSelection.endReason);
+  assert.equal(zeroSelectionAgain.bars.at(-1).startMs, zeroPolicy.sessionEnd - 5 * 60_000);
+  assert.deepEqual(
+    JSON.parse(await card5.getAttribute('data-exit-marker-ids')),
+    zeroExitMarkerIds,
+  );
+  assert.ok(JSON.parse(await card5.getAttribute('data-exit-marker-ids'))
+    .every(id => !id.includes('session-close')));
+  assert.notEqual(await card5.getAttribute('data-exit-marker-text'), '休市出场');
+  assert.notEqual(await card5.getAttribute('data-exit-signal-type'), 'session-close');
+  await assertAttemptPlanLineEndpoints();
+  report.observations.sessionExitComparison = {
+    trigger: comparisonEntry.child.start,
+    comparisonMinutes,
+    zeroEndReason: zeroSelection.endReason,
+    enabledEndReason: enabledSelection.endReason,
+    enabledHasSessionClose,
+  };
+  await setSessionExitMinutes(15);
 
   await jump(longEntry.parent.start.slice(0, 10));
   const persistentBeforeHover = await html.getAttribute('data-selected-start');
@@ -967,30 +1170,43 @@ try {
 
   const scenarioIndex = observationFor(longEntry, five).index;
   const scenarioStart = five[scenarioIndex].startMs;
-  const showScenario = async (scenario, direction, startIndex = scenarioIndex) => {
-    const startMs = five[startIndex].startMs;
+  const showScenario = async (scenario, direction, startIndex = scenarioIndex, expectedBars) => {
+    const scenarioBars = expectedBars ?? five.slice(startIndex);
+    const startMs = scenarioBars[0].startMs;
     await page.evaluate(({ scenario, direction, scenarioStart }) => {
       window.moneyComingTest.showReactionScenario(scenario, direction, scenarioStart);
     }, { scenario, direction, scenarioStart: startMs });
     await frame();
-    return { startIndex, startMs, count: Math.min(scenario === 'two-attempts' ? 10 : 16, five.length - startIndex) };
+    return {
+      startIndex,
+      startMs,
+      bars: scenarioBars,
+      count: Math.min(
+        scenario === 'two-attempts' ? 10
+          : scenario === 'multiple-abandonments' ? 12
+            : 16,
+        scenarioBars.length,
+      ),
+    };
   };
   const assertControlledQuarterScenario = async ({
     scenario,
     direction,
     startIndex = scenarioIndex,
+    expectedBars,
     entryOffset = scenario === 'quarter-no-touch' ? undefined
       : ['quarter-wick-touch', 'quarter-repeated-touch', 'take-profit-entry-touch',
           'take-profit-repeated-touch', 'take-profit-no-touch'].includes(scenario) ? 2 : 3,
     expectVisibleRange = true,
   }) => {
-    const shown = await showScenario(scenario, direction, startIndex);
+    const shown = await showScenario(scenario, direction, startIndex, expectedBars);
+    const scenarioBars = shown.bars;
     const rangeTicks = scenario === 'quarter-divisible' ? 12 : 11;
     const entryDistanceTicks = Math.ceil(rangeTicks * entryRangePercent / 100);
     const quarterTicks = entryDistanceTicks;
     const stopTicks = Math.ceil(rangeTicks * 0.75);
     const targetTicks = rangeTicks * 2;
-    const base = Math.round(five[startIndex].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
+    const base = Math.round(scenarioBars[0].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
     const price = direction === 'long' ? base + quarterTicks : base + rangeTicks - quarterTicks;
     const stopPrice = direction === 'long' ? base - stopTicks : base + rangeTicks + stopTicks;
     const defaultTakeProfitPrice = direction === 'long'
@@ -1001,11 +1217,11 @@ try {
       : scenario === 'take-profit-later-touch' ? 5
         : scenario === 'take-profit-repeated-touch' ? 4
           : undefined;
-    const reactionStart = five[startIndex + 1].startMs;
-    const searchStart = shown.count > 2 ? five[startIndex + 2].startMs : undefined;
-    const entryStart = entryOffset === undefined ? undefined : five[startIndex + entryOffset].startMs;
-    const riskTouchStart = riskTouchOffset === undefined ? undefined : five[startIndex + riskTouchOffset].startMs;
-    const lastStart = five[startIndex + shown.count - 1].startMs;
+    const reactionStart = scenarioBars[1].startMs;
+    const searchStart = shown.count > 2 ? scenarioBars[2].startMs : undefined;
+    const entryStart = entryOffset === undefined ? undefined : scenarioBars[entryOffset].startMs;
+    const riskTouchStart = riskTouchOffset === undefined ? undefined : scenarioBars[riskTouchOffset].startMs;
+    const lastStart = scenarioBars[shown.count - 1].startMs;
 
     assert.equal(await card5.getAttribute('data-selection-kind'), 'entry');
     assert.equal(await card5.getAttribute('data-selection-direction'), direction);
@@ -1434,7 +1650,192 @@ try {
     assert.ok(visibleRange.to >= scenarioIndex + 9.5, JSON.stringify({ direction, visibleRange, scenarioIndex }));
   };
 
+  const abandonedDiagnosticAttributes = [
+    'data-abandoned-setup-count',
+    'data-abandoned-setup-candidate-starts',
+    'data-abandoned-setup-trigger-starts',
+    'data-abandoned-setup-range-highs',
+    'data-abandoned-setup-range-lows',
+    'data-abandoned-setup-overlay-ids',
+    'data-abandoned-marker-count',
+    'data-abandoned-marker-ids',
+    'data-abandoned-marker-starts',
+  ];
+  const assertAbandonmentArtifactsCleared = async (candidateStarts, expectDiagnosticsAbsent) => {
+    for (const candidateStart of candidateStarts) {
+      assert.equal(
+        await page.getByTestId(`entry-reaction-range-abandoned-${candidateStart}`).count(),
+        0,
+        `Abandoned overlay ${candidateStart} must be removed`,
+      );
+    }
+    const currentMarkerIds = JSON.parse(await card5.getAttribute('data-abandoned-marker-ids') ?? '[]');
+    for (const candidateStart of candidateStarts) {
+      assert.equal(
+        currentMarkerIds.includes(`opposite-momentum-abandoned-${candidateStart}`),
+        false,
+        `Abandoned marker ${candidateStart} must be removed`,
+      );
+    }
+    if (expectDiagnosticsAbsent) {
+      for (const name of abandonedDiagnosticAttributes) {
+        assert.equal(await card5.getAttribute(name), null, name);
+      }
+    }
+  };
+  const showMultipleAbandonmentsForCleanup = async direction => {
+    const shown = await showScenario('multiple-abandonments', direction);
+    const candidateStarts = [2, 5, 9].map(index => shown.bars[index].startMs);
+    assert.equal(await card5.getAttribute('data-abandoned-setup-count'), '3');
+    return { shown, candidateStarts };
+  };
+  const assertMultipleAbandonmentScenario = async direction => {
+    const shown = await showScenario('multiple-abandonments', direction);
+    const starts = Array.from({ length: 12 }, (_, index) => shown.bars[index].startMs);
+    const base = Math.round(shown.bars[0].close / 20) * 20;
+    const candidateOffsets = [2, 5, 9];
+    const triggerOffsets = [0, 3, 7];
+    const extremeOffsets = [2, 4, 8];
+    const candidateStarts = candidateOffsets.map(index => starts[index]);
+    const triggerStarts = triggerOffsets.map(index => starts[index]);
+    const expectedHighs = direction === 'long'
+      ? [base + 5, base + 6, base + 7]
+      : [base + 12, base + 20, base + 30];
+    const expectedLows = direction === 'long'
+      ? [base - 12, base - 20, base - 30]
+      : [base - 5, base - 6, base - 7];
+    const abandonedOverlays = candidateStarts.map(candidateStart =>
+      page.getByTestId(`entry-reaction-range-abandoned-${candidateStart}`));
+
+    assert.equal(shown.count, 12);
+    assert.equal(await card5.getAttribute('data-selected-count'), '12');
+    assert.equal(await card5.getAttribute('data-lifecycle-focus-count'), '12');
+    assert.equal(await card5.getAttribute('data-attempt-count'), '1');
+    assert.equal(await card5.getAttribute('data-attempt1-trigger-start'), String(starts[10]));
+    assert.equal(await card5.getAttribute('data-attempt1-reaction-start'), String(starts[10]));
+    assert.equal(await card5.getAttribute('data-attempt1-entry-start'), String(starts[11]));
+    assert.equal(await card5.getAttribute('data-attempt1-analysis-count'), '2');
+    assert.equal(await card5.getAttribute('data-attempt2-present'), null);
+    assert.equal(await card5.getAttribute('data-observation-trigger-count'), '1');
+    assert.equal(await card5.getAttribute('data-observation-follow-count'), '11');
+    assert.equal(await card5.getAttribute('data-abandoned-setup-count'), '3');
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-abandoned-setup-candidate-starts')), candidateStarts);
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-abandoned-setup-trigger-starts')), triggerStarts);
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-abandoned-setup-range-highs')), expectedHighs);
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-abandoned-setup-range-lows')), expectedLows);
+    assert.deepEqual(
+      JSON.parse(await card5.getAttribute('data-abandoned-setup-overlay-ids')),
+      candidateStarts.map(start => `entry-reaction-range-abandoned-${start}`),
+    );
+    assert.equal(await card5.getAttribute('data-abandoned-marker-count'), '3');
+    assert.deepEqual(
+      JSON.parse(await card5.getAttribute('data-abandoned-marker-ids')),
+      candidateStarts.map(start => `opposite-momentum-abandoned-${start}`),
+    );
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-abandoned-marker-starts')), candidateStarts);
+
+    for (let index = 0; index < abandonedOverlays.length; index += 1) {
+      const overlay = abandonedOverlays[index];
+      assert.equal(await overlay.count(), 1);
+      assert.equal(await overlay.getAttribute('data-present'), 'true');
+      assert.equal(await overlay.getAttribute('data-visible'), 'true');
+      assert.equal(await overlay.getAttribute('data-kind'), 'abandoned');
+      assert.equal(await overlay.getAttribute('data-direction'), direction);
+      assert.equal(await overlay.getAttribute('data-candidate-start'), String(candidateStarts[index]));
+      assert.equal(await overlay.getAttribute('data-trigger-start'), String(triggerStarts[index]));
+      assert.equal(await overlay.getAttribute('data-reason'), 'opposite-momentum');
+      assert.equal(Number(await overlay.getAttribute('data-high')), expectedHighs[index]);
+      assert.equal(Number(await overlay.getAttribute('data-low')), expectedLows[index]);
+      assert.equal(await overlay.getAttribute('data-first-index'), String(shown.startIndex + extremeOffsets[index]));
+      assert.equal(await overlay.getAttribute('data-last-index'), String(shown.startIndex + candidateOffsets[index]));
+      const box = await overlay.boundingBox();
+      assert.ok(box && box.width > 0 && box.height > 0, JSON.stringify({ direction, index, box }));
+    }
+
+    assert.equal(await reactionOverlay.getAttribute('data-present'), 'true');
+    assert.equal(await reactionOverlay.getAttribute('data-visible'), 'true');
+    assert.equal(await reactionOverlay.getAttribute('data-first-start'), String(starts[10]));
+    assert.equal(await reactionOverlay.getAttribute('data-reaction-start'), String(starts[10]));
+    assert.equal(Number(await reactionOverlay.getAttribute('data-high')),
+      direction === 'long' ? base + 5 : base + 30);
+    assert.equal(Number(await reactionOverlay.getAttribute('data-low')),
+      direction === 'long' ? base - 30 : base - 5);
+    assert.equal(await reactionOverlay2.getAttribute('data-present'), 'false');
+    assert.equal(await card5.getAttribute('data-true-entry-marker-count'), '1');
+    assert.deepEqual(JSON.parse(await card5.getAttribute('data-true-entry-marker-ids')), [
+      `true-entry-attempt-1-${direction}-${shown.startMs}-${starts[11]}`,
+    ]);
+    assert.equal(await card5.getAttribute('data-second-trigger-marker-count'), '0');
+    assert.equal(await card5.getAttribute('data-risk-touch-marker-count'), '0');
+    assert.equal(await card5.getAttribute('data-exit-marker-count'), '0');
+    assert.equal(await card5.getAttribute('data-exit-signal-present'), 'false');
+    assert.equal(await card5.getAttribute('data-attempt1-quarter-line-visible'), 'true');
+    assert.equal(await card5.getAttribute('data-attempt1-stop-loss-line-visible'), 'true');
+    assert.equal(await card5.getAttribute('data-attempt1-take-profit-line-visible'), 'true');
+    for (const prefix of ['quarter', 'stop-loss', 'take-profit']) {
+      assert.equal(await card5.getAttribute(`data-attempt2-${prefix}-line-visible`), 'false');
+    }
+
+    const overlayGeometry = async () => Promise.all(
+      [reactionOverlay, ...abandonedOverlays].map(async overlay => {
+        const box = await overlay.boundingBox();
+        return {
+          firstIndex: await overlay.getAttribute('data-first-index'),
+          lastIndex: await overlay.getAttribute('data-last-index'),
+          high: await overlay.getAttribute('data-high'),
+          low: await overlay.getAttribute('data-low'),
+          visible: await overlay.getAttribute('data-visible'),
+          box,
+        };
+      }),
+    );
+    const assertGeometryVisible = geometries => {
+      for (const geometry of geometries) {
+        assert.equal(geometry.visible, 'true');
+        assert.ok(geometry.box && geometry.box.width > 0 && geometry.box.height > 0, JSON.stringify(geometry));
+      }
+    };
+    const metadata = geometries => geometries.map(({ firstIndex, lastIndex, high, low }) =>
+      ({ firstIndex, lastIndex, high, low }));
+    const before = await overlayGeometry();
+    assertGeometryVisible(before);
+    fiveBox = await fiveCanvas.boundingBox();
+    assert.ok(fiveBox);
+    await page.mouse.move(fiveBox.x + fiveBox.width * .5, fiveBox.y + fiveBox.height * .35);
+    await page.mouse.wheel(0, -220);
+    await frame();
+    const zoomed = await overlayGeometry();
+    assertGeometryVisible(zoomed);
+    assert.deepEqual(metadata(zoomed), metadata(before));
+    assert.ok(zoomed.some((geometry, index) =>
+      Math.abs(geometry.box.width - before[index].box.width) > 0.5));
+
+    await dragFiveMinutes(32);
+    const dragged = await overlayGeometry();
+    assertGeometryVisible(dragged);
+    assert.deepEqual(metadata(dragged), metadata(before));
+    assert.ok(dragged.some((geometry, index) =>
+      Math.abs(geometry.box.x - zoomed[index].box.x) > 0.5));
+
+    await page.setViewportSize({ width: 1100, height: 720 });
+    await frame();
+    const resized = await overlayGeometry();
+    assertGeometryVisible(resized);
+    assert.deepEqual(metadata(resized), metadata(before));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await frame();
+
+    return { shown, candidateStarts };
+  };
+
   for (const direction of ['long', 'short']) await assertTwoAttemptScenario(direction);
+  const multipleAbandonments = {};
+  for (const direction of ['long', 'short']) {
+    multipleAbandonments[direction] = await assertMultipleAbandonmentScenario(direction);
+  }
+  await page.evaluate(() => window.moneyComingTest.clearReactionScenario());
+  await frame();
+  await assertAbandonmentArtifactsCleared(multipleAbandonments.short.candidateStarts, true);
 
   await assertControlledExitScenario({ scenario: 'exit-take-profit', direction: 'long' });
   await assertControlledExitScenario({ scenario: 'exit-no-touch', direction: 'short' });
@@ -1459,18 +1860,19 @@ try {
   await page.screenshot({ path: resolve('artifacts/entry-quarter-short-no-entry-1440.png') });
   await page.screenshot({ path: resolve('artifacts/entry-stop-loss-short-1440.png') });
 
-  const endScenarioIndex = five.length - 5;
+  const endScenario = await page.evaluate(() => window.moneyComingTest.getFiveMinuteBarsFromEnd(5));
   const shortened = await assertControlledQuarterScenario({
     scenario: 'quarter-non-divisible',
     direction: 'long',
-    startIndex: endScenarioIndex,
+    startIndex: endScenario.startIndex,
+    expectedBars: endScenario.bars,
   });
   assert.equal(shortened.count, 5);
-  assert.equal(shortened.lastStart, five.at(-1).startMs);
+  assert.equal(shortened.lastStart, endScenario.bars.at(-1).startMs);
   assert.equal(Number(await card5.getAttribute('data-stop-loss-line-point-count')), 5);
-  assert.equal(await card5.getAttribute('data-stop-loss-line-last-start'), String(five.at(-1).startMs));
+  assert.equal(await card5.getAttribute('data-stop-loss-line-last-start'), String(endScenario.bars.at(-1).startMs));
   assert.equal(Number(await card5.getAttribute('data-take-profit-line-point-count')), 5);
-  assert.equal(await card5.getAttribute('data-take-profit-line-last-start'), String(five.at(-1).startMs));
+  assert.equal(await card5.getAttribute('data-take-profit-line-last-start'), String(endScenario.bars.at(-1).startMs));
 
   const autoscale = await assertControlledQuarterScenario({
     scenario: 'quarter-autoscale',
@@ -1512,9 +1914,10 @@ try {
   await page.waitForTimeout(150);
   await page.screenshot({ path: resolve('artifacts/entry-take-profit-later-touch-long-1100.png') });
 
-  await assertTwoAttemptScenario('long');
+  const clearAbandonments = await showMultipleAbandonmentsForCleanup('long');
   await page.evaluate(() => window.moneyComingTest.clearReactionScenario());
   await frame();
+  await assertAbandonmentArtifactsCleared(clearAbandonments.candidateStarts, true);
   assert.equal(await card5.getAttribute('data-selection-kind'), 'none');
   await assertLifecycleDiagnosticsAbsent(false);
   assert.equal(await card5.getAttribute('data-exit-marker-count'), '0');
@@ -1535,9 +1938,10 @@ try {
   const normalPoint = await findParentPoint(normalParent);
   const normalChildren = childrenFor(normalParent, five);
   assert.equal(await linkedOverlay.getAttribute('data-count'), String(normalChildren.length));
-  await assertTwoAttemptScenario('short');
+  const linkedAbandonments = await showMultipleAbandonmentsForCleanup('short');
   await page.mouse.click(normalPoint.x, normalPoint.box.y + normalPoint.box.height * .42);
   await frame();
+  await assertAbandonmentArtifactsCleared(linkedAbandonments.candidateStarts, true);
   assert.equal(await html.getAttribute('data-selection-kind'), 'linked');
   assert.equal(await html.getAttribute('data-entry-direction'), null);
   assert.equal(await html.getAttribute('data-entry-pullback-line'), null);
@@ -1571,19 +1975,23 @@ try {
   assert.equal(await card5.getAttribute('data-exit-signal-line-end'), null);
   assert.deepEqual(JSON.parse(await card60.getAttribute('data-entry-marker-ids')), original60EntryMarkerIds);
 
-  await assertTwoAttemptScenario('long');
+  const datasetAbandonments = await showMultipleAbandonmentsForCleanup('long');
   await page.locator('#instrument').evaluate(element => element.dispatchEvent(new Event('change', { bubbles: true })));
   await page.waitForFunction(() => document.querySelector('#card-5')?.dataset.selectionKind === 'linked');
   await frame();
+  await assertAbandonmentArtifactsCleared(datasetAbandonments.candidateStarts, true);
   await assertSecondAttemptCleared();
   await assertQuarterAbsent(null);
   await assertStopLossAbsent(null);
   await assertTakeProfitAbsent(null);
   assert.deepEqual(JSON.parse(await card60.getAttribute('data-entry-marker-ids')), original60EntryMarkerIds);
 
-  await clickBody(longEntry, five, 32);
-  await assertTwoAttemptScenario('short');
+  const eventAbandonments = await showMultipleAbandonmentsForCleanup('long');
+  await clickBody(shortEntry, five, 10);
+  await assertAbandonmentArtifactsCleared(eventAbandonments.candidateStarts, false);
+  const latestAbandonments = await showMultipleAbandonmentsForCleanup('short');
   await page.getByTestId('latest').click(); await frame();
+  await assertAbandonmentArtifactsCleared(latestAbandonments.candidateStarts, true);
   assert.equal(await card5.getAttribute('data-selection-kind'), 'none');
   await assertLifecycleDiagnosticsAbsent();
   assert.equal(await card5.getAttribute('data-selected-count'), '0');
@@ -1639,6 +2047,7 @@ try {
       'exit-stop-risk-same-bar-long-short',
       'exit-no-touch-long-short',
       'two-attempts-long-short',
+      'multiple-abandonments-long-short',
     ],
     datasetEndObservationCount: shortened.count,
     sixtyMinuteMarkerIdsStable: true,
@@ -1647,7 +2056,9 @@ try {
   await page.getByTestId('entry-rules').click(); await page.locator('#rules-dialog[open]').waitFor();
   assert.match(await page.locator('#rules-content').innerText(), /反向突破[\s\S]*同一5分钟极端情况/);
   assert.match(await page.locator('#rules-content').innerText(), /rangeTicks = round[\s\S]*多头白线为3023，空头白线为3028/);
-  assert.match(await page.locator('#rules-content').innerText(), /不再以“触发K线及后续15根”为分析上限[\s\S]*14:45或22:45开始及之后的K线禁止新入场/);
+  assert.match(await page.locator('#rules-content').innerText(), /不再以“触发K线及后续15根”为分析上限[\s\S]*0、5、10、15、20、25、30分钟[\s\S]*默认15分钟/);
+  assert.match(await page.locator('#rules-content').innerText(), /entryCutoff = sessionEnd - N分钟[\s\S]*forcedExitBarStart = entryCutoff - 5分钟/);
+  assert.match(await page.locator('#rules-content').innerText(), /N=0时不生成强制出场K线或“休市出场”[\s\S]*open-position-session-end[\s\S]*也不跨到下一交易时段/);
   assert.match(await page.locator('#rules-content').innerText(), /以该根5分钟K线收盘价生成唯一的“休市出场”[\s\S]*初始5分钟视口仍只使用触发附近最多16根的紧凑范围/);
   assert.match(await page.locator('#rules-content').innerText(), /当前整数N控制，N可设为1至20 tick[\s\S]*首次没有有效历史设置时默认为1 tick[\s\S]*软件重启后继续使用/);
   assert.match(await page.locator('#rules-content').innerText(), /close - open >= N × tick[\s\S]*open - close >= N × tick[\s\S]*实体正好等于N个tick也合格/);
@@ -1666,12 +2077,17 @@ try {
   assert.match(await page.locator('#rules-content').innerText(), /该轮只记录第一处“止盈出场”“止损出场”或“休市出场”[\s\S]*首轮实际出场不一定结束整个60分钟事件/);
   assert.match(await page.locator('#rules-content').innerText(), /从首轮出场K线的下一根5分钟K线开始观察第二轮[\s\S]*首轮出场K线自身必须排除/);
   assert.match(await page.locator('#rules-content').innerText(), /low <= 首轮红框最低价[\s\S]*high >= 首轮红框最高价[\s\S]*中性灰色“二次触发”标记/);
-  assert.match(await page.locator('#rules-content').innerText(), /二次触发K线自身参与方向反应搜索和极值统计[\s\S]*与首轮相同的当前参数N和包含式门槛[\s\S]*第二轮真正入场仍从方向反应K线的下一根5分钟K线开始寻找/);
+  assert.match(await page.locator('#rules-content').innerText(), /二次触发K线自身参与方向反应搜索和极值统计[\s\S]*与首轮相同的当前参数N、包含式实体门槛[\s\S]*第二轮真正入场仍从方向反应K线的下一根5分钟K线开始寻找/);
   assert.match(await page.locator('#rules-content').innerText(), /每个60分钟回调事件最多包含首轮和第二轮[\s\S]*不得创建第三轮或第四轮/);
   assert.match(await page.locator('#rules-content').innerText(), /第二笔入场使用包含第一笔已实现盈亏的可用资金[\s\S]*只有二次触发或第二轮红框但未真正入场时不计为交易/);
   assert.match(await page.locator('#rules-content').innerText(), /完整1分钟证据优先[\s\S]*止盈或止损优先于休市出场/);
   assert.match(await page.locator('#rules-content').innerText(), /每轮止盈线与止损线共用该轮终点[\s\S]*包含终点K线/);
   assert.match(await page.locator('#rules-content').innerText(), /绿色动态回调线和方向观察标记延伸到整个60分钟事件的生命周期终点[\s\S]*首轮白色、黄色和亮蓝色计划线停止于首轮出场K线/);
+  assert.match(await page.locator('#rules-content').innerText(), /方向侧影线达到实体3倍时只跳过该候选并继续搜索[\s\S]*不属于形态放弃/);
+  assert.match(await page.locator('#rules-content').innerText(), /反向数量达到或超过C时，立即终止当前形态[\s\S]*中性“反向动能放弃”标记/);
+  assert.match(await page.locator('#rules-content').innerText(), /不进入盈亏复盘[\s\S]*不消耗首轮或第二轮正式交易机会/);
+  assert.match(await page.locator('#rules-content').innerText(), /从放弃候选的下一根5分钟K线开始等待风险侧边界[\s\S]*重启K线自身参与新形态/);
+  assert.match(await page.locator('#rules-content').innerText(), /全部历史放弃红框和标记都保留[\s\S]*只有最新放弃红框的风险侧边界有效[\s\S]*旧边界不得竞争或重复触发/);
   assert.match(await page.locator('#rules-meta').innerText(), /修改文字不会自动改变标记算法/);
   assert.equal(await page.locator('#rules-content script').count(), 0);
   assert.equal(await page.locator('[data-mode="1"], #card-1').count(), 0);

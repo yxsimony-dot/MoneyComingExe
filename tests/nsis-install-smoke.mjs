@@ -135,7 +135,10 @@ try {
     assert.equal((await stat(join(installedDataDirectory, name))).isFile(), true, `缺少 data/${name}`);
   }
   const installedDataBefore = await dataFingerprint();
-  const packagedDataBefore = await validatePackagedDataDirectory(installedDataDirectory);
+  const packagedDataBefore = await validatePackagedDataDirectory(
+    installedDataDirectory,
+    { allowLegacySchema4: true },
+  );
 
   const environment = {
     ...process.env,
@@ -169,6 +172,15 @@ try {
       cwd: root,
       env: environment,
       timeout: 300_000,
+    },
+  ));
+  await runPhase('online-market-smoke', () => run(
+    process.execPath,
+    [join(root, 'tests', 'online-market-smoke.mjs')],
+    {
+      cwd: root,
+      env: environment,
+      timeout: 600_000,
     },
   ));
   await runPhase('legacy-appdata-migration-smoke', () => run(
@@ -205,15 +217,21 @@ try {
   }));
   const installedDataAfter = await dataFingerprint();
   assert.deepEqual(installedDataAfter, installedDataBefore, '验收流程不应修改安装目录 data');
-  const packagedDataAfter = await validatePackagedDataDirectory(installedDataDirectory);
+  const packagedDataAfter = await validatePackagedDataDirectory(
+    installedDataDirectory,
+    { allowLegacySchema4: true },
+  );
 
   const appSmoke = await readJsonArtifact('installer-app-smoke.json');
   const realBaseline = await readJsonArtifact('real-baseline-offline-smoke.json');
   const multiInstrument = await readJsonArtifact('multi-instrument-smoke.json');
+  const onlineMarket = await readJsonArtifact('online-market-smoke.json');
   const legacyMigration = await readJsonArtifact('legacy-appdata-migration-smoke.json');
   const shortcut = await readJsonArtifact('shortcut.json');
   assert.equal(realBaseline.instruments.length, 15);
   assert.equal(multiInstrument.updateAll.items.length, 15);
+  assert.equal(onlineMarket.packaged, true);
+  assert.ok(onlineMarket.scenarios.includes('online-disable-stops-scheduling'));
   assert.equal(legacyMigration.migratedSnapshotId, 'legacy-old-global');
   assert.equal(shortcut.offscreen, true);
 
@@ -235,6 +253,13 @@ try {
     })),
     currentUpdate: multiInstrument.currentUpdate,
     updateAll: multiInstrument.updateAll,
+    onlineMarket: {
+      scenarios: onlineMarket.scenarios,
+      firstRun: onlineMarket.firstRun,
+      restartFailure: onlineMarket.restartFailure,
+      sourceDelay: onlineMarket.sourceDelay,
+      disable: onlineMarket.disable,
+    },
     legacyMigration: {
       firstMinute: legacyMigration.firstMinute,
       migratedSnapshotId: legacyMigration.migratedSnapshotId,
@@ -257,6 +282,7 @@ try {
       appSmoke: appSmoke.offscreen,
       realBaseline: realBaseline.offscreen,
       multiInstrument: multiInstrument.offscreen,
+      onlineMarket: onlineMarket.offscreen,
       legacyMigration: legacyMigration.launches,
       shortcut: {
         windowBounds: shortcut.windowBounds,

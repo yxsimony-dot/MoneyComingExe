@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-pulp_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "pulp_main",
   "mainSymbol": "KQ.m@SHFE.sp",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@SHFE.sp"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "bbcf6ee7533abd996a313c849238b1e4c22c7c0bd248599b5cb800db0357db81",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP主力连续.csv",
+          "sha256": "3db28fec45982f125f1fc09e435a86e09db8fd4b7de7748cdd73fcc8968335b6",
+          "rows": 644630
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2110.csv",
+          "sha256": "c51f9b9c8503218158d3f0df06aaee8f7b2ebcaac8f2212eedc86d0972e695ae",
+          "rows": 37931
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2111.csv",
+          "sha256": "ad5d9a06e3e01ca9e9c96e654e01d7f91caaa43795fb651ae701324ab3f49a62",
+          "rows": 31841
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2112.csv",
+          "sha256": "98475a3f977ce85c457ed69bfd5ad247d574b90b7e7edbc9ad0d745d0db944ab",
+          "rows": 35456
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2201.csv",
+          "sha256": "5f3bfabd23268e981ab458cae08cb20d80a239a360857a11fe4faa44723c2687",
+          "rows": 43840
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2202.csv",
+          "sha256": "9e50a0de740c35569a86ffcaabcd5ae683cfffaa10ee8aad2ea4783ab0e8702d",
+          "rows": 24075
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2203.csv",
+          "sha256": "1a8cf5c7c37c17c98d8ca099e31baadc1d4d0fefe22b715b43d32578a21d1c0a",
+          "rows": 24666
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2204.csv",
+          "sha256": "a93c4fe3cb29a2f1d53e263ab808890db3eb15a10f0cb1398c272f35888de57c",
+          "rows": 23995
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2205.csv",
+          "sha256": "40620e32cfc2fbe8f767f2b27efbc5d3b8ccb564b00ab5c282139e6fbffe0323",
+          "rows": 48585
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2206.csv",
+          "sha256": "ddd9c704a11a9c9e38faf303990696a2bdf14e2fda852dca384e33ce9a1940fd",
+          "rows": 33720
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2207.csv",
+          "sha256": "c54f7473e2c4d676428b6e0a678f3365784c38769edd89df51087f626c9c3591",
+          "rows": 30925
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2208.csv",
+          "sha256": "453d3a88cc915678b2e9bb2371a9d37fa43f383088b5924360c7c01bc3ffda2c",
+          "rows": 29381
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2209.csv",
+          "sha256": "21ee0d5c794de8f5a107f5ff8ca815e5af8b5c280fb61828f53624a6d70cbc48",
+          "rows": 64957
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2210.csv",
+          "sha256": "c9c6b2e6aed4296d6500f201f8ab8bfa0879ebb08458fca5e9c426d9f8356540",
+          "rows": 38939
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2211.csv",
+          "sha256": "325e8f61fce1c40a2a0573e97fb37217032e1455ca0a86464055ff7b42efb410",
+          "rows": 37007
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2212.csv",
+          "sha256": "90978455cba9faea921e588029d43ee4b41e40ed673e5482033e4ed06cc9aa8d",
+          "rows": 40207
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2301.csv",
+          "sha256": "b618cc9fa90511cce404d9081c7380709e8cb738cee243ce46e532e1d4d2e49a",
+          "rows": 58053
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2302.csv",
+          "sha256": "911aba9641d5d22e772df86c9e3a5c99c00f66ab8a94652fd3154c4bc910a678",
+          "rows": 36614
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2303.csv",
+          "sha256": "4e8a2a9731ee1269bdeff520b7b7ab73b2daa04d15e8370e1a84b8b6e7ad694d",
+          "rows": 38765
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2304.csv",
+          "sha256": "e9fd37d87a4772cf8a3fc48341f3e3d2fc029312046ee297284a0d1e15b2af65",
+          "rows": 23211
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2305.csv",
+          "sha256": "11e6ba7d24aa031c86827a45821c55dab722996eb83c97c71ed6b49d8207e743",
+          "rows": 63145
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2306.csv",
+          "sha256": "664bd55b75190aa7a7c43250f469bb9f412d2c5c4e3f8dd54e4119a627acf21b",
+          "rows": 36165
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2307.csv",
+          "sha256": "32d79fa899ee71ba5febed836c7721f9df6fa169d954db99773a4351d88cfe8b",
+          "rows": 35197
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2308.csv",
+          "sha256": "38130f451776db63ec1e29be94a44270934c72d46a21d1988f6edc3a5cd79007",
+          "rows": 25938
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2309.csv",
+          "sha256": "ff687014ef29942636174866e63b056f132171e53e06ec44320cdb9900e42631",
+          "rows": 57172
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2310.csv",
+          "sha256": "cf1bff99e3e042b3a06ba5361a9b6b5e4f52fe79d11c3c8b238a4f23190c332b",
+          "rows": 40003
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2311.csv",
+          "sha256": "022eb031eba84d0c03fbc7bcd3feb11ac2d1fe66cf54dfeed31af382f0852182",
+          "rows": 39629
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2312.csv",
+          "sha256": "d339fbfa8fb19c7730b0025441411e2ecbc9f5e21923ac845aa2885b7044eaf0",
+          "rows": 47687
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2401.csv",
+          "sha256": "aba56c8e8d74fe02980308336cad8afb1a7b18e61205ccbb1d52287d3eb1dcc9",
+          "rows": 63995
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2402.csv",
+          "sha256": "5babc48e1fcea1fea77445fa9645e5075f8efa2328b8625c090d2d059bbc06be",
+          "rows": 39200
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2403.csv",
+          "sha256": "5c5cc240cb0687ded623ea401eeb069048406c494de26ed70ca21925821ee776",
+          "rows": 39235
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2404.csv",
+          "sha256": "e0dfbebc5d9dfd427018d593fbbbf70803cc147c5c7536bf7f5483c328424777",
+          "rows": 21475
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2405.csv",
+          "sha256": "527b6e469af36194466bc2a9afe3011006562591318f6f96c6ee94696ec7e942",
+          "rows": 70099
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2406.csv",
+          "sha256": "1d0c8e29a069ee94fbc648a222cff3af129f5cb721a7ea8125c26cd563cd0cb2",
+          "rows": 22000
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2407.csv",
+          "sha256": "88be886800c6ad4f12df18d4c1377c1e685243b987a90dcb036686082d0b2455",
+          "rows": 15605
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2408.csv",
+          "sha256": "dd2cc1aedd0c8eb6d842e2b406828b7650e07ed23e7ad8fa85607a37dd178f45",
+          "rows": 12363
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2409.csv",
+          "sha256": "2a08822abac761cac601b085973314ed1ec27363650da005f33d4f84792db682",
+          "rows": 63871
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2410.csv",
+          "sha256": "4aae74ee3376a3cefb8ce6389347580e8656cbcf5d7d5d0ca0dc154f1b1e6c66",
+          "rows": 11082
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2411.csv",
+          "sha256": "02359ad7bb1c6508ca20d00af6789e9b0ad44d527cb5f9f897acbc937528b02b",
+          "rows": 39048
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2412.csv",
+          "sha256": "90ee5b1550f7cb31b4b69330edace21a95ecc41de5993c8d9e2a32fa4693db9f",
+          "rows": 11766
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2501.csv",
+          "sha256": "3939563418723697071890043ea9b2c69355b23472df9c7d3228e0a0fed0cd7e",
+          "rows": 62647
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2502.csv",
+          "sha256": "2e6b1dc65e9f6925fa9ed3275f88fbd7f69fefded3dd9dfa6678c2608f765ec5",
+          "rows": 4279
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2503.csv",
+          "sha256": "2eef09bcac581929b4f76180c6da599847a23129f01ae79efbe96df8b5bb28e7",
+          "rows": 44414
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2504.csv",
+          "sha256": "258484b16eb9f125cb5ab1028157ca9e3febc5819519a51326b5002d8f215b6a",
+          "rows": 4651
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2505.csv",
+          "sha256": "d0a1ae5ee30e082ff61740d0d410b0bf0bbdcff6c97722d252bbe35014c7ce32",
+          "rows": 58220
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2506.csv",
+          "sha256": "9330f81e28ac708b067d56c2fa9a9def593845818a1befac32ae225ac843e4ca",
+          "rows": 4849
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2507.csv",
+          "sha256": "433e0996eebbcb0d13318215df7ceb8d9addfa49c203e74f731e9c994f8aa1b3",
+          "rows": 41403
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2508.csv",
+          "sha256": "fb1cd426e1378421bae55c354da604cecd94076041289b0f2bd78034b8aa0057",
+          "rows": 4868
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2509.csv",
+          "sha256": "bb237dfd82eade0574982904eb35c1688772a0b82f3d8a6887ff97e06d21c787",
+          "rows": 56670
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2510.csv",
+          "sha256": "e816a36d883d049fb0abce2663a6a4f99f43b5a7788650472e74f17656b356d7",
+          "rows": 6476
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2511.csv",
+          "sha256": "2ceaa014fc08e6ff2ecd7cadd43cf03e46897fdb2440bdbea1abf88fd07d6ef4",
+          "rows": 44601
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2512.csv",
+          "sha256": "c132379f4d92749bbb6b3acfdf10a3f8ce05ee16b29d88d56685699fc699907b",
+          "rows": 31283
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2601.csv",
+          "sha256": "73acf7748bdbf8034f8ef78d042739dbeb12bf2bb8447af0fe1701c26327f60a",
+          "rows": 59073
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2602.csv",
+          "sha256": "de5191782e770996667af83d07e10f678bd6682743afc64984be31effd577b8b",
+          "rows": 6974
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2603.csv",
+          "sha256": "d1b8fcf8610ba906f6f20161405b7114a923645dde2a4d049ff33413b73885f8",
+          "rows": 43784
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2604.csv",
+          "sha256": "5efcc3bb0f7899e34a1487e6fa4d64f7159dbb41c8c1b09b640687097d340477",
+          "rows": 2720
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2605.csv",
+          "sha256": "c4847df3cfc12451fe0cafee8d22850238bc40e63e19dc71e01971a08b6c45ab",
+          "rows": 65097
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2606.csv",
+          "sha256": "fb32c60b0ed46f7cf2860bcbcebb843be67d881069d8de4cbfebd3d8c28c23c1",
+          "rows": 5706
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2607.csv",
+          "sha256": "b6dd4fe42b7d86166af860d8dc0f04818bfe81f84d2566fd8197e4a6a7d56a02",
+          "rows": 45409
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2608.csv",
+          "sha256": "4896b070874e102fc9a7e0a9a8425ff361933609e7213030de64a9820a2d8296",
+          "rows": 3122
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP_纸浆_退市.zip!/SP2609.csv",
+          "sha256": "05f5e340cdc8476a2cce2505f0c43b1431ebc87feff7768c8b4bc34e14cb0c24",
+          "rows": 61866
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2610.csv",
+          "sha256": "b131f0160ccbbde9913a0e229706a2f5d5dc9915c82f07323c6b7a295b07e124",
+          "rows": 5364
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2611.csv",
+          "sha256": "b97814aeb9dad32cd7b87e494506517f685ccf752de62547186faac9cfadc888",
+          "rows": 41042
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2612.csv",
+          "sha256": "f1e9ddab352e9cb7070468efe6968fc2cebf388bb2e7fe2ad8a6dde8767a789e",
+          "rows": 11646
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2701.csv",
+          "sha256": "d006337e7f2190c68b8a68b605aea1eeeddefd9db303acce0bab2ab6c7755f7e",
+          "rows": 41287
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2702.csv",
+          "sha256": "d6a19d819fdbac2615f1d83229465a7008684a78e5ca940d347095fa6f353897",
+          "rows": 735
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2703.csv",
+          "sha256": "a510c05c2af81f2b66f3418d968d19419d154a30e7341d3fc616f5ed6b7ba961",
+          "rows": 14002
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2704.csv",
+          "sha256": "5b717e11192d6b1a33d94ccc74b6d1a7dcb3fa45d6e6f4fe039b496ce8b34ad8",
+          "rows": 733
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2705.csv",
+          "sha256": "a8ec7adfdfbcbfb22587ca8d912e4006c261990a902a205ef257a9f70a8db094",
+          "rows": 16115
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2706.csv",
+          "sha256": "0df4020878a690a2ceffbed3203a19ad4da61e33a824bba0ac019023fb0ccb9d",
+          "rows": 551
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2707.csv",
+          "sha256": "c66d181c4c5fff5c5b03943e40d6f538f7dc92f8988e76fd8bb9c3b9fd041bc8",
+          "rows": 1552
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2708.csv",
+          "sha256": "e8da68586522570b2668a94f65f69c0b83e8c6ac8200e63885a845b26ea401b5",
+          "rows": 283
+        },
+        {
+          "name": "SHFE_上海期货交易所/SP_纸浆/SP2709.csv",
+          "sha256": "60c4d281d43e23d4ba35eaa1745f5c387cb82a2e3d18580011c4e90a406fb43d",
+          "rows": 619
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/pulp_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "bbcf6ee7533abd996a313c849238b1e4c22c7c0bd248599b5cb800db0357db81",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "a5df74d6ef8d91efca37fbd478189aeb03a6605bc82cd3ac58c1754195b33197",
-      "rows": 16461
+      "sha256": "fa5e453a44350a6b389d9ead025e4c1c7abb7c995a0a2e96d333e1c15974b369",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "eea1753afca8b43f2d0adb4294d6aab38b5753f0bbfd662a59d8aa6bda2ba0e6",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "834ac24ea2f5d021175bf78504a0ce58e8ae96d1f0e56622fb1bd33c1c3019ad",
-      "rows": 4
+      "sha256": "a2551871058c7ad556eda7a85dff8b419cbe26a4cb3e581154bc15ade4e8c87b",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "78fb3a76508f02435851632493d80abf971cda12ce4d7216bb71d532a87aa40d",
-      "rows": 241
+      "sha256": "d1c5e08a055853aae6a04c76e81f8ad17a9bc9eefcb9abeea09ba52c04ea7f9f",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "6129d051eeaaa7cb04252a329a6872f247c77d58c0f860ba00299c930408b313",
+      "rows": 21
     }
   }
 }

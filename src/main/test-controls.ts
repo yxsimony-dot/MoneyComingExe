@@ -7,6 +7,7 @@ export type InstrumentFailureControls = Partial<Record<Instrument, string>>;
 export interface TestControls {
   builtinDataDirectory?: string;
   now?: Date;
+  onlineClockRate?: number;
   loadDelays: InstrumentNumberControls;
   loadFailures: InstrumentFailureControls;
   edbDelays: InstrumentNumberControls;
@@ -14,11 +15,34 @@ export interface TestControls {
   edbPriceOffsets: InstrumentNumberControls;
 }
 
+export interface TestClock {
+  now?: () => Date;
+  setTimer?: (
+    callback: () => void,
+    delayMs: number,
+  ) => ReturnType<typeof setTimeout>;
+  clearTimer?: (handle: ReturnType<typeof setTimeout>) => void;
+}
+
 function parseDate(value: string | undefined, label: string): Date | undefined {
   if (!value) return undefined;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     throw new Error(`${label} 必须是有效日期时间`);
+  }
+  return parsed;
+}
+
+function parseOptionalNumber(
+  value: string | undefined,
+  label: string,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${label} 数值无效`);
   }
   return parsed;
 }
@@ -92,9 +116,16 @@ export function readTestControls(
       edbPriceOffsets: {},
     };
   }
+  const onlineClockRate = parseOptionalNumber(
+    environment.MONEYCOMING_TEST_ONLINE_CLOCK_RATE,
+    'MONEYCOMING_TEST_ONLINE_CLOCK_RATE',
+    1,
+    600,
+  );
   return {
     builtinDataDirectory: environment.MONEYCOMING_TEST_BUILTIN_DATA?.trim() || undefined,
     now: parseDate(environment.MONEYCOMING_TEST_NOW, 'MONEYCOMING_TEST_NOW'),
+    ...(onlineClockRate === undefined ? {} : { onlineClockRate }),
     loadDelays: parseNumberControls(
       environment.MONEYCOMING_TEST_LOAD_DELAYS,
       'MONEYCOMING_TEST_LOAD_DELAYS',
@@ -118,6 +149,30 @@ export function readTestControls(
       'MONEYCOMING_TEST_EDB_PRICE_OFFSETS',
       { integer: false, minimum: -1_000_000, maximum: 1_000_000 },
     ),
+  };
+}
+
+export function createTestClock(
+  controls: Pick<TestControls, 'now' | 'onlineClockRate'>,
+): TestClock {
+  if (!controls.now) return {};
+  if (!controls.onlineClockRate) {
+    return {
+      now: () => new Date(controls.now!.getTime()),
+    };
+  }
+  const rate = controls.onlineClockRate;
+  const testStartedAtMs = controls.now.getTime();
+  const realStartedAtMs = Date.now();
+  return {
+    now: () => new Date(
+      testStartedAtMs + (Date.now() - realStartedAtMs) * rate,
+    ),
+    setTimer: (callback, delayMs) => setTimeout(
+      callback,
+      Math.max(0, delayMs / rate),
+    ),
+    clearTimer: handle => clearTimeout(handle),
   };
 }
 

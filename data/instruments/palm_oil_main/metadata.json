@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-palm_oil_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "palm_oil_main",
   "mainSymbol": "KQ.m@DCE.p",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.p"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "b570647feac0db44215beeeed2f8116a1c00e5005db803639f35098e79279bc0",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P主力连续.csv",
+          "sha256": "591a637915539b0fd2166793b3042438f64d9e45dcdc04f4bfec9ba8b7fe4fa8",
+          "rows": 1406172
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2110.csv",
+          "sha256": "f8d5538e96f1bfc8a2529260501c2747f12a672f5a78e223ad5edf02a1d0a59e",
+          "rows": 45888
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2111.csv",
+          "sha256": "f73f4b5c18997242a2116b1d8179bd341290c2f3131957b10c5734602cef4127",
+          "rows": 38025
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2112.csv",
+          "sha256": "8f08c262f9a5a8e8df99e685acd59f80435efcb41715f7ab5a11bec7c2b3a308",
+          "rows": 39411
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2201.csv",
+          "sha256": "b8fd60a0696574c6c0cc73aa0e8f3957574a1ccae25faa81e3cddf52182fa939",
+          "rows": 71331
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2202.csv",
+          "sha256": "4073c9a04535d60aaa6d03d9c15b6a2ff45f54c58ee8e5e7cb938f0172318776",
+          "rows": 53717
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2203.csv",
+          "sha256": "b71939e2b5a027218151d864882ae1e0879dd9d93d7ce76451bf44e01b807a99",
+          "rows": 55153
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2204.csv",
+          "sha256": "8cbd4fbe37bc39d164718ccbc51e7424d6b14776198e7e3d20075a1eabdbc856",
+          "rows": 54924
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2205.csv",
+          "sha256": "04340e11ba6d88842c75fd585f39f77ce085ebc5981195e81188e3e2f1065edc",
+          "rows": 70993
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2206.csv",
+          "sha256": "91628bb76ef4a7c4a70231108e723b4476ebcb2a11e3e69167eadea4c7f3e0fc",
+          "rows": 42127
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2207.csv",
+          "sha256": "a5cabe9b94abf2c66b9ece7646c77822bc9321d716183f74661997bad755a682",
+          "rows": 38757
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2208.csv",
+          "sha256": "ee18899207a9bd2ddd3ab5252c3c804eb1dee909d3a2539edfcc5afbb80b275a",
+          "rows": 36343
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2209.csv",
+          "sha256": "6746e314f22d7889cc39e64ee74247581e5643262fd903bc1fbf4be94d4b4137",
+          "rows": 66072
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2210.csv",
+          "sha256": "15883cf55531036a6ba6fff1be9a02c0ad069314a0c37de2bae7f437e79e099b",
+          "rows": 46632
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2211.csv",
+          "sha256": "485aac4d55a9148372f86aca628a371e1b70215dfb6bc2a83f72278b3b96d943",
+          "rows": 39387
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2212.csv",
+          "sha256": "765255103710ce95a560140a4734431c76f5f6c8d5aa63a15a38e3a458ab1526",
+          "rows": 35184
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2301.csv",
+          "sha256": "f8c89cfe3bbff7396d2ef866afd56fbeb2094c3e6e512dc5e258a8bb7f13a124",
+          "rows": 71572
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2302.csv",
+          "sha256": "edc66ec92cc8a6d225989a21c5c3ddb4f7362595dd35d2acd7962d8b2c146448",
+          "rows": 40979
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2303.csv",
+          "sha256": "298089bf0ef0fe47a7717e4241d17e5af23ae0b9c2dfcb0774b1163ccf0baf0e",
+          "rows": 38648
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2304.csv",
+          "sha256": "263e52d2393d1139e3e8514d7bd60c86dff13801775eeb7d77bafdc2ea31e599",
+          "rows": 36127
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2305.csv",
+          "sha256": "43b430b82af03b3ac8c040f4c9f7ee1f7580a5accb3422d6c545cbe1344c97be",
+          "rows": 73284
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2306.csv",
+          "sha256": "c21db757669668ab3fdce4f9c17aae869153139e4a694056b9b25ff7d046940c",
+          "rows": 43566
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2307.csv",
+          "sha256": "8aed3749c3a3df10aa478401c999ff9022025fcae20c83a0b690e37003bc9a0e",
+          "rows": 45887
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2308.csv",
+          "sha256": "58807913a109e098ffd18d8dc2d6ce0d47c31b3bf7efef93290da23ffa99895f",
+          "rows": 43742
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2309.csv",
+          "sha256": "a5a1deaaf9ebb01b4d3374efa70b1de7bc02c3cd16be9fb16aacdfdc8b70cab1",
+          "rows": 64858
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2310.csv",
+          "sha256": "79b1e14ba2757ba3d09a1ca2fa25f2e45b504771613310060d4831f89a620bcd",
+          "rows": 48169
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2311.csv",
+          "sha256": "1e68298a289c49adaca1c9e15a9477912e8cb65c78cae34bf6eb79ced7c87d5d",
+          "rows": 49486
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2312.csv",
+          "sha256": "d5d629d2b0e97735c38683b234e1bf735d4210ffe3bc481c7ae06887e22a7a89",
+          "rows": 44172
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2401.csv",
+          "sha256": "b3e145da98b3ba6d0a3a851711db865449d82c93c437eb31a082e89a0b682c0f",
+          "rows": 65432
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2402.csv",
+          "sha256": "b12d85963198423848a0f794b0b1c22f1ab176c67bb8d4ec5701f5436c4f7c46",
+          "rows": 45393
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2403.csv",
+          "sha256": "bf385364068c60b6647af1d55c47d56aae4b6aa9e51918940dfcdc9d54840495",
+          "rows": 44350
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2404.csv",
+          "sha256": "c004c85404adbd57b4c96e4d72d0f4a8acea24d802c79e0013ac4053a8d6401a",
+          "rows": 34730
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2405.csv",
+          "sha256": "a013db608d054bf27af08ea012fbc39ccfb51e8932fe8af6aec673e6cf0ee82a",
+          "rows": 72934
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2406.csv",
+          "sha256": "dd16ae5ffd4837750e84a127f468fded58773cfc15e31a9e8d4bd9b6097d79a4",
+          "rows": 33777
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2407.csv",
+          "sha256": "0021dd6734c912612ebedc86f248a2eb481760f3b290d74c74e80faff860df96",
+          "rows": 26315
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2408.csv",
+          "sha256": "4835f17207e98ec9c1385427bb3b0b8575440649559ecd7aea6263f727b75457",
+          "rows": 20750
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2409.csv",
+          "sha256": "d67ec22fdccd74fea80772839ead935885b3c88007f0aac66d85552ed02ccc05",
+          "rows": 71196
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2410.csv",
+          "sha256": "3da1641f094793314390f965cb566b05e77d5407c9af6051b7a7dd57d6970825",
+          "rows": 26141
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2411.csv",
+          "sha256": "6d9aa4c5842d01163fb900954f3c7f04ba84c65e2955ec2895e8d08ea9328497",
+          "rows": 25517
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2412.csv",
+          "sha256": "603a7257b7e036d3a09f6e093543991537d6fff7add701ce5b4da64250c17743",
+          "rows": 19918
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2501.csv",
+          "sha256": "1d7bbc017454c1bc9f6ba48802c6e324a776189ea56ab098b2dce8c50b653ae9",
+          "rows": 71216
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2502.csv",
+          "sha256": "f182efbd9b8ccccf1135f867e60d127357d9588ecc760518fc88f314d9880f7c",
+          "rows": 25579
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2503.csv",
+          "sha256": "9f31058c72968cb0e59da130fba0059d2fbdc7c02ef164045a979836c894827c",
+          "rows": 35366
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2504.csv",
+          "sha256": "14b1947684405fe14c85204be0a9cfb73a67f6fd142ba31f666a42ac3a46be6f",
+          "rows": 22232
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2505.csv",
+          "sha256": "2022f96718622b6fec8ca8d6a2e1b3b53a147536c93fea579bab8345a18083ec",
+          "rows": 75143
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2506.csv",
+          "sha256": "3f6a69c6a6d98be41302d7b4f59e227cff37cb7c04b5632d9f57a0169a982b4b",
+          "rows": 23524
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2507.csv",
+          "sha256": "d76c002840ab1f1f9fa7cec2c5a73f017df7d53696b06f844cb3d078e2e7341c",
+          "rows": 25678
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2508.csv",
+          "sha256": "d8c3589b047445675571445bda842c921808846cf8a717f8df8d04cfc713b0e8",
+          "rows": 15599
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2509.csv",
+          "sha256": "cd26467eaacec3a3936c073e5592e68bb9d65891d97807aebcd4e5e3aa9b6f13",
+          "rows": 73130
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2510.csv",
+          "sha256": "2c3a1cec5d14b2ffdd89d0d9479749df38321cebd947c6d68b39f70e0526a61e",
+          "rows": 23137
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2511.csv",
+          "sha256": "4f4e06be2e98e759e87afe8c209ef2b77506be994204ecd81e3d6df82fe24fec",
+          "rows": 23636
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2512.csv",
+          "sha256": "75809757da34e6ea1de892b592b77e7f8c0f9ca323b0afaf36fa54055522411b",
+          "rows": 19236
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2601.csv",
+          "sha256": "6e88548ae8f5d7fddf2a6f7b0090ed95a4746bc9614114fbcf613082726cf0d2",
+          "rows": 71857
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2602.csv",
+          "sha256": "f7193c3e41e65bfe032467dc7814bc706720b5ee101f100c5064f21e22d770c5",
+          "rows": 16091
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2603.csv",
+          "sha256": "b58f39b904e5047a0cf96d40d3dc29308225df4585116d0bc6ede10587811be0",
+          "rows": 18299
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2604.csv",
+          "sha256": "45c4df0e465db1434fdab22e74b49aba15c514af3c68896d083a2c198b7ebf04",
+          "rows": 12421
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2605.csv",
+          "sha256": "f25666a9655d4d3b2aac53b3774bf0a513dc9e0299376b5b44e81defeb1d420a",
+          "rows": 70441
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2606.csv",
+          "sha256": "40d63b5b7b508e99a7c8e53e624aed78ce00362569d30c746f0c513562ded70a",
+          "rows": 25911
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2607.csv",
+          "sha256": "e6459d42d372e608807121a8b7fd371806eff1e48c9027b9afd71dc2dc61202d",
+          "rows": 30888
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2608.csv",
+          "sha256": "8dfce6dc4f253fe11ea61a59dd0e6eaff477b69775bd1355cf0ec416df3a70bf",
+          "rows": 28054
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/P_棕榈油_退市.zip!/p2609.csv",
+          "sha256": "1834620e23d4df11e832f1e9865100e8a2bb5d67f7f0ef9ee3a971111b6ca8f2",
+          "rows": 70003
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2610.csv",
+          "sha256": "f9bc371a32ee1a13b9143b721ea203206a567988fdbf873f77ec5a8db355fee3",
+          "rows": 33719
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2611.csv",
+          "sha256": "821a61b5d514e63b851b56859ae3b3ddf2a9a37cf8ac0b838ed3272ef79775e1",
+          "rows": 31534
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2612.csv",
+          "sha256": "2097137477f38f400c140cc9c136eb26ff8f8f1f6bcffba76e575c4819c9a358",
+          "rows": 23647
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2701.csv",
+          "sha256": "e544f825ffa20717cfef4b5c18c186efa111643f1fa2db573274d43b37ecee53",
+          "rows": 47243
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2702.csv",
+          "sha256": "072f8ef8155ff3e98de10b8fe02a237b1c83c989f5d07a5c45992291723c174b",
+          "rows": 18649
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2703.csv",
+          "sha256": "a659fde1e5937647c747d948438a31becd734a86e14c61a4f5e12f6a0671739b",
+          "rows": 16214
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2704.csv",
+          "sha256": "313cdf2ae765fe87dd15c4b0e2ff6532b018d9fcc50883896ed85a2f4cc7ea76",
+          "rows": 4547
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2705.csv",
+          "sha256": "c56d19b16cd6c29197922e5472a7429422e5b455b92a77acc04f3de295ee7f41",
+          "rows": 31808
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2706.csv",
+          "sha256": "4d4fa024434e6a520aae55c0252fbefd8ccb15a26fe5d6c30de24e2c0061e929",
+          "rows": 2605
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2707.csv",
+          "sha256": "1aa85f5b3a04229003e7494e40dda1a8018b80964e9337cab119a0511e6208c4",
+          "rows": 2883
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2708.csv",
+          "sha256": "a1ac879cab0faed2d870dc45098734f9dbaa4f25e462d302e9f86268e04d6972",
+          "rows": 1902
+        },
+        {
+          "name": "DCE_大连商品交易所/P_棕榈油/p2709.csv",
+          "sha256": "6507271d53a23cbb68a2eca293e900fa90994a82d2c1007540b62232ab0cab7a",
+          "rows": 5167
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/palm_oil_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "b570647feac0db44215beeeed2f8116a1c00e5005db803639f35098e79279bc0",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "1be6b7ac1faab2920a249fd0da467c98842809124c7807dceae628359c31ce7b",
-      "rows": 16461
+      "sha256": "466be27eaae6a6673afa8fd60d5ab160c823cc30651fb86e083efa2ab3df579b",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "60bec571373af346fba0c5a58a58248ceb03e2f4ce7fc475dc2ff0986b229e54",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "6014871660f234ec295efb2762a3db7035e34ab847fb5d04d09213f7dbcc13e4",
-      "rows": 3
+      "sha256": "f4ceecdc9effd78f5515aec4a0b5582df30a4737031a24374246240bc75923a4",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "06fcff64e152ebf0fc0d3a162f97b5ff4ce9639b7ca1c40333f06213404ee7d3",
-      "rows": 241
+      "sha256": "4cbd6578fa87266de9059b7f08fed7170179ae2c3bb082e8a9932a37f6182dd7",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "d5330386843f8273bb537bb2895787948e538d4a562e6b74ff0799eea5f7fbcf",
+      "rows": 15
     }
   }
 }

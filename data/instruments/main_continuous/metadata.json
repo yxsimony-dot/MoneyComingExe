@@ -1,43 +1,341 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-main_continuous",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "main_continuous",
   "mainSymbol": "KQ.m@DCE.m",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.m"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "8bacddddcfc29a4e46dbf4f52835f883d448a888552fc3245a8a91775b2ce0a4",
-      "rows": 84495
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M主力连续.csv",
+          "sha256": "cd5d0d05695034cf6c1fc79ba119c8196402bf116f515aa159ba7a36ccf966b8",
+          "rows": 1368868
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2111.csv",
+          "sha256": "6fb1e0b5743a2d76cb2419d7da929caee5470e51100e83b818793ddc282aee40",
+          "rows": 54340
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2112.csv",
+          "sha256": "d7b5c81e98876ee6021736576764c58e10aef40d8f51f695d80a33459e4388d0",
+          "rows": 33853
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2201.csv",
+          "sha256": "03d7609261e578d48785ae73b7dac489e7fdd5aa63c1b139934c48a28631b894",
+          "rows": 79400
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2203.csv",
+          "sha256": "4e9a6679a0f7300621cf8c1a7698e32bcf9a905c2839ccdb1081bed10742dd80",
+          "rows": 75028
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2205.csv",
+          "sha256": "4017e19786728520416886b6724000ca637458e8114534a3cd4b8ea1fceb1b83",
+          "rows": 78354
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2207.csv",
+          "sha256": "dccaf2db3f2bea2008d4625f48c66f35ad4267a34cbb6281cc4a968cee9072f9",
+          "rows": 71186
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2208.csv",
+          "sha256": "beaaf1dababd0be051031cba451a4252d97a4973bc3f7c5f85f7505fc6acff29",
+          "rows": 68093
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2209.csv",
+          "sha256": "8ec04445b2902b7071bfe09abcc810b43015d8e2b44d89dc56746089d9225a3e",
+          "rows": 77719
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2211.csv",
+          "sha256": "9ce428f5aaa7aa35f50310a739a0dc9df821bef9a4f41e71bd8afdef3cca4565",
+          "rows": 73998
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2212.csv",
+          "sha256": "41d22114788c2cc13a13466ef4042ed28dea90d896e90d102616450fc2db87a8",
+          "rows": 63892
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2301.csv",
+          "sha256": "4990995535231d0c0b77263bcf716aa72d87b090df21ba0d7d1547ed8a5163aa",
+          "rows": 78539
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2303.csv",
+          "sha256": "0bc12fe4dfa6f60c7ce7f226ef56f93c6cdc090581e30f3641f5cf6a9fd9a871",
+          "rows": 71685
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2305.csv",
+          "sha256": "6a8e47f7c2e9824bd3ad5f833a068461fa22034a6b784fe595f62693782467b4",
+          "rows": 79146
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2307.csv",
+          "sha256": "10ab243a29268064aa75dce15402ca0d988468244454ce29ad967026ca060406",
+          "rows": 72277
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2308.csv",
+          "sha256": "4b2ca6ac1cf768837ac5bb70dc1cc6f2e583a44f29df6eb0480c97dcee41f2ef",
+          "rows": 69344
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2309.csv",
+          "sha256": "855599d97352b789c8fcb7270aa9c635e46cc16f4c196fc849c67d3f7279b3f0",
+          "rows": 78156
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2311.csv",
+          "sha256": "d151138d087dbcdb9a133e749d4b3db7ac0538d6791e7fbf208717d1af63da26",
+          "rows": 73588
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2312.csv",
+          "sha256": "4bb66b665beab5d2f98716e5b2262e750d0e5aabfbb2fb61d7111b8a4eea983f",
+          "rows": 67287
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2401.csv",
+          "sha256": "cfcb0f1d66e441bd64c4b10f7ea5d55bf758746817b8a652a8c987101662d2f5",
+          "rows": 76929
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2403.csv",
+          "sha256": "7f585ded46d6eda77cc6d2a2e9e02c3da840d88b46987b1710fa017a0cc433b1",
+          "rows": 73557
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2405.csv",
+          "sha256": "0d24d3d97e188ce88096ed097c60f3e44da324462dd7ebb32b41a2ffee426309",
+          "rows": 79244
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2407.csv",
+          "sha256": "153ce0943ef37b8649fb8e95bb699253302186a256d9e14df1c94a2637fb65cb",
+          "rows": 77209
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2408.csv",
+          "sha256": "fa0d7c3971eb808700d236f6cfaab25e8cdece75c96c176712cc3d2a5bbd3aa8",
+          "rows": 65216
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2409.csv",
+          "sha256": "3d5c0a08503b851cc73b5131ee540573f6ccef49b18ca46c49ceacec9e0dd860",
+          "rows": 79265
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2411.csv",
+          "sha256": "450a5563085ab31949b2a950c19be298367b242bae36a3942684307b7483a7fd",
+          "rows": 71681
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2412.csv",
+          "sha256": "f594fdad03fb81e0a6c63c8c68856ddae3b9dbe47a08f435e8df8906087e8298",
+          "rows": 51477
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2501.csv",
+          "sha256": "1e21b6c7eb74d7060f44b8edcf297e2311a546505df8853e60b3a749d4fcf2df",
+          "rows": 78198
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2503.csv",
+          "sha256": "5208a2c0d68be02f0d75f650d64e81ad905c59c5f4eb95ab502e0cf741e270bd",
+          "rows": 67971
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2505.csv",
+          "sha256": "5bf8bbd3d0c4a3a66d2e580df76b5068d3ae56f4e9178159e9507a788a409c8f",
+          "rows": 79842
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2507.csv",
+          "sha256": "7a2cab6c17c0a2d5bd98b855821f9c308dfc0264268043191ce8b6dcfd70f71d",
+          "rows": 76179
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2508.csv",
+          "sha256": "633263f1cc718ff154fa5ee0a1275d739a120bf23ad6d45c9098ef2cc5be126c",
+          "rows": 65682
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2509.csv",
+          "sha256": "5b87371c22514a70f0cc355cacfe24aa943601f687c6fb922fe4e64e881e4011",
+          "rows": 78953
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2511.csv",
+          "sha256": "f0fa2156351e8231cc3eed7115269fddd17020b8b75d1edeff55b2f4bb89919a",
+          "rows": 75596
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2512.csv",
+          "sha256": "4f1f58b03ec984e0f8751745c22d56b950a7e5d1b5a15bf209d20ead324dedeb",
+          "rows": 63033
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2601.csv",
+          "sha256": "96fa676d0f0ac12a13f154fb3232dd461933b0e6e528b168ddb886d54c879460",
+          "rows": 78846
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2603.csv",
+          "sha256": "93d3eb77ff8d0a71a9a4c7905467b7645d86117373b104988d19cdf742e6d8d9",
+          "rows": 75210
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2605.csv",
+          "sha256": "d3c1009eaa692a0310bc0fa8bec85bc07ff4c56334c975da11b78810459ad2c3",
+          "rows": 79375
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2607.csv",
+          "sha256": "95c4a553ecc791848d53ce24d6c4f187f9c62ed9483c5ee39dd4e7ca73b97df7",
+          "rows": 74501
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2608.csv",
+          "sha256": "856824b0ed9e433de5a82171a225723d0df8883f96588f1c0c09ac238ef0e67c",
+          "rows": 58049
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/M_豆粕_退市.zip!/m2609.csv",
+          "sha256": "62cac35a334fc51e49e1b24ade7601f0cd3af34826ecaf8fce5523398a0d3379",
+          "rows": 77423
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2611.csv",
+          "sha256": "d0a085a6c8af9252144e0af05290982cfb218d322d5aa98d6ac02e4ce71af3c8",
+          "rows": 64216
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2612.csv",
+          "sha256": "b55a3430b1b03118c8e16fe285cbbc3ef2b7204bf5836b8c1ac53763f767916e",
+          "rows": 52525
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2701.csv",
+          "sha256": "9ff82ac98f35078141dc901d61afa1056efe5573bf9b35ac988d83928a179f7d",
+          "rows": 57983
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2703.csv",
+          "sha256": "fe9d9a32dac7cc1ca647775a7cd1ba25f562727b8cc9f46cf0add0cf66696aef",
+          "rows": 42922
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2705.csv",
+          "sha256": "be4839b949c3a0f610b60934773c4df7771464a28f3afad0480471597f286d61",
+          "rows": 34504
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2707.csv",
+          "sha256": "58c858d3a3c7a48679d7869af18a42f7360dbcc9b3b1f0d9363d3d304ba375a8",
+          "rows": 19505
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2708.csv",
+          "sha256": "7dedd430be91a6b8e5ab08e0c2dbbddb1ad35331e9f687f2983866d229d1b444",
+          "rows": 10040
+        },
+        {
+          "name": "DCE_大连商品交易所/M_豆粕/m2709.csv",
+          "sha256": "c0941ba640716071d3ca91af191fbdf21071ac0dba3e42fcad4c9b31d503e908",
+          "rows": 5417
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/main_continuous/edb_main_continuous_1m_raw.csv",
+          "sha256": "8bacddddcfc29a4e46dbf4f52835f883d448a888552fc3245a8a91775b2ce0a4",
+          "rows": 84495
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "892c6565c3c0b240ec76ecf433dfc8bc70b13d9fbd60c3690ccb01eda09ccafe",
-      "rows": 16899
+      "sha256": "64725751b00d14e5127c79845185f89920472450e186e4a2597600c7a880f329",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "d45124fbb2e349ba31d571d43d528e17de09e7a26f0b04c27c3eeecf76f57e5f",
-      "rows": 1470
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "c98f1e28b63039ff0e9bc83a030c23a8dd82a435e238b66bc13eebf1df66747c",
-      "rows": 3
+      "sha256": "d9bf0207a65a354ae04764a5fedd9f3b438a341c95b7b44bbcc1da84dfb6bc30",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "66e91a70f5c4524795768575ce390e977fc7c756d1a229d9b57d3b2af911c0a8",
-      "rows": 242
+      "sha256": "f9ae45c5eba58a6f0bab4e8a8dff1f76b83c87396dab28598e27b2b7c745dd13",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "6ba8dcda4be793fb6cf00694a1b92eb6bb49f65a8f2942ae1d616f66c6960ab2",
+      "rows": 15
     }
   }
 }

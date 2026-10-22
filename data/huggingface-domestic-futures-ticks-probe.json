@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 1,
+  "purpose": "huggingface-domestic-futures-ticks-gap-source-probe",
+  "capturedAt": "2026-10-19T20:50:57.269589Z",
+  "source": {
+    "datasetId": "EdisonFU2025/Domestic_Futures_ticks",
+    "url": "https://huggingface.co/datasets/EdisonFU2025/Domestic_Futures_ticks",
+    "apiUrl": "https://huggingface.co/api/datasets/EdisonFU2025/Domestic_Futures_ticks",
+    "treeApiUrl": "https://huggingface.co/api/datasets/EdisonFU2025/Domestic_Futures_ticks/tree/12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5?recursive=true&expand=true&limit=100",
+    "commit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+    "lastModified": "2025-08-25T00:39:40.000Z",
+    "private": false,
+    "gated": false,
+    "usedStorageBytes": 2632684137,
+    "declaredLicense": "mit",
+    "readme": {
+      "url": "https://huggingface.co/datasets/EdisonFU2025/Domestic_Futures_ticks/resolve/12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5/README.md?download=true",
+      "sha256": "d8d7a46d41a1a37fe4f0a5f637bf55c649310185329127d8a2204632e480be17",
+      "content": "---\r\nlicense: mit\r\n---\r\n",
+      "documentsUpstreamProvider": false,
+      "documentsAcquisitionMethod": false,
+      "documentsRedistributionAuthority": false
+    },
+    "inventory": {
+      "datasetSiblingCount": 68,
+      "treeFileCount": 68,
+      "treeMatchesDatasetSiblings": true
+    },
+    "normalizedManifestSha256": "3c7108d7c3c5469a669684c5adfbc0c629f3959a8804d6ee6087362691dfc0cc"
+  },
+  "target": {
+    "instrumentCount": 15,
+    "presentInstrumentCount": 13,
+    "allTargetFilesPresent": false,
+    "missingSymbols": [
+      "RM",
+      "OI"
+    ],
+    "files": [
+      {
+        "instrumentId": "main_continuous",
+        "symbol": "M",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "M9999_XDCE_2025-08-24-17-45-05.parquet"
+        ]
+      },
+      {
+        "instrumentId": "rapeseed_meal_main",
+        "symbol": "RM",
+        "exchange": "XZCE",
+        "present": false,
+        "files": []
+      },
+      {
+        "instrumentId": "pvc_main",
+        "symbol": "V",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "V9999_XDCE_2025-08-24-17-51-40.parquet"
+        ]
+      },
+      {
+        "instrumentId": "rebar_main",
+        "symbol": "RB",
+        "exchange": "XSGE",
+        "present": true,
+        "files": [
+          "RB9999_XSGE_2025-08-25-08-03-27.parquet"
+        ]
+      },
+      {
+        "instrumentId": "glass_main",
+        "symbol": "FG",
+        "exchange": "XZCE",
+        "present": true,
+        "files": [
+          "FG9999_XZCE_2025-08-25-08-17-23.parquet"
+        ]
+      },
+      {
+        "instrumentId": "rapeseed_oil_main",
+        "symbol": "OI",
+        "exchange": "XZCE",
+        "present": false,
+        "files": []
+      },
+      {
+        "instrumentId": "palm_oil_main",
+        "symbol": "P",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "P9999_XDCE_2025-08-24-17-50-13.parquet"
+        ]
+      },
+      {
+        "instrumentId": "soybean_oil_main",
+        "symbol": "Y",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "Y9999_XDCE_2025-08-24-17-47-43.parquet"
+        ]
+      },
+      {
+        "instrumentId": "pulp_main",
+        "symbol": "SP",
+        "exchange": "XSGE",
+        "present": true,
+        "files": [
+          "SP9999_XSGE_2025-08-25-08-10-33.parquet"
+        ]
+      },
+      {
+        "instrumentId": "corn_main",
+        "symbol": "C",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "C9999_XDCE_2025-08-24-17-46-30.parquet"
+        ]
+      },
+      {
+        "instrumentId": "soda_ash_main",
+        "symbol": "SA",
+        "exchange": "XZCE",
+        "present": true,
+        "files": [
+          "SA9999_XZCE_2025-08-25-08-23-58.parquet"
+        ]
+      },
+      {
+        "instrumentId": "soybean_1_main",
+        "symbol": "A",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "A9999_XDCE_2025-08-24-17-42-08.parquet"
+        ]
+      },
+      {
+        "instrumentId": "methanol_main",
+        "symbol": "MA",
+        "exchange": "XZCE",
+        "present": true,
+        "files": [
+          "MA9999_XZCE_2025-08-25-08-18-33.parquet"
+        ]
+      },
+      {
+        "instrumentId": "sugar_main",
+        "symbol": "SR",
+        "exchange": "XZCE",
+        "present": true,
+        "files": [
+          "SR9999_XZCE_2025-08-25-08-14-52.parquet"
+        ]
+      },
+      {
+        "instrumentId": "soybean_2_main",
+        "symbol": "B",
+        "exchange": "XDCE",
+        "present": true,
+        "files": [
+          "B9999_XDCE_2025-08-24-17-43-15.parquet"
+        ]
+      }
+    ]
+  },
+  "sample": {
+    "file": "M9999_XDCE_2025-08-24-17-45-05.parquet",
+    "repositorySize": 72866883,
+    "lfsSha256": "608d831c94ef323c89868e69d003d784b09066ac0a70defad68a6eb736d3aad9",
+    "fileCommit": {
+      "id": "76e4e8c0cfd35ccd67a710cdd36ece8a40276eef",
+      "title": "20250101-20250822",
+      "date": "2025-08-24T10:35:33.000Z"
+    },
+    "download": {
+      "url": "https://huggingface.co/datasets/EdisonFU2025/Domestic_Futures_ticks/resolve/12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5/M9999_XDCE_2025-08-24-17-45-05.parquet?download=true",
+      "contentType": "application/octet-stream",
+      "declaredContentLength": 72866883,
+      "downloadedBytes": 72866883,
+      "sha256": "608d831c94ef323c89868e69d003d784b09066ac0a70defad68a6eb736d3aad9",
+      "sha256MatchesLfsOid": true
+    },
+    "pyarrowVersion": "18.1.0",
+    "parquetCreatedBy": "Polars",
+    "rowGroupCount": 19,
+    "rowCount": 5162154,
+    "scannedRows": 5162154,
+    "columns": [
+      {
+        "name": "time",
+        "type": "timestamp[ns]",
+        "nullable": true
+      },
+      {
+        "name": "current",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "high",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "low",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "volume",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "money",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "position",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "a1_p",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "a1_v",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "b1_p",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "b1_v",
+        "type": "double",
+        "nullable": true
+      },
+      {
+        "name": "future",
+        "type": "large_string",
+        "nullable": true
+      }
+    ],
+    "firstTimestampInFile": "2025-01-02 08:59:00.008000",
+    "lastTimestampInFile": "2025-08-22 22:59:59.976000",
+    "minimumTimestamp": "2025-01-02 08:59:00.008000",
+    "maximumTimestamp": "2025-08-22 22:59:59.976000",
+    "timeNullCount": 0,
+    "futureNullCount": 0,
+    "futureValues": [
+      "M9999.XDCE"
+    ],
+    "concreteContractValues": [],
+    "concreteContractAttributionAvailable": false
+  },
+  "rights": {
+    "datasetLicenseClaimPresent": true,
+    "datasetLicenseIdentifier": "mit",
+    "upstreamMarketDataProviderDocumented": false,
+    "upstreamMarketDataAcquisitionDocumented": false,
+    "upstreamRedistributionAuthorityDocumented": false,
+    "gitStorageAllowed": false,
+    "packagedApplicationRedistributionAllowed": false,
+    "derivedBarsRedistributionAllowed": false,
+    "commercialUseAllowed": false
+  },
+  "coverage": {
+    "sampleFirstDate": "2025-01-02",
+    "sampleLastDate": "2025-08-22",
+    "partialSoybeanMealTargetGapCoverageConfirmed": true,
+    "completeSoybeanMealTargetGapCoverageConfirmed": false,
+    "allTargetGapCoverageConfirmed": false,
+    "threeYearHistoryConfirmed": false,
+    "concreteContractAttributionAvailable": false,
+    "historicalMainContractMappingCapabilityConfirmed": false
+  },
+  "retention": {
+    "sampleStoredOnlyInTemporaryDirectory": true,
+    "temporarySampleDeletedAfterProbe": true,
+    "temporaryPyarrowEnvironmentManagedByRunner": true,
+    "rawParquetPersisted": false,
+    "rawRowsPersisted": false,
+    "summaryOnly": true
+  },
+  "conclusion": {
+    "technicalTargetGapCoverageConfirmed": false,
+    "redistributionPermissionConfirmed": false,
+    "releaseEligibility": "blocked-incomplete-target-set-and-gap-no-contract-attribution-and-upstream-rights-unconfirmed",
+    "note": "The dataset contains 13 of 15 target products and omits RM and OI. The soybean-meal sample covers only part of the July-October 2025 gap, identifies a continuous 9999 symbol instead of concrete delivery contracts, and does not provide three years of history. Its dataset card declares MIT but does not document the upstream market-data provider, acquisition method, or redistribution authority."
+  }
+}

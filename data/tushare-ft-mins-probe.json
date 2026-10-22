@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "purpose": "tushare-ft-mins-gap-source-probe",
+  "capturedAt": "2026-10-19T20:33:09.470Z",
+  "source": {
+    "name": "Tushare Pro 期货历史分钟行情",
+    "apiUrl": "https://api.tushare.pro",
+    "apiDocumentationUrl": "https://tushare.pro/document/2?doc_id=313",
+    "dataServiceAgreementUrl": "https://tushare.pro/document/1?doc_id=405",
+    "documentedIntervals": [
+      "1min",
+      "5min",
+      "15min",
+      "30min",
+      "60min"
+    ],
+    "documentedMaximumRowsPerRequest": 8000,
+    "documentedHistory": "超过 10 年",
+    "separatePermissionRequired": true
+  },
+  "request": {
+    "apiName": "ft_mins",
+    "tsCode": "M2509.DCE",
+    "freq": "5min",
+    "startDate": "2025-07-01 09:00:00",
+    "endDate": "2025-07-01 15:00:00",
+    "fields": [
+      "ts_code",
+      "trade_time",
+      "open",
+      "high",
+      "low",
+      "close",
+      "vol",
+      "amount",
+      "oi"
+    ]
+  },
+  "environment": {
+    "tokenEnvironmentNamesChecked": [
+      "TUSHARE_TOKEN",
+      "TS_TOKEN"
+    ],
+    "tokenPresent": false,
+    "tokenEnvironmentName": null,
+    "tokenPersistedInReport": false
+  },
+  "rights": {
+    "defaultDataServiceLicenseScope": "个人、不可转让、非商业用途",
+    "gitStorageAllowed": false,
+    "packagedApplicationRedistributionAllowed": false,
+    "derivedBarsRedistributionAllowed": false,
+    "commercialUseAllowed": false,
+    "separateWrittenAuthorizationRequired": true
+  },
+  "retention": {
+    "rawResponsePersisted": false,
+    "rawRowsPersisted": false,
+    "tokenPersisted": false,
+    "summaryOnly": true
+  },
+  "probeStatus": "blocked-no-token",
+  "response": {
+    "requestPerformed": false,
+    "httpStatus": null,
+    "apiCode": null,
+    "apiMessage": null,
+    "fields": [],
+    "rowCount": 0,
+    "firstTimestamp": null,
+    "lastTimestamp": null,
+    "requiredFieldsComplete": false
+  },
+  "coverage": {
+    "sampleAccessConfirmed": false,
+    "specificContractAttributionAvailable": true,
+    "targetGapCoverageConfirmed": false
+  },
+  "conclusion": {
+    "releaseEligibility": "blocked-no-token-and-non-commercial-license",
+    "note": "本机未发现 TUSHARE_TOKEN 或 TS_TOKEN，未执行行情请求；即使后续开通期货历史分钟权限，公开数据服务协议仍只授予个人、不可转让、非商业用途，不能直接用于 Git、EXE 或安装包再分发。"
+  }
+}

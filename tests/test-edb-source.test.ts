@@ -111,6 +111,7 @@ describe('test EDB source', () => {
     );
 
     let handler!: (request: { url: string }) => Promise<Response> | Response;
+    const requests: unknown[] = [];
     const marketSession = {
       protocol: {
         handle: vi.fn((_scheme, callback) => {
@@ -122,6 +123,7 @@ describe('test EDB source', () => {
       delays: { main_continuous: 20 },
       failures: { rebar_main: '模拟螺纹钢 EDB 失败' },
       priceOffsets: { main_continuous: 125 },
+      onRequest: request => requests.push(request),
     });
 
     const startedAt = Date.now();
@@ -148,6 +150,22 @@ describe('test EDB source', () => {
     });
     expect(failedResponse.status).toBe(503);
     expect(await failedResponse.text()).toBe('模拟螺纹钢 EDB 失败');
+    expect(requests).toEqual([
+      {
+        instrument: 'main_continuous',
+        symbol: 'KQ.m@DCE.m',
+        period: '60',
+        startAt: '2026-10-09 09:00:00',
+        endAt: '2026-10-09 09:01:00',
+      },
+      {
+        instrument: 'rebar_main',
+        symbol: 'KQ.m@SHFE.rb',
+        period: '60',
+        startAt: '2026-10-09 09:00:00',
+        endAt: '2026-10-09 09:01:00',
+      },
+    ]);
   });
 
   it('derives uniquely matching daily rows for future fixture dates', async () => {

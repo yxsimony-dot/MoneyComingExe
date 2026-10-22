@@ -1,43 +1,281 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-corn_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "corn_main",
   "mainSymbol": "KQ.m@DCE.c",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.c"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "06ab3364d7db11fa16f44a676f21fc9b7e42eb14ab563aeaf307f3c806ed7467",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C主力连续.csv",
+          "sha256": "c0010d20fc53814580a67e7a6d5b95d55d2fe0378fc145eda1d57617a67566ea",
+          "rows": 1199332
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2111.csv",
+          "sha256": "bf35bd06f6ea51094984f54114cd290b1711391b2e55fae70d5993872c61c92b",
+          "rows": 70238
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2201.csv",
+          "sha256": "5c217d3b2bc036e3354dfb0ea5a0d36275f6eeecdecb148bd100c76f73fc7e70",
+          "rows": 74629
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2203.csv",
+          "sha256": "4fb0b3cfae9ba451da3c6fbe697a9c338d7d28cc1141103c16fbf83b41164b29",
+          "rows": 68210
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2205.csv",
+          "sha256": "a9b016420f7d588bddfb6bdf0006805e192372dc9a8385a64c1c118611ce7cea",
+          "rows": 71670
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2207.csv",
+          "sha256": "f21afc189d2f2f7c71791fa1c1001c0110aa94458487ef884257d3c40b4e9774",
+          "rows": 65720
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2209.csv",
+          "sha256": "2e0a24d56ef555a10eda2cb89a7f39083c511e8ea20a6ea8dc3b1d6e16ef1e95",
+          "rows": 69951
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2211.csv",
+          "sha256": "a8afcbb182be8e150a2e1ff2a628c976a0bbb4e8d3c3aad0d713066b01a96620",
+          "rows": 63418
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2301.csv",
+          "sha256": "a195d9c0dff6bcb070d9e28bc64614acd7705501b49d11c434c1d0d5834168a6",
+          "rows": 73175
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2303.csv",
+          "sha256": "da2ae552826d01f5cbf4777ef1555264bf040ebeb6d50643576048f0f2475f53",
+          "rows": 69635
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2305.csv",
+          "sha256": "cb136b513aa9e6fd51e7d535082c2affd970a13e6f9706884149194b8a6b688e",
+          "rows": 72211
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2307.csv",
+          "sha256": "1a8250ccb23965890dd0e1a5a8a27325d29959c894d9f65c18b0e0a31a7660e8",
+          "rows": 69170
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2309.csv",
+          "sha256": "0557543213fc1731aa9905f9ce17dc572677211c6148fe791c66526a26e215a5",
+          "rows": 70453
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2311.csv",
+          "sha256": "e4c0df18f4e36dec90e0d59fdb5924dca0db8ba505c47b4d35273899cfea028a",
+          "rows": 71175
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2401.csv",
+          "sha256": "2c93dabc11d1416b136e0ede8497a988eb8833e65cc1f9651ffe01b4c2385816",
+          "rows": 69544
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2403.csv",
+          "sha256": "525391358ae27daef4756fe05ad1cb4190dec3668dd65d76ad8e6a19cedd0e72",
+          "rows": 68402
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2405.csv",
+          "sha256": "8fb9e364b10a9bcd7a410ec6793715ffd28206c159345ea6760e383ee40da1cc",
+          "rows": 71936
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2407.csv",
+          "sha256": "217dbdf2c92a861f7152f4f09661b7391aed5320adc2111867925045c16eeb4d",
+          "rows": 66213
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2409.csv",
+          "sha256": "53224e996698f08d70a7a29821416d2ad258463d71230cb1f56edc44751db032",
+          "rows": 70683
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2411.csv",
+          "sha256": "ff95b31f0b00a9e7aa33e5cbd3d539d0f4a87d94e0c701f13ddc6f4794fac21e",
+          "rows": 61305
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2501.csv",
+          "sha256": "e7de76c3eadd50323ea24a8c24229ddfa712cb118a787b029083d5105ad674f7",
+          "rows": 70554
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2503.csv",
+          "sha256": "117f51f16da3cfbc368729d8fc04ac502416d6e46e7c707c65a30e3385720e81",
+          "rows": 60368
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2505.csv",
+          "sha256": "faff088fa8fbcf33bb71be7faf0321ec0377ba66d8fb79ade6bc819439160a70",
+          "rows": 66909
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2507.csv",
+          "sha256": "e04e6a00665bea5776780691d881404068df15da17310ffa03c8182120373a11",
+          "rows": 69337
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2509.csv",
+          "sha256": "6403834401b2124eb9d13780705d5ad1cfdccda97f4f35f773a17a7dc6a837fc",
+          "rows": 71868
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2511.csv",
+          "sha256": "a48a0df15e38d3ee3194eeac340f95a96d57fff21a27d57a7c47d1a42d5bb765",
+          "rows": 67807
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2601.csv",
+          "sha256": "b5cc7a87c5d576d488a9111dca0b0f955a39902653d4736d63dbc4155847c79e",
+          "rows": 71267
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2603.csv",
+          "sha256": "e46b673e6c9f386db5d0aa37a1cfc228aa60c78b244621ba09185f1da192cfa4",
+          "rows": 65366
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2605.csv",
+          "sha256": "686ba3c0c7e7bd9324a069ae6c8abbb28823fb6001b1678e08bb81800199c54a",
+          "rows": 69842
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2607.csv",
+          "sha256": "afb3c9698311071070e84a463e59d0a4add071d04b774ade684ebd1151104c83",
+          "rows": 66256
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/C_玉米_退市.zip!/c2609.csv",
+          "sha256": "d9ca3ae20adb358805afa7047ef2c0fa182330fc3b3c7d4f6f057e13500c74f8",
+          "rows": 66773
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2611.csv",
+          "sha256": "b98d05d77bd87de742b2896504bbfaec1da7e89cf445c22875c63be8124cdf4d",
+          "rows": 62636
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2701.csv",
+          "sha256": "a78b2fa91ceacb42bffc490a60fe5cac127bfc42d1ad0968c5121bc999eef7c8",
+          "rows": 50932
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2703.csv",
+          "sha256": "79a9a2d8c1ea1477d1b08a2ee92fa6f1c07f43bc8e93c743dff7b01115fd427b",
+          "rows": 36257
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2705.csv",
+          "sha256": "185cfba779b6395b0cdb73bdec1cb17c791d6c9cebdab69e0675561995f1ac39",
+          "rows": 25388
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2707.csv",
+          "sha256": "ae043aa7469df7cbf99ef4ed9b209cf50d46d6e8c5644762f883bb057993aae8",
+          "rows": 14078
+        },
+        {
+          "name": "DCE_大连商品交易所/C_玉米/c2709.csv",
+          "sha256": "5403dc9a2301d45bebc5313ced700c70aec33247d9c22509a409b4c42ad87302",
+          "rows": 2627
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/corn_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "06ab3364d7db11fa16f44a676f21fc9b7e42eb14ab563aeaf307f3c806ed7467",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "84ba96a3cd0b5cd21409ff8c8dea8518c8a24731f665fb15545a9a39222bd9a3",
-      "rows": 16461
+      "sha256": "439a07097777a311d4962ce1280071ba1fd08a8a565820faa467f7cd8f71c114",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "1a3ce3498ce06d4d07f791d64cc73c534bd616e57fb22be81c1dadf774e346be",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "dc4ea9a1b5c42b7a65f315592b2576a6a5b60c9b6e90acf512e3b2670d57b391",
-      "rows": 6
+      "sha256": "91b7d77b1551302bcfc9f2846498d43f4be4087efb260a220243674a5434902d",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "8b5b82fc4cbb4effceb3cb6021ef66467804b8e5d7ff0e6f2f6687ed58404388",
-      "rows": 241
+      "sha256": "eead231b5397c57109fa74aa7531124b600aaec3c0b7859ca4ed2b848f2e7083",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "3a1c38e754b5df07ec3fe1cb95250c92c22ae94c5b8ae7ff07b9b098dfa0ffb8",
+      "rows": 25
     }
   }
 }

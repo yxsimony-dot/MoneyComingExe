@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateMaxLots,
   reviewProfitLoss,
+  reviewProfitLossLifecycles,
 } from '../src/domain/profit-loss-review';
 import { completeMinutesForFiveMinuteBar } from '../src/domain/market-data';
 import { formatBeijing } from '../src/domain/time';
@@ -10,6 +11,9 @@ import type { Bar, EdbMinuteRecord } from '../src/shared/types';
 import {
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
   entryLifecycle,
+  filterEntryLifecycleByDateRange,
+  type EntryExitType,
+  type EntryLifecycle,
   type WeeklyEntry,
 } from '../src/domain/weekly-entry';
 
@@ -78,6 +82,70 @@ function minute(startMs: number, open: number, high: number, low: number, close:
     volume: 1,
     openOi: 1,
     closeOi: 1,
+  };
+}
+
+function completedLifecycle(
+  candidate: WeeklyEntry,
+  entryBar: Bar,
+  exitBar: Bar,
+  exitType: EntryExitType,
+  exitPrice: number,
+  exitMinute?: EdbMinuteRecord,
+): EntryLifecycle {
+  const analysisBars = [candidate.triggerBar, entryBar, exitBar];
+  const reactionRange = {
+    direction: candidate.direction,
+    pricingMode: 'configured-percent' as const,
+    reactionBar: candidate.triggerBar,
+    extremeBar: candidate.triggerBar,
+    high: candidate.triggerBar.high,
+    low: candidate.triggerBar.low,
+  };
+  const quarterSignal = {
+    direction: candidate.direction,
+    pricingMode: 'configured-percent' as const,
+    price: entryBar.open,
+    tick: 1,
+    rangeTicks: candidate.triggerBar.high - candidate.triggerBar.low,
+    entryRangePercent: 25,
+    entryDistanceTicks: 1,
+    quarterTicks: 1,
+    lineStartBar: candidate.triggerBar,
+    reactionBar: candidate.triggerBar,
+    entryBar,
+  };
+  const exitAnalysis = {
+    exitSignal: {
+      direction: candidate.direction,
+      type: exitType,
+      price: exitPrice,
+      bar: exitBar,
+      minute: exitMinute,
+      granularity: exitMinute ? 'one-minute' as const : 'five-minute-close' as const,
+      lineEndMs: exitBar.endMs,
+    },
+  };
+  const attempt = {
+    number: 1 as const,
+    triggerBar: candidate.triggerBar,
+    analysisBars,
+    reactionRange,
+    quarterSignal,
+    exitAnalysis,
+    endReason: exitType,
+  };
+  return {
+    analysisBars,
+    focusBars: analysisBars,
+    entryCutoff: exitBar.endMs,
+    sessionEnd: exitBar.endMs,
+    attempts: [attempt],
+    abandonedSetups: [],
+    reactionRange,
+    quarterSignal,
+    exitAnalysis,
+    endReason: exitType,
   };
 }
 
@@ -527,7 +595,7 @@ describe('profit and loss review', () => {
     expect(hundredReview.finalCapital).toBe(hundredReview.initialCapital);
   });
 
-  it('uses the same opposite-candle filter for lifecycle trades and full-review capital', () => {
+  it('keeps capital and trade statistics unchanged when the lifecycle only has an abandonment', () => {
     const bars = [
       bar('13:00', 106, 107, 104, 105),
       bar('13:05', 105, 106, 103, 104),
@@ -578,17 +646,209 @@ describe('profit and loss review', () => {
       ignoredNoEntryCount: 0,
     });
 
-    expect(filteredLifecycle.reactionRange?.reactionBar).toBe(bars[8]);
-    expect(filteredLifecycle.quarterSignal?.entryBar).toBeUndefined();
+    expect(filteredLifecycle.attempts).toHaveLength(0);
+    expect(filteredLifecycle.abandonedSetups).toHaveLength(1);
+    expect(filteredLifecycle.abandonedSetups[0]).toMatchObject({
+      triggerBar: bars[6],
+      candidateBar: bars[6],
+      reason: 'opposite-momentum',
+    });
     expect(filteredReview.completedTrades).toHaveLength(0);
     expect(filteredReview.incompleteTrades).toHaveLength(0);
+    expect(filteredReview.equityCurve).toHaveLength(0);
     expect(filteredReview.finalCapital).toBe(filteredReview.initialCapital);
     expect(filteredReview.statistics).toMatchObject({
+      candidateCount: 1,
       validEntryCount: 0,
       completedTradeCount: 0,
+      incompleteTradeCount: 0,
       winningTradeCount: 0,
+      losingTradeCount: 0,
+      flatTradeCount: 0,
       takeProfitCount: 0,
+      stopLossCount: 0,
+      sessionCloseCount: 0,
+      cumulativeProfit: 0,
+      cumulativeLoss: 0,
+      winRate: 0,
+      profitLossRatio: null,
+      maxDrawdown: 0,
+      maxConsecutiveWins: 0,
+      maxConsecutiveLosses: 0,
       ignoredNoEntryCount: 1,
+    });
+  });
+
+  it('ignores repeated abandonments while funding two formal trades in sequence', () => {
+    const bars = [
+      bar('13:30', 103, 104, 100, 102),
+      bar('13:35', 102, 103, 99, 101),
+      bar('13:40', 101, 105, 99, 104),
+      bar('13:45', 99, 104, 99, 103),
+      bar('13:50', 103, 103, 101, 102),
+      bar('13:55', 102, 115, 102, 114),
+      bar('14:00', 103, 104, 99, 102),
+      bar('14:05', 102, 103, 98, 101),
+      bar('14:10', 101, 105, 98, 104),
+      bar('14:15', 98, 104, 98, 103),
+      bar('14:20', 103, 103, 100, 102),
+      bar('14:25', 102, 117, 102, 116),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      oppositeCandleCount: 2,
+    };
+    const lifecycle = entryLifecycle(candidate, bars, [], 1, settings);
+    const review = reviewProfitLoss([candidate], bars, [], DEFINITION, settings);
+
+    expect(lifecycle.abandonedSetups.map(setup => setup.candidateBar)).toEqual([
+      bars[2],
+      bars[8],
+    ]);
+    expect(lifecycle.attempts).toHaveLength(2);
+    expect(lifecycle.attempts.map(attempt => attempt.number)).toEqual([1, 2]);
+    expect(lifecycle.attempts.map(attempt => attempt.reactionRange?.reactionBar)).toEqual([
+      bars[3],
+      bars[9],
+    ]);
+    expect(review.completedTrades).toHaveLength(2);
+    expect(review.incompleteTrades).toHaveLength(0);
+    expect(review.completedTrades.map(trade => trade.reactionBar)).toEqual([
+      bars[3],
+      bars[9],
+    ]);
+    expect(review.completedTrades[1].capitalBefore).toBe(
+      review.completedTrades[0].capitalAfter,
+    );
+    expect(review.finalCapital).toBe(review.completedTrades[1].capitalAfter);
+    expect(review.statistics).toMatchObject({
+      candidateCount: 1,
+      ignoredNoEntryCount: 0,
+      validEntryCount: 2,
+      completedTradeCount: 2,
+      incompleteTradeCount: 0,
+      winningTradeCount: 2,
+      takeProfitCount: 2,
+    });
+  });
+
+  it('uses the selected nonzero session exit minute for close price, capital, and statistics', () => {
+    const bars = [
+      bar('14:30', 100, 104, 100, 103),
+      bar('14:35', 103, 105, 101, 103),
+      bar('14:40', 103, 106, 101, 102),
+      bar('14:45', 102, 106, 101, 104),
+      bar('14:50', 104, 106, 101, 105),
+      bar('14:55', 105, 106, 101, 104),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const fifteenMinutes = reviewProfitLoss([candidate], bars, [], DEFINITION, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 15,
+    });
+    const fiveMinutes = reviewProfitLoss([candidate], bars, [], DEFINITION, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 5,
+    });
+
+    expect(fifteenMinutes.completedTrades[0]).toMatchObject({
+      entryPrice: 101,
+      exitType: 'session-close',
+      exitBar: bars[2],
+      exitPrice: 102,
+      cashPnl: 99_000,
+      capitalAfter: 1_099_000,
+    });
+    expect(fiveMinutes.completedTrades[0]).toMatchObject({
+      entryPrice: 101,
+      exitType: 'session-close',
+      exitBar: bars[4],
+      exitPrice: 105,
+      cashPnl: 396_000,
+      capitalAfter: 1_396_000,
+    });
+    expect(fifteenMinutes.statistics).toMatchObject({
+      validEntryCount: 1,
+      completedTradeCount: 1,
+      incompleteTradeCount: 0,
+      sessionCloseCount: 1,
+      cumulativeProfit: 99_000,
+    });
+    expect(fiveMinutes.statistics).toMatchObject({
+      validEntryCount: 1,
+      completedTradeCount: 1,
+      incompleteTradeCount: 0,
+      sessionCloseCount: 1,
+      cumulativeProfit: 396_000,
+    });
+    expect(fiveMinutes.finalCapital).toBeGreaterThan(fifteenMinutes.finalCapital);
+  });
+
+  it('keeps a zero-minute natural-close position incomplete and out of realized capital', () => {
+    const bars = [
+      bar('14:50', 100, 104, 100, 103),
+      bar('14:55', 103, 105, 101, 103),
+    ];
+    const result = reviewProfitLoss([entry(bars[0], 'long')], bars, [], DEFINITION, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 0,
+    });
+
+    expect(result.completedTrades).toHaveLength(0);
+    expect(result.incompleteTrades).toHaveLength(1);
+    expect(result.incompleteTrades[0]).toMatchObject({
+      entryBar: bars[1],
+      entryPrice: 101,
+      lifecycleEndReason: 'open-position-session-end',
+      capitalBefore: 1_000_000,
+      lots: 9900,
+    });
+    expect(result.statistics).toMatchObject({
+      validEntryCount: 1,
+      completedTradeCount: 0,
+      incompleteTradeCount: 1,
+      sessionCloseCount: 0,
+      cumulativeProfit: 0,
+      cumulativeLoss: 0,
+    });
+    expect(result.totalPnl).toBe(0);
+    expect(result.finalCapital).toBe(result.initialCapital);
+  });
+
+  it('changes the valid-entry set when the dynamic cutoff moves', () => {
+    const bars = [
+      bar('14:35', 100, 104, 100, 103),
+      bar('14:40', 103, 105, 102, 104),
+      bar('14:45', 104, 105, 101, 104),
+      bar('14:50', 104, 106, 100, 103),
+      bar('14:55', 103, 105, 100, 102),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const fifteenMinutes = reviewProfitLoss([candidate], bars, [], DEFINITION, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 15,
+    });
+    const fiveMinutes = reviewProfitLoss([candidate], bars, [], DEFINITION, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 5,
+    });
+
+    expect(fifteenMinutes.statistics).toMatchObject({
+      ignoredNoEntryCount: 1,
+      validEntryCount: 0,
+      completedTradeCount: 0,
+    });
+    expect(fiveMinutes.completedTrades[0]).toMatchObject({
+      entryBar: bars[2],
+      exitType: 'session-close',
+      exitBar: bars[3],
+    });
+    expect(fiveMinutes.statistics).toMatchObject({
+      ignoredNoEntryCount: 0,
+      validEntryCount: 1,
+      completedTradeCount: 1,
+      sessionCloseCount: 1,
     });
   });
 
@@ -598,5 +858,155 @@ describe('profit and loss review', () => {
     expect(calculateMaxLots(0, 3_000, 10)).toBe(0);
     expect(calculateMaxLots(1_000_000, 0, 10)).toBe(0);
     expect(calculateMaxLots(1_000_000, 3_000, 0)).toBe(0);
+  });
+
+  it('excludes out-of-range entries without counting them as ignored candidates', () => {
+    const outsideTrigger = bar('09:00', 100, 102, 99, 100, 'day', '2026-02-01');
+    const outsideReaction = bar('09:05', 100, 103, 99, 102, 'day', '2026-02-01');
+    const outsideEntry = bar('09:10', 100, 101, 100, 100, 'day', '2026-02-01');
+    const outsideTarget = bar('09:15', 100, 111, 102, 110, 'day', '2026-02-01');
+    const insideTrigger = bar('09:00', 100, 102, 99, 100, 'day', '2026-02-02');
+    const insideReaction = bar('09:05', 100, 103, 99, 102, 'day', '2026-02-02');
+    const insideEntry = bar('09:10', 100, 101, 100, 100, 'day', '2026-02-02');
+    const insideTarget = bar('09:15', 100, 111, 102, 110, 'day', '2026-02-02');
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      reviewStartDate: '2026-02-02',
+      reviewEndDate: '2026-02-02',
+    };
+    const result = reviewProfitLoss([
+      entry(outsideTrigger, 'long'),
+      entry(insideTrigger, 'long'),
+    ], [
+      outsideTrigger, outsideReaction, outsideEntry, outsideTarget,
+      insideTrigger, insideReaction, insideEntry, insideTarget,
+    ], [], DEFINITION, settings);
+
+    expect(result.completedTrades).toHaveLength(1);
+    expect(result.completedTrades[0].entryBar).toBe(insideEntry);
+    expect(result.statistics).toMatchObject({
+      candidateCount: 1,
+      ignoredNoEntryCount: 0,
+      validEntryCount: 1,
+      completedTradeCount: 1,
+    });
+  });
+
+  it.each([
+    {
+      exitType: 'take-profit' as const,
+      exitPrice: 111,
+      expectedCashPnl: 990_000,
+      expectedCapital: 1_990_000,
+    },
+    {
+      exitType: 'stop-loss' as const,
+      exitPrice: 97,
+      expectedCashPnl: -396_000,
+      expectedCapital: 604_000,
+    },
+    {
+      exitType: 'session-close' as const,
+      exitPrice: 103,
+      expectedCashPnl: 198_000,
+      expectedCapital: 1_198_000,
+    },
+  ])('keeps a complete $exitType after the selected end date', ({
+    exitType,
+    exitPrice,
+    expectedCashPnl,
+    expectedCapital,
+  }) => {
+    const trigger = bar('14:30', 100, 104, 100, 103, 'day', '2026-02-02');
+    const entered = bar('14:35', 101, 105, 100, 102, 'day', '2026-02-02');
+    const afterEndExit = bar('09:00', 103, 112, 96, 104, 'day', '2026-02-03');
+    const exitMinute = minute(afterEndExit.startMs + MINUTE, 103, 112, 96, 104);
+    const candidate = entry(trigger, 'long');
+    const lifecycle = completedLifecycle(
+      candidate,
+      entered,
+      afterEndExit,
+      exitType,
+      exitPrice,
+      exitMinute,
+    );
+    const range = {
+      startDate: '2026-02-02',
+      endDate: '2026-02-02',
+    };
+    const filtered = filterEntryLifecycleByDateRange(lifecycle, range);
+    const result = reviewProfitLossLifecycles([
+      { entry: candidate, lifecycle, sourceIndex: 0 },
+    ], DEFINITION, range);
+
+    expect(filtered?.analysisBars).toEqual([trigger, entered, afterEndExit]);
+    expect(filtered?.attempts[0].analysisBars).toEqual([trigger, entered, afterEndExit]);
+    expect(filtered?.attempts[0].exitAnalysis?.exitSignal).toMatchObject({
+      type: exitType,
+      price: exitPrice,
+      bar: afterEndExit,
+      minute: exitMinute,
+      granularity: 'one-minute',
+      lineEndMs: afterEndExit.endMs,
+    });
+    expect(result.incompleteTrades).toHaveLength(0);
+    expect(result.completedTrades).toHaveLength(1);
+    expect(result.completedTrades[0]).toMatchObject({
+      entryBar: entered,
+      entryTimeMs: entered.startMs,
+      entryPrice: 101,
+      exitType,
+      exitBar: afterEndExit,
+      exitTimeMs: exitMinute.startMs,
+      exitMinuteStartMs: exitMinute.startMs,
+      exitPrice,
+      granularity: 'one-minute',
+      lots: 9900,
+      capitalBefore: 1_000_000,
+      cashPnl: expectedCashPnl,
+      capitalAfter: expectedCapital,
+    });
+    expect(result.finalCapital).toBe(expectedCapital);
+    expect(result.totalPnl).toBe(expectedCashPnl);
+    expect(result.statistics).toMatchObject({
+      candidateCount: 1,
+      ignoredNoEntryCount: 0,
+      validEntryCount: 1,
+      completedTradeCount: 1,
+      incompleteTradeCount: 0,
+      takeProfitCount: exitType === 'take-profit' ? 1 : 0,
+      stopLossCount: exitType === 'stop-loss' ? 1 : 0,
+      sessionCloseCount: exitType === 'session-close' ? 1 : 0,
+      cumulativeProfit: Math.max(0, expectedCashPnl),
+      cumulativeLoss: Math.min(0, expectedCashPnl),
+    });
+  });
+
+  it('returns unchanged initial capital when the selected range has no entries', () => {
+    const trigger = bar('09:00', 100, 102, 99, 100, 'day', '2026-02-01');
+    const reaction = bar('09:05', 100, 103, 99, 102, 'day', '2026-02-01');
+    const entered = bar('09:10', 100, 101, 100, 100, 'day', '2026-02-01');
+    const target = bar('09:15', 100, 111, 102, 110, 'day', '2026-02-01');
+    const result = reviewProfitLoss(
+      [entry(trigger, 'long')],
+      [trigger, reaction, entered, target],
+      [],
+      DEFINITION,
+      {
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        reviewStartDate: '2026-02-02',
+        reviewEndDate: '2026-02-03',
+      },
+    );
+
+    expect(result.completedTrades).toEqual([]);
+    expect(result.incompleteTrades).toEqual([]);
+    expect(result.finalCapital).toBe(1_000_000);
+    expect(result.totalPnl).toBe(0);
+    expect(result.statistics).toMatchObject({
+      candidateCount: 0,
+      ignoredNoEntryCount: 0,
+      validEntryCount: 0,
+    });
   });
 });

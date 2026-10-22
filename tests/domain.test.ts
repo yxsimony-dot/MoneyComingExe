@@ -1,7 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseBars, parseAudit } from '../src/domain/data';
-import { parseBeijing, formatBeijing, locateDate, locateTime, mondayFirstBars } from '../src/domain/time';
+import {
+  beijingDateKey,
+  formatBeijing,
+  isBeijingDate,
+  isBeijingDateInRange,
+  locateDate,
+  locateTime,
+  mondayFirstBars,
+  parseBeijing,
+  validateBeijingDateRange,
+} from '../src/domain/time';
 import { childrenFor, linkedLogicalRange, parentFor } from '../src/domain/link';
 import type { Bar } from '../src/shared/types';
 
@@ -25,6 +35,36 @@ describe('Beijing time and navigation', () => {
   });
   it.each(['', '2026-02-29 09:00:00', '2026-13-01 09:00:00', '2026-01-01 24:00:00', '2026-01-01 09:60:00', '2026-01-01 09:00:60', '2026-01-01 09:00:00Z'])('rejects invalid local timestamps: %s', value => {
     expect(() => parseBeijing(value)).toThrow();
+  });
+  it('validates strict Beijing natural dates and ordered ranges', () => {
+    expect(isBeijingDate('2024-02-29')).toBe(true);
+    expect(isBeijingDate('2026-02-29')).toBe(false);
+    expect(isBeijingDate('2026-13-01')).toBe(false);
+    expect(isBeijingDate('2026-2-01')).toBe(false);
+    expect(isBeijingDate('2026-02-01T00:00:00')).toBe(false);
+    expect(validateBeijingDateRange({
+      startDate: '2026-02-01',
+      endDate: '2026-02-28',
+    })).toEqual({
+      startDate: '2026-02-01',
+      endDate: '2026-02-28',
+    });
+    expect(() => validateBeijingDateRange({
+      startDate: '2026-03-01',
+      endDate: '2026-02-28',
+    })).toThrow('开始日期不能晚于结束日期');
+  });
+  it('uses Beijing date keys with inclusive boundaries independent of machine timezone', () => {
+    const beforeBeijingMidnight = Date.UTC(2026, 1, 1, 15, 59);
+    const atBeijingMidnight = Date.UTC(2026, 1, 1, 16, 0);
+    const range = { startDate: '2026-02-02', endDate: '2026-02-03' };
+
+    expect(beijingDateKey(beforeBeijingMidnight)).toBe('2026-02-01');
+    expect(beijingDateKey(atBeijingMidnight)).toBe('2026-02-02');
+    expect(isBeijingDateInRange(beforeBeijingMidnight, range)).toBe(false);
+    expect(isBeijingDateInRange(atBeijingMidnight, range)).toBe(true);
+    expect(isBeijingDateInRange(parseBeijing('2026-02-03 23:59:59'), range)).toBe(true);
+    expect(isBeijingDateInRange(parseBeijing('2026-02-04 00:00:00'), range)).toBe(false);
   });
   const bars = [sample('2026-02-05 09:00:00', '2026-02-05 10:00:00'), sample('2026-02-05 10:00:00', '2026-02-05 11:15:00'), sample('2026-02-09 09:00:00', '2026-02-09 10:00:00')];
   it('selects the first bar of a natural date, next after closures, and clamps boundaries', () => {

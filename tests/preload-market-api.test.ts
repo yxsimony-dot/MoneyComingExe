@@ -1,5 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { MarketAPI, MarketUpdateState } from '../src/shared/types';
+import type {
+  MarketAPI,
+  MarketSnapshotActivatedEvent,
+  MarketUpdateState,
+  OnlineMarketState,
+} from '../src/shared/types';
 
 const electronMocks = vi.hoisted(() => ({
   exposeInMainWorld: vi.fn(),
@@ -35,6 +40,10 @@ describe('preload market API', () => {
     await market.getUpdateState('rebar_main');
     await market.update('pvc_main');
     await market.updateAll();
+    await market.getOnlineState();
+    await market.setCurrentInstrument('corn_main');
+    await market.setOnlineEnabled(true);
+    await market.notifyNetworkRecovered();
 
     expect(electronMocks.invoke).toHaveBeenNthCalledWith(
       1,
@@ -50,6 +59,26 @@ describe('preload market API', () => {
       3,
       'market:update-all',
     );
+    expect(electronMocks.invoke).toHaveBeenNthCalledWith(
+      4,
+      'market:online-state',
+    );
+    expect(electronMocks.invoke).toHaveBeenNthCalledWith(
+      5,
+      'market:current-instrument',
+      'corn_main',
+    );
+    expect(electronMocks.invoke).toHaveBeenNthCalledWith(
+      6,
+      'market:online-enabled',
+      true,
+    );
+    expect(electronMocks.invoke).toHaveBeenNthCalledWith(
+      7,
+      'market:network-recovered',
+    );
+    const serialized = JSON.stringify(electronMocks.invoke.mock.calls);
+    expect(serialized).not.toMatch(/start_time|end_time|authorization|cookie|file:|https?:/i);
   });
 
   it('subscribes to state events and removes the exact listener', () => {
@@ -73,6 +102,65 @@ describe('preload market API', () => {
     expect(electronMocks.removeListener).toHaveBeenCalledWith(
       'market:update-state-changed',
       handler,
+    );
+  });
+
+  it('subscribes to online state and activation events with exact unsubscription', () => {
+    const onlineListener = vi.fn();
+    const activationListener = vi.fn();
+    const unsubscribeOnline = market.onOnlineState(onlineListener);
+    const unsubscribeActivation = market.onSnapshotActivated(activationListener);
+    const onlineHandler = electronMocks.on.mock.calls.find(
+      ([channel]) => channel === 'market:online-state-changed',
+    )?.[1] as (
+      event: Electron.IpcRendererEvent,
+      state: OnlineMarketState,
+    ) => void;
+    const activationHandler = electronMocks.on.mock.calls.find(
+      ([channel]) => channel === 'market:snapshot-activated',
+    )?.[1] as (
+      event: Electron.IpcRendererEvent,
+      activated: MarketSnapshotActivatedEvent,
+    ) => void;
+    const onlineState: OnlineMarketState = {
+      enabled: true,
+      phase: 'waiting',
+      instrument: 'corn_main',
+    };
+    const activated: MarketSnapshotActivatedEvent = {
+      instrument: 'corn_main',
+      snapshotUpdatedAt: '2026-10-20T02:05:01.000Z',
+      counts: {
+        added1: 1,
+        replaced1: 0,
+        removed1: 0,
+        added5: 0,
+        replaced5: 0,
+        removed5: 0,
+        added60: 0,
+        replaced60: 0,
+        removed60: 0,
+        addedRollovers: 0,
+        replacedRollovers: 0,
+        removedRollovers: 0,
+      },
+      mappingsChanged: false,
+    };
+
+    onlineHandler({} as Electron.IpcRendererEvent, onlineState);
+    activationHandler({} as Electron.IpcRendererEvent, activated);
+    expect(onlineListener).toHaveBeenCalledWith(onlineState);
+    expect(activationListener).toHaveBeenCalledWith(activated);
+
+    unsubscribeOnline();
+    unsubscribeActivation();
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(
+      'market:online-state-changed',
+      onlineHandler,
+    );
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(
+      'market:snapshot-activated',
+      activationHandler,
     );
   });
 });

@@ -1,43 +1,311 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-rapeseed_meal_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "rapeseed_meal_main",
   "mainSymbol": "KQ.m@CZCE.RM",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@CZCE.RM"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "e2697c95f34583018313fe69b39dad821a9b09ad62842244f8bdc636d05908e9",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM主力连续.csv",
+          "sha256": "b37ca9a07900110e012ad84ca47ca774f905744a7f08b2b9fc40e048c426006e",
+          "rows": 1115256
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2111.csv",
+          "sha256": "72675be6372152b25eea2b4a6e0231cd982f742f8c495d7f28e4a42bc4a44f3d",
+          "rows": 56633
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2201.csv",
+          "sha256": "ce581dcbab61f5876dd16c8281280e2e291b913029c31fa04f041d33c815e316",
+          "rows": 78629
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2203.csv",
+          "sha256": "bd2c86bf4ac26cbbccaba1c15998285d2bf4f5c434de9960c05cef10fd1a9d3b",
+          "rows": 56372
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2205.csv",
+          "sha256": "ec59bb91019318388604e57ab1fefe3d9b3a099d8dd630aa9ddbd28e996d5580",
+          "rows": 76902
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2207.csv",
+          "sha256": "d988e3a3b95bb94e7e179dd6f65d2f04a411902ed7792a25a950de088d99d88a",
+          "rows": 47930
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2208.csv",
+          "sha256": "a78f59081d7e29c9d1d7d4b475cb46913412c92e11fc35e2b175e79f515d7a3f",
+          "rows": 38088
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2209.csv",
+          "sha256": "8108295b44b925ed644e73f683329e40f3b85bbdaf8338ae2bcb4ed7175caac4",
+          "rows": 76437
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2211.csv",
+          "sha256": "edcaa26f0c9cbf2f65b2b3a4202e64cd40ad25072c35596a64c971b008bc45cc",
+          "rows": 46312
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2301.csv",
+          "sha256": "6f074c191a9c4ddeeabcff0897e2c9f5026f1de202e6b46fdf44a381a0cdbb49",
+          "rows": 79243
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2303.csv",
+          "sha256": "45c19b8f8b47067b08a62583865b3b1ffb9f7c747a943689b736d6d394645329",
+          "rows": 75358
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2305.csv",
+          "sha256": "e9d6cc4b3965a53aaffbd3264bdab7c2f6e64e8dbb44879e3fb081a9b9ede76f",
+          "rows": 78687
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2307.csv",
+          "sha256": "a312ed13fd5f4ffd2ded564f3acb3a9501ab590b353b388c21cddb70a8e59249",
+          "rows": 58589
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2308.csv",
+          "sha256": "72a36502daec1fb2e0b9f6f24fc5da278e6a7b578ecc1a47bf325027223cc89f",
+          "rows": 52384
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2309.csv",
+          "sha256": "1e068756a0b01b8570fb3b3049473333ed7676e415cf572561c7f863521038d2",
+          "rows": 77184
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2311.csv",
+          "sha256": "8e2446560b6226933da01d4cee749fa8f46d177e6c51295b509eb01511fb1548",
+          "rows": 66642
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2401.csv",
+          "sha256": "7f43d650745a200cc08922c6fe4ee19b482d59fb862c1cab80de901ac19c1794",
+          "rows": 77758
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2403.csv",
+          "sha256": "56be2c5a1f9cf3dc25b21b03da7d989e3ded038252e53aef55bc180340b9600f",
+          "rows": 69534
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2405.csv",
+          "sha256": "b5749d0a965c3af403eb61b6a94b35c028ca978fb47e6a0bbba1e868e6457051",
+          "rows": 77676
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2407.csv",
+          "sha256": "c436a0c08c0d1cd93e61ae4a3ed61bba004b00dbf4a3e44315208017c54a12ca",
+          "rows": 74169
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2408.csv",
+          "sha256": "898add2e56186b0a27d0d7ada8a2b42a68c722545d06f54d5e0f349121359c4f",
+          "rows": 49512
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2409.csv",
+          "sha256": "43c72aedf36650533a991f72056f296c310f32821d422b2a244702c8185a4bb8",
+          "rows": 78375
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2411.csv",
+          "sha256": "479361ccb6cfe951713333c09fe3f7313d2c2576d47b6752eb1f3b49f57f8332",
+          "rows": 72810
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2501.csv",
+          "sha256": "d49c49e7a515bea419758a0dc9c62b3a5ebf8b60b2a67d16e893459513a07c18",
+          "rows": 78284
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2503.csv",
+          "sha256": "c17384ea75c91f22b6404cdf1b9d17b0d9f1a7994e207d3d291b0ddb7d628740",
+          "rows": 66320
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2505.csv",
+          "sha256": "46c670a2585b3f369522db8ba0cc77b1f2c13c7fc660843fe96d91b972fa092f",
+          "rows": 78174
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2507.csv",
+          "sha256": "358a11d3e7b7089726a56d4f4b43958368a1dd707ff1ee0b6994eaf3b4d23201",
+          "rows": 66390
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2508.csv",
+          "sha256": "c8a8c880e2951be8ff51244a1f5825faf781fb15e5f594280b4bb39f7f87d1e7",
+          "rows": 39202
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2509.csv",
+          "sha256": "5758bc2d3cd91a8e0a2ddc52885be7c65757b59a32306528c255758593e8b155",
+          "rows": 77210
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2511.csv",
+          "sha256": "1d434084ac8690a6dc8f29e5c5dc650624318c26bc1c0e71775b14c87a372341",
+          "rows": 44237
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2601.csv",
+          "sha256": "178ab404811dd5c633d6cdc5de54dd6c39691fdab1c8952b517ada14287c2989",
+          "rows": 75828
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2603.csv",
+          "sha256": "626a9f4439680e7f87d336e4ac3d1e7113f976759f0c6a0a92967c56415a18ae",
+          "rows": 64015
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2605.csv",
+          "sha256": "d38ef0f3093e44cd024e6900d13076d3b3c9762913110d596920c9fecb460a96",
+          "rows": 75481
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2607.csv",
+          "sha256": "cf902f682b3bbbc0af6a3842601c2403a928f7ae5d6408ff897aa90fbfacb2cb",
+          "rows": 68935
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2608.csv",
+          "sha256": "7726dff6164f9badeae8d000dd815976df69cc7a3114eb3b8240b0a2428332a3",
+          "rows": 35384
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM_菜粕_退市.zip!/RM2609.csv",
+          "sha256": "280ba1389b8aeeb1ef9a26e4e7325370cac565fdc07901f9697f14e6dceb621d",
+          "rows": 72763
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2611.csv",
+          "sha256": "aa3cd10756c3d2c84a76de5c24d272f92e9e37a1c0a2d739d496b9f9ed544fae",
+          "rows": 60290
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2701.csv",
+          "sha256": "048645e9d8cd5aafaeadd42d90e52e1ead714b6511dcc9968c039863c117d9f7",
+          "rows": 59142
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2703.csv",
+          "sha256": "a3331f0f2cf5241d709400355119b35c97dc6ba8dc229fb61f78ff502f4ee741",
+          "rows": 42188
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2705.csv",
+          "sha256": "e89e4fd6f67b75a9c49d2658489056bebfc5478eb29332340fb382de71cbdcf6",
+          "rows": 31124
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2707.csv",
+          "sha256": "cca5bd131c3ff00f7376de06d5efe6c4bb52bad544484f9f12d121e695d3146c",
+          "rows": 14171
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2708.csv",
+          "sha256": "e5e574d87edc64b1ed70b6763e862e029a85bcaa1c4faf9837b8fffd60a2d0ab",
+          "rows": 3469
+        },
+        {
+          "name": "CZCE_郑州商品交易所/RM_菜粕/RM2709.csv",
+          "sha256": "bbad17c2e161702fe8bda2f0526656104b443d0bd263470327fc57634f76e6cd",
+          "rows": 3400
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/rapeseed_meal_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "e2697c95f34583018313fe69b39dad821a9b09ad62842244f8bdc636d05908e9",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "753d56b290f7450038d7d489e4b09b18b6b4e9f9920b126e5d219e3f3c1afd3d",
-      "rows": 16461
+      "sha256": "f78138d09a725a7e4abea181553b607943f0fa85c80baa89a5e4c1cf64e47bd1",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "3df944765e3e184855d9fddcb844a2d0928eb1d7fb1ab0a0ef3be27a3161e350",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "3edb8e8423d204149084474e6f459dcd041c246ea07495ec1e90861970e8d90a",
-      "rows": 4
+      "sha256": "3bcbe50da25efa6480ad7507737c5e1500751e3b8724d1c358cedd7a4d6fb9d1",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "601678665de4b57a866f7be5a2cc5afff668a5ebd386dfe76c7783de7284171b",
-      "rows": 241
+      "sha256": "27741972b65b539e1525522402b640270ebcbf18ea8bd7fd6d02ae7fb8813ea7",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "6bb5b3df5ded8d8435b38e56886ee0ab62275ef0641ed46ffdab28793d7f9b8e",
+      "rows": 18
     }
   }
 }

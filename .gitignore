@@ -1,4 +1,8 @@
 node_modules/
+__pycache__/
+.tmp/
+undefined/
+/TradingAgents_for_Futures/
 build/
 dist/
 release/

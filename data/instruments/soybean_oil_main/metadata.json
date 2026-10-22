@@ -1,43 +1,341 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-soybean_oil_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "soybean_oil_main",
   "mainSymbol": "KQ.m@DCE.y",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.y"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "159b600c94946ae11667820c68643c5ee5cbafc8445719705daeed3bd9bd91fa",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y主力连续.csv",
+          "sha256": "7b308d3d8b696b4fb994c5c3327ee48f7ef5267593bfba76f62883345d87da97",
+          "rows": 1368315
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2111.csv",
+          "sha256": "856bee986b65d735a4460510ff20ba47d6c1b2ef4a15926912a68122a91300e5",
+          "rows": 53059
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2112.csv",
+          "sha256": "547c46cca6e474013acb42ba06643c68a1aa1ff5c5f559923d6270ebd6d550f3",
+          "rows": 42732
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2201.csv",
+          "sha256": "a6849a69c385d2b1a3ad3e46d2f42b58de7bb3b8606ce76c5e78c28c7f585530",
+          "rows": 74206
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2203.csv",
+          "sha256": "438cc5ebc7f6785a1906ff55465197c467ff32dcbe124d8b6bbf202b58078977",
+          "rows": 53839
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2205.csv",
+          "sha256": "05261aa22143961e2f12dc9c5e6bc881ceb7a3539702cb660a78681cec264b15",
+          "rows": 70120
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2207.csv",
+          "sha256": "05a2a472e3d843bc7eb22e68b466c2291577695473d655400acb50fd87f1913f",
+          "rows": 68880
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2208.csv",
+          "sha256": "c956f22a1c9e582c93bb5fdc9205a8bc70cdcefa53fc9435bae08acf5228f185",
+          "rows": 63497
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2209.csv",
+          "sha256": "4e927acc746e57304dbe1ba191b2407dd83d297fb7ac7d1242241ecb51adc840",
+          "rows": 67962
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2211.csv",
+          "sha256": "65153a8b096186bf157bd38e412fd16153f0849c199134cec1c81fa2393850f2",
+          "rows": 69894
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2212.csv",
+          "sha256": "93d7378239a14e3fc9272ff841cfe89365929d3e9116f3797381ec78bea2d2ec",
+          "rows": 60962
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2301.csv",
+          "sha256": "935650e36a490f98a6da66e5f55d80e6fc608cb6532bb36e3ec424dcaf34647a",
+          "rows": 70587
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2303.csv",
+          "sha256": "7e9f25c1af138ab8cf6489d0513c5cb9d2ea32fab820b326119822b33d2aa11d",
+          "rows": 57512
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2305.csv",
+          "sha256": "0a57a52bb578dde47e234d47e9d663e33ba8f497c1dad0c8b793db2a381ce8e1",
+          "rows": 73859
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2307.csv",
+          "sha256": "8813daee1012fd57cba9ebed761607a014cc06dc37400972e5fef3f0cd9153ed",
+          "rows": 60035
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2308.csv",
+          "sha256": "bbeaf6c6bd126fde3e2da1e7b4023d15d639a678a5b621e7ff7f5a91ef89f67f",
+          "rows": 55148
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2309.csv",
+          "sha256": "2c26e64a52d3016a43c479e0dfbc55f24a30950e8f8efedea6db6d8dde51fe68",
+          "rows": 70327
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2311.csv",
+          "sha256": "aa5470c707e92b0226bed4310f40d8c527c62d266e2bae7c6d8cf49d5770bef5",
+          "rows": 68289
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2312.csv",
+          "sha256": "0e68ff13555f370d1bfbc37e2043e16c2527f594f89fac3a4e7ff2c683340479",
+          "rows": 54057
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2401.csv",
+          "sha256": "91c2bc4f0cdcb9f548296a83635af7699ef1ec959897506b2de2df407cea0b33",
+          "rows": 69836
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2403.csv",
+          "sha256": "01461f8d07393b0efd3150fbb4b017149d706c81f83b06fbc9632d4d833b7e97",
+          "rows": 58783
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2405.csv",
+          "sha256": "980a618e647a34135fed803c51eee57420b1a0e01d0ad001046e8b02f8454b14",
+          "rows": 74549
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2407.csv",
+          "sha256": "c08126b5287c9984b551973afa8568339d3e1b3958c1868acd85b9e9b5c015e9",
+          "rows": 64542
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2408.csv",
+          "sha256": "31b1ef21bbd52f976fa01daa40f78ae90314414ab726dad62ac71b389d7974d3",
+          "rows": 40508
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2409.csv",
+          "sha256": "4c5ade7f2a55aed57d1866b41be3ac962effeecbfb2ff89f9fd174b2b92bff62",
+          "rows": 74403
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2411.csv",
+          "sha256": "a9ddfb8d88202af3db75c1016c24e56f7bb7bd12a6875a1d7030537402268e76",
+          "rows": 49149
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2412.csv",
+          "sha256": "9ce32d072fd12d0206f104f1211e4c46419a454c6516277cabcf19d42b58a3f2",
+          "rows": 22833
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2501.csv",
+          "sha256": "3031924d8483c0eb7964df194ca77bf1097193dab525e5432066feba664a61dd",
+          "rows": 72117
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2503.csv",
+          "sha256": "b98abccccac8719a251408d127029aeef1c0c9578a57ec5fb215d7bc87784756",
+          "rows": 35577
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2505.csv",
+          "sha256": "68a7ae5c52144f7f5a75ecbe7a6f97dd8b67f658842c23ed195482130ca3d1d5",
+          "rows": 76039
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2507.csv",
+          "sha256": "1eaa4bb2800618a7a1ad6b9564c4010480ae34904a0580a74301345a94f05af4",
+          "rows": 40559
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2508.csv",
+          "sha256": "dcc1092f7f676610ae6264c01f0ae0a4a85a14c338b4809fd6ff3c78e0465169",
+          "rows": 22384
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2509.csv",
+          "sha256": "533f6f043e5fe6910eca0667af74b467a1cb8a0c03c7a6fd755220a6e3b8db6a",
+          "rows": 74412
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2511.csv",
+          "sha256": "193c9da793fd66eb86673dac026d4d3d0110c4bb04353353daa7bbb0c030a4d3",
+          "rows": 28766
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2512.csv",
+          "sha256": "5fd0b4361d78123bfc58808dd3b12213984ce4b4a40e69cd801456512ddc4933",
+          "rows": 18357
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2601.csv",
+          "sha256": "fb6a3106823bd967d4d4a093213be6c6de8e3b5f3f34621c5dbd9653c8af6a6a",
+          "rows": 70972
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2603.csv",
+          "sha256": "016e7c4286f86214230ec9bfe2d6902578a287a717dedbeced4c80ee2407f8b2",
+          "rows": 25161
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2605.csv",
+          "sha256": "fa12d5d0eedfe23f08a4e11f144bb3b5c9ee1c486c82046c58dc0012cbbadc0d",
+          "rows": 74020
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2607.csv",
+          "sha256": "b7ad4a151b4334d8240702a233c438bc4d726197b77f367f0ec3c8c11ce00184",
+          "rows": 38615
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2608.csv",
+          "sha256": "fb72ea337503672bb9fd91ce29d94b5e32fe21525911d4a18a9901b686ee1248",
+          "rows": 30682
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/Y_豆油_退市.zip!/y2609.csv",
+          "sha256": "a4eed043f8bece42b6c2ec69ac1d9b50100bc3229e2c48237bb3596f7f7d69cf",
+          "rows": 69868
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2611.csv",
+          "sha256": "12e8a10c8228e24ab715a17ae4a8ca3b1d1c677eae6d3b253bbd8726b85b651b",
+          "rows": 49536
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2612.csv",
+          "sha256": "8b8b6ef0d591f04f278ce6f67c485538465630e48631e382980bdcf90bb01468",
+          "rows": 40595
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2701.csv",
+          "sha256": "262d7a854a527b96b9254c3b85c9ec49f8e5c8e269c7fa28682d0601f33fb1c1",
+          "rows": 50487
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2703.csv",
+          "sha256": "936fb56afc917eb7c399fd72e9e925a1def67581b4e5aef3bb0577400c39e475",
+          "rows": 35640
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2705.csv",
+          "sha256": "f73c0b6eed2545f1e81d898455c1837533a13a64edc9cb624a9f9436a8a3d874",
+          "rows": 32235
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2707.csv",
+          "sha256": "10e635d840d48b9213b401f428497623dc7080c1c3133c79617db3fd2d8babc3",
+          "rows": 12681
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2708.csv",
+          "sha256": "86fcff9dfd4ac30a25ced869ad5abde1f3899a26c74f239d2b0ae4399b835140",
+          "rows": 7340
+        },
+        {
+          "name": "DCE_大连商品交易所/Y_豆油/y2709.csv",
+          "sha256": "28a4ffe17ded2cab60948c4ef13e689c270a9a1aefc38d09a91961d0057679a1",
+          "rows": 2259
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/soybean_oil_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "159b600c94946ae11667820c68643c5ee5cbafc8445719705daeed3bd9bd91fa",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "d0e143bd2ee143e4a07028d2a325b286755172639650469e0dad0f0693358cfd",
-      "rows": 16461
+      "sha256": "8247be4cc01b9dfef49cdd64e204444f9d3479495fba4c59c42b3a4713c76076",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "ffdd4b25d59fb7dc4d06e8cafe0d6b8f5c36f2bc4733c3e46925495d623177ea",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "268f7f84f157a4744dd8af5371ec56204877316562f43a0e24e46e33f702bbd9",
-      "rows": 3
+      "sha256": "e76e109385454a8bfa2ca480334d02a51afd714bda23e12e22c9f370b3ab9f2b",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "8e3ad9a564ab472a5348fb0a272395d028a21a917979d86e0d79459803384aef",
-      "rows": 241
+      "sha256": "4d4d21e1bd2845898ca275886b9f7ecb58f63874f844d0600c0545bcecbafdbd",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "540c1695fa7e47144833e9a9ce194a7a292473ffd6a6202bf6dfadc9220e45f4",
+      "rows": 15
     }
   }
 }

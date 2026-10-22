@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-glass_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "glass_main",
   "mainSymbol": "KQ.m@CZCE.FG",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@CZCE.FG"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "05500df838dfe95e9baf098bac52d5e812ea794f2ac1da5690264bf6fd1e1937",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG主力连续.csv",
+          "sha256": "4ad8c7efad25934ab2a70aa236a6aebea1888f189158966e74c894a01024b7ea",
+          "rows": 1101882
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2110.csv",
+          "sha256": "07eb9fc48204ff22e5a9a31cbb38d7db89181ec2ff74c850f4e9c3602fbfd8ce",
+          "rows": 28217
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2111.csv",
+          "sha256": "9ef0800a997b46606ad1478bb55df3fd432b25f747bdaa182ffeb313a3cf71c8",
+          "rows": 19309
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2112.csv",
+          "sha256": "9027e0c6d6585168bdd29ac0a90b9997236217410f3fd715eed65e39309d4594",
+          "rows": 27785
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2201.csv",
+          "sha256": "206a0ffca3c019517b01af2ec549f5862f201de467c7011f86c95a8a0403d0cd",
+          "rows": 74170
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2202.csv",
+          "sha256": "e19f7100597159befeb422af1c6234daf5ea31cb8b656f69f97a342fc7a22118",
+          "rows": 12862
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2203.csv",
+          "sha256": "87c03f1555434d3502c68db88604a0538b91701a9dd183cedf6bce0e379c9d46",
+          "rows": 14863
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2204.csv",
+          "sha256": "0e11cb82b0ce55b48fb5aae01135b980819129b7baccecabc37062f4911ff6b2",
+          "rows": 8548
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2205.csv",
+          "sha256": "ad393257a7943a611e1f4829aa8fbc88da3a7165f463cb83e00c02ae4b9c81d2",
+          "rows": 76206
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2206.csv",
+          "sha256": "4be76249722ac5c7a9ba5f5aef4a891d44d2e1ba1df5000a4cba46ce93a5f7e6",
+          "rows": 19654
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2207.csv",
+          "sha256": "8e1ea1b607c2f65e034adb831ae3ceabe337e40ac4ac078809b19f8e6d55d7cf",
+          "rows": 15941
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2208.csv",
+          "sha256": "eafa96601008cce0b6646fe57c22195b7ce1e0f0926a7222244b071724696772",
+          "rows": 24019
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2209.csv",
+          "sha256": "09936956477e90ab7bab7edf49891dd2a599eb4a89d339216131c790fa2bbb48",
+          "rows": 78718
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2210.csv",
+          "sha256": "6c443f528311c2be118ff6cfb6a2c0411b6aabf3632fd9424507baff76f1839e",
+          "rows": 19385
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2211.csv",
+          "sha256": "6057cee09363a4959184ec437c1eab9eaf535ffcf352d71abb0bfd4e7e93a039",
+          "rows": 18803
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2212.csv",
+          "sha256": "f3e541c2bd71d59877051cff81de939ea42823904665f27c812c351e56949337",
+          "rows": 14081
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2301.csv",
+          "sha256": "7bdeef42165525debb1b01cce55819ff37334b3fdac15579619579897810e284",
+          "rows": 76308
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2302.csv",
+          "sha256": "c560c3e09fb94fcdbec000860e21b422cce10c624d25206c363701851e3192bd",
+          "rows": 37738
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2303.csv",
+          "sha256": "d9b605e71811ce29d147c0bfc7737f16c6339a6aec71f4812ed28ba86dca1c8b",
+          "rows": 35181
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2304.csv",
+          "sha256": "ee6527285a4a1dede78975dd082a9f41a9bce86288eea175dba2b9109e3dbb6b",
+          "rows": 27059
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2305.csv",
+          "sha256": "7581d0e9d32a27786604af826b26c13de265412c17f3757ca3f1c21759583bd8",
+          "rows": 74835
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2306.csv",
+          "sha256": "c0bcd89f1fe7111ae1571b5a33a5f187013a8c1e54e91be80fdd6ed2459b91f7",
+          "rows": 34552
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2307.csv",
+          "sha256": "482b5dfe553fe87258573a9a535822320139064f207406b4167ad6d8f6eb2e54",
+          "rows": 37687
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2308.csv",
+          "sha256": "43d66935a3faf0dcccd92672589721392327cf9666d59ca0f92cbbfe8f3611ea",
+          "rows": 33370
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2309.csv",
+          "sha256": "bf77b85051e5fad5da67d7aa4b26e392f80c20b86d7be541cf740a51b63e5a16",
+          "rows": 74162
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2310.csv",
+          "sha256": "05f795a0b868c3d14fde665dafeb74d23b2bdd8c506fa5574d40edd961469fb9",
+          "rows": 42776
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2311.csv",
+          "sha256": "d82d6c51e2e4e8624c7030c5d6b6640c8a9a81c06f148dc12fa60f3aabbc88cd",
+          "rows": 47090
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2312.csv",
+          "sha256": "b9845191ba49aa235e3309dd954b5d34f731a8b709e5fca4bcbceee5957f2531",
+          "rows": 43819
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2401.csv",
+          "sha256": "d30fbc136050d3675eb301a89ab1ce897e83eda03006c6facad098c5514b3f11",
+          "rows": 76348
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2402.csv",
+          "sha256": "73feeb0122fd1265ff4336dfe7898738e053b42f72571b3da95a5cf3b930ad91",
+          "rows": 42027
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2403.csv",
+          "sha256": "3a56087f8a6d1a59498c3a7d6a28e1917ea608506d8a811bca34cad067bd0074",
+          "rows": 51020
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2404.csv",
+          "sha256": "502e1dab5db9efac5aedff84fdc60b6e29031b45cff3d5cfefa5b0e30a58e12f",
+          "rows": 37491
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2405.csv",
+          "sha256": "1236e5e067964c1635e4a88a5eeb61aa5ff1b202fe540371ff352d7f9f7ed986",
+          "rows": 79479
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2406.csv",
+          "sha256": "a212c156a40f09f41795bec3978fbf369ff0d0702e4c9e8a32e89664fc445faf",
+          "rows": 35829
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2407.csv",
+          "sha256": "956d59fa3ad7ff4662d7a8f40e9b94af7e1f6da610cec941a0a76584254a8462",
+          "rows": 41719
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2408.csv",
+          "sha256": "c006e443a7dc64259f90a34cc3fb26cdc4ee8b4e0ccb55c07bad2b8fc4162d85",
+          "rows": 31697
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2409.csv",
+          "sha256": "cad77a0f04b027dd37768015d968d33fdce6af47a0d27c5d01539286c7a59294",
+          "rows": 77682
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2410.csv",
+          "sha256": "c954f09afd56887a616eb8c509f531cf1785bf700ce2c822a03550ff27fd3a93",
+          "rows": 38021
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2411.csv",
+          "sha256": "2c0981acf235e8d7f41913b76687f697b23f520c0af1b292c978b30a8efc6c9b",
+          "rows": 42889
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2412.csv",
+          "sha256": "6a8dd8bd8c213eff7bfec03e61ecc130978f1df6de8065733a717e068b6aa1e4",
+          "rows": 34884
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2501.csv",
+          "sha256": "4153522c57a4831dcc359ae170a48e167e27226bfe7df4d5987aa1a59fee2960",
+          "rows": 76717
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2502.csv",
+          "sha256": "aff8ce9c575e8aafc4661686023773899acf4b6b1bb57317b6c55e4a7a1eff1f",
+          "rows": 37832
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2503.csv",
+          "sha256": "cbde8df50c8a43e4c00f256e9120988d634db6ef14c2be9eca06a62833889808",
+          "rows": 45073
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2504.csv",
+          "sha256": "5fc110c1e79b25eb807c85a3dd27497c1feec218ddd0775b500e1a952fc07d31",
+          "rows": 28798
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2505.csv",
+          "sha256": "af2405c621ffb4e31c5851c822e325a51fbeabe91a6bd03013aa94728ac3dfcd",
+          "rows": 72673
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2506.csv",
+          "sha256": "a0525b1f87bda2ea37a82e4ae02a6dade9c050953e9576b5c614cf32ebf2070c",
+          "rows": 35688
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2507.csv",
+          "sha256": "df9b0ff52cb526f26cb9dfb34e1b9288ff07ea4478488a4b2fc13cc95ca9ba56",
+          "rows": 40357
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2508.csv",
+          "sha256": "9d03ae2d2bb9fdc3eec66eeab530e411839f898e6f668698a09be419cf10ecb6",
+          "rows": 37940
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2509.csv",
+          "sha256": "67c585543292d6974752fb08a6891d1905d8e787547ddce877f8aa02f06bea81",
+          "rows": 76937
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2510.csv",
+          "sha256": "543785c3de99f7f8862591f42f9e5a6ca1ff0307c56a00870385acc5fbee1380",
+          "rows": 44186
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2511.csv",
+          "sha256": "e7878199952bb5c84e1ba7385d38c35cba556fac43892e7a86153f792bc01639",
+          "rows": 46136
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2512.csv",
+          "sha256": "207531418fdfbc4d5df92dea8f43af56031bc3c6499880347b6fc7e03b4d206f",
+          "rows": 42853
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2601.csv",
+          "sha256": "14660988593d570b96246191a861d8c804b37dca8de587bbadf72609f426298e",
+          "rows": 70939
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2602.csv",
+          "sha256": "6d7cbe99dc25e8a966985ab598e5dd4cb6998e9411f4112aa4133c6f7ce988ff",
+          "rows": 42533
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2603.csv",
+          "sha256": "49e95d4492697f4cf2259f70618ae0ac0b82672169cfdc1ea58134a0bd95a381",
+          "rows": 46424
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2604.csv",
+          "sha256": "f2f7d0a0783819a40fa79ddfb37b0a151c61f44ce4556913dfa6eaee2034f269",
+          "rows": 40453
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2605.csv",
+          "sha256": "12bb56e82e1a98a89885d25b7d2e3a0cce8efc8eecd0764dad1e0c7fcd7b2edb",
+          "rows": 74303
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2606.csv",
+          "sha256": "e54d65454ae30462c69f1f15c336653c7888f3f5e8cfc4abc76823218d009313",
+          "rows": 44665
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2607.csv",
+          "sha256": "28282a6cb39f5d62ed0eacdedeb077716169d33f4964988fd089a1446c5de77a",
+          "rows": 49581
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2608.csv",
+          "sha256": "e42152fa3321cf0f1d32129324b516acd88d268fecdb96b2c934ab6dc778298d",
+          "rows": 44532
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG_玻璃_退市.zip!/FG2609.csv",
+          "sha256": "b9457dec3e642320e48a67d376f849488d857514b6118f3958db451b1b30dfdf",
+          "rows": 75865
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2610.csv",
+          "sha256": "4278ed2992b02f98cac802f0368661ae8721d969922a2f11e279fdc44973aa58",
+          "rows": 46816
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2611.csv",
+          "sha256": "b3e229fb8b16f74896e9f3227e33c818e5ca65133dfc44014af0734efb36fc4e",
+          "rows": 46761
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2612.csv",
+          "sha256": "3a437aa9e779b1295a4f349a8b5f5d7b103480875bab1cbb3a2eb9d9467165a9",
+          "rows": 41676
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2701.csv",
+          "sha256": "22c82c37c2185218edf6ed3edce4ed9863e78dda36104857c08cf18c97eafb1d",
+          "rows": 54524
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2702.csv",
+          "sha256": "0fb781d6d2bc31200cfc719b779eb81977694c4dec3724ef2e15627142148ed8",
+          "rows": 20630
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2703.csv",
+          "sha256": "8be5dd9f5fb9d6c0842bef4851ebd70229182ef42bf1f8c413a32c13493de073",
+          "rows": 27458
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2704.csv",
+          "sha256": "ed2f94c80aa119fa9b15732e56b93c1bb625338ad8d7a050343e44e410b653d0",
+          "rows": 16795
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2705.csv",
+          "sha256": "9f409fa3f93b4579ded72ba897d7668b2d4957f72b25b0d496164cd529a92959",
+          "rows": 29289
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2706.csv",
+          "sha256": "7ffe9ef2caf6f661d7d17fed6dd052d872c0d298503af5e1d084d5475489d318",
+          "rows": 16311
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2707.csv",
+          "sha256": "2c2399357ddd3656b7f8e1a42d1aea5411f80849844c80ab7c84ad346fee327c",
+          "rows": 11131
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2708.csv",
+          "sha256": "65de873982a3d7b900ef928fd85bf6440b16507fb4f2cbfb5d4f99a0ef2c3b34",
+          "rows": 8398
+        },
+        {
+          "name": "CZCE_郑州商品交易所/FG_玻璃/FG2709.csv",
+          "sha256": "4a9234877b59d9641575db2a5e6df5f9bb83469b0d546b8024b3c46bdd560a5b",
+          "rows": 3540
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/glass_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "05500df838dfe95e9baf098bac52d5e812ea794f2ac1da5690264bf6fd1e1937",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "59166ca298b63785e138ab59f753ddeb7763c0e82339aeefb50f7fa22a6c7f91",
-      "rows": 16461
+      "sha256": "a1760fb8abecb492a0cb663d3f70337313bf3f75c74699086fcc90fe09306c2a",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "844c03300195bb1f89ffd8e13d34282c982bae8943ac354e0e1dd658dec43509",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "3cecb055401516db4fd9a18412f5f0df684b368279b19f7b7033dd6a83b263b8",
-      "rows": 3
+      "sha256": "b2a4f29494f6e6be22b52bc64e11ba94641965ecd10a25ef89652b27da68ea05",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "9c123f7da7b961a885b7537f80f6cbeafd562c9303e1336cbc9eb5f478eb1d64",
-      "rows": 241
+      "sha256": "8bd9b3ec48558560426459a1ece73ae46d4d1cf54d5197be20511232c6b7b398",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "f94ac17a163b8a7854a6da1d534b491bcbe24cd725815d1a18f5e6b14c24f69c",
+      "rows": 16
     }
   }
 }

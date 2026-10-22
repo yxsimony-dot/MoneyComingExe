@@ -13,6 +13,7 @@ import {
   type InstrumentFailureControls,
   type InstrumentNumberControls,
 } from './test-controls';
+import type { Instrument } from '../shared/types';
 
 const HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
 const DAILY_ROWS = [
@@ -31,6 +32,14 @@ interface DailyFixtureRow {
   tradingDate: string;
   expiry: string;
   base: number;
+}
+
+export interface TestEdbRequestRecord {
+  instrument: Instrument;
+  symbol: string;
+  period: string | null;
+  startAt: string;
+  endAt: string;
 }
 
 function dynamicFixtureExpiry(
@@ -149,6 +158,7 @@ export async function installTestEdbSource(
     delays?: InstrumentNumberControls;
     failures?: InstrumentFailureControls;
     priceOffsets?: InstrumentNumberControls;
+    onRequest?: (request: TestEdbRequestRecord) => void;
   } = {},
 ): Promise<void> {
   if (!mode) return;
@@ -179,6 +189,13 @@ export async function installTestEdbSource(
     const contractDefinition = symbol ? definitionForContractSymbol(symbol) : undefined;
     const definition = mainDefinition ?? contractDefinition;
     if (definition) {
+      controls.onRequest?.({
+        instrument: definition.id,
+        symbol: symbol!,
+        period,
+        startAt: start,
+        endAt: end,
+      });
       await testDelay(controls.delays?.[definition.id]);
       const forcedFailure = controls.failures?.[definition.id];
       if (forcedFailure) return new Response(forcedFailure, { status: 503 });

@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-pvc_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "pvc_main",
   "mainSymbol": "KQ.m@DCE.v",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@DCE.v"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "e77b6e9cde7de9f488636cffe533562511ed483b2834dd7921dab4dc638876af",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V主力连续.csv",
+          "sha256": "237801ef71425cecbd59555116cfa72920774002c86b05705811c4e3567ffbbc",
+          "rows": 1111938
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2110.csv",
+          "sha256": "930c622121541ca1b695c7779f83a06a6e130a5a36fd0719ba98c3003ee99cb8",
+          "rows": 44156
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2111.csv",
+          "sha256": "8f807d07dd7ff7915416a1700f672a3597129b034859a821119bde27dad5769f",
+          "rows": 33912
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2112.csv",
+          "sha256": "ebfbfd62aaa453542aa884827334150eb9e45ecf6cf665e237a8b17cdb7889c8",
+          "rows": 35047
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2201.csv",
+          "sha256": "0c68c84b3b971d7558c26439b4e6c9d691515c009f83473e2e43f5547a008502",
+          "rows": 60053
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2202.csv",
+          "sha256": "a0efb290e7df8d643765949ca9e6d85f42f6b9138aeb852255a699f9c420a919",
+          "rows": 48734
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2203.csv",
+          "sha256": "c94c2f5374159229860802d85685ff442253401d8cba8903ee569cadb1273943",
+          "rows": 45900
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2204.csv",
+          "sha256": "b0ef019b0ee080cf113d7364522c695b0bd7f53410350ab60370cf752b586284",
+          "rows": 51483
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2205.csv",
+          "sha256": "d557593953acb0c8e69ce235286993848d2641d45bca85dc48334e65d22f1b13",
+          "rows": 59508
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2206.csv",
+          "sha256": "7dd34ce0cfa0615884de2c4bf4454b3433bd80c98044802fa5c5506b08e17099",
+          "rows": 43054
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2207.csv",
+          "sha256": "6395c6713ee8e6e9f7adb07531f07ef54f23887c18afdffd2ce65873f0932087",
+          "rows": 33878
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2208.csv",
+          "sha256": "d4e7ce4a614e4b277b632ec9110f2c815d03511015e94afb2bb0ad3273ec9a70",
+          "rows": 36982
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2209.csv",
+          "sha256": "58ef139a6a46d269b0fddd4695aabbd7f4c322713c1df90af7204741110d5e56",
+          "rows": 60542
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2210.csv",
+          "sha256": "b0cea0edc7b478e6bc6e2a3267e479b32cc8fca1ec5608180b75f89bbedfdbd2",
+          "rows": 47534
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2211.csv",
+          "sha256": "7269fb7f9687fc1b77c47fc139139fc3649321dcdcd82bf6e2572b3b76cb6732",
+          "rows": 38614
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2212.csv",
+          "sha256": "237abc928bf8f7dda5203cc8539e838feebd5cb4e7eac43562c4fa47e24b246c",
+          "rows": 37480
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2301.csv",
+          "sha256": "57b1fb8009e09d8d637070015769db4e89694518113b8fe4683ef0ec0dfe95f3",
+          "rows": 58570
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2302.csv",
+          "sha256": "66cf9c214e5eb32e554b4007ab7723ae3953062a11509cbef1969bb642b40749",
+          "rows": 43633
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2303.csv",
+          "sha256": "f8e2f153346159307f65f6dfb026c470789ca7af803e980c66ebdad3c730b455",
+          "rows": 41812
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2304.csv",
+          "sha256": "8aef304ab3a77dc3c7e9867d5f166eadde71a46914b715f395c07394234e30c3",
+          "rows": 38425
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2305.csv",
+          "sha256": "02676006671369747df72147e0feac3a6b8300ad239d73341e517f7047f47f96",
+          "rows": 68272
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2306.csv",
+          "sha256": "1da884c41577200505285bdf910f5a8ded65440fb92a01b272147ef65de81d9c",
+          "rows": 46925
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2307.csv",
+          "sha256": "d06748ec7c2187a566611bfc2f28c872e63f9ba9e94fbc3062d8c051a14cdf06",
+          "rows": 45538
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2308.csv",
+          "sha256": "cb2e9b946e2f3ad9993f5b988e457f082d54a04a1d6dd77ede0e748e20c7719a",
+          "rows": 43534
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2309.csv",
+          "sha256": "56957c6962e20e3c1dd038c3e61ca611f11c77e930f9a375800ff7134df30f41",
+          "rows": 77859
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2310.csv",
+          "sha256": "04404353128065abb882ecb7a22a14531ae330cbd746ee8c0b11b23db454e73a",
+          "rows": 52622
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2311.csv",
+          "sha256": "b8a9bc0e52b9d60ff0342ec5b7587d3b330986044f48e30e17a87f89d9d12d83",
+          "rows": 52643
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2312.csv",
+          "sha256": "c49b2097cb17f877f012a9fef86dc421950a6bf6d01804cc23fcb41d0e275221",
+          "rows": 51499
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2401.csv",
+          "sha256": "adcc39c8182b80ebaf020806a2e733b489587a47aab0ecb97a6bfe7523b5feb6",
+          "rows": 75836
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2402.csv",
+          "sha256": "fdbe8ad6db989a98a6dbffcb96ceecc62f6e9aa94015343297ca306a72c68cdd",
+          "rows": 56021
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2403.csv",
+          "sha256": "1ffd737175dfba72008e5c32526944533eda6e8e01567c2fc273f4cf3fa45f8d",
+          "rows": 56669
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2404.csv",
+          "sha256": "6403e7b5eb6ba9a9d77934eba40b28b946df823b2e49607658a4921feb8a225e",
+          "rows": 43211
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2405.csv",
+          "sha256": "2a54ae575474683c2d591e7175e5e83d1177b22f3a91e70c4acbacab2c0a2cdb",
+          "rows": 74291
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2406.csv",
+          "sha256": "b951646bee9c8bf71f9910debb94b15438b2a9cb7e352f101698ec87dede3368",
+          "rows": 38750
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2407.csv",
+          "sha256": "60837e98c2809c9d8fe61bddebfd0a51026bcc1c68a984fd529814738487f824",
+          "rows": 22390
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2408.csv",
+          "sha256": "652594573437fc580743fbc74d8f49aef99c85cbdf517ccfbc07a240ea0eb290",
+          "rows": 19304
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2409.csv",
+          "sha256": "40b445d24be5514d121c90373ffb15f81ee017d4a021523f3dd55cd7c833be24",
+          "rows": 71618
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2410.csv",
+          "sha256": "419bb729dd6b0842a973590571a73cfe9160671c192f0abc91cf4658a0ddbca3",
+          "rows": 29657
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2411.csv",
+          "sha256": "c578b0f8441dafb01ff21362a43ab5510d0bfdd1a8f7dbe7311346fd352de19e",
+          "rows": 24912
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2412.csv",
+          "sha256": "da2227ba6543e30298f0fd5b3ffa9ef834ff07a6a57b25307c73ba0a5ca5b668",
+          "rows": 23588
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2501.csv",
+          "sha256": "c334c64fe3a91cf2d0d3f6d5531b6aa4aa89e0f3ce1ab69957a47ed4b64779e6",
+          "rows": 71963
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2502.csv",
+          "sha256": "2d303ea7981b7b1dc289f557e6588d8a0c48a27e6f93750ae76f9d9807898b00",
+          "rows": 28606
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2503.csv",
+          "sha256": "00ab903f95517e248f04eaa237a5b921aac0ed2629cbaaa479d9be81f05f648d",
+          "rows": 32469
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2504.csv",
+          "sha256": "b15229763f305b2bf08e2d41d2064f270b88abc2ede7eb410da28ce4d692c639",
+          "rows": 18210
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2505.csv",
+          "sha256": "ad7b11cc652424be7dd4d9cd194ae27f4e0a1f8be423a4ddbd0f9ce93627977c",
+          "rows": 73416
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2506.csv",
+          "sha256": "cad5036ef017b46c055197e7e6819e1ab3670915cc912624724cb832edfc8441",
+          "rows": 22968
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2507.csv",
+          "sha256": "65f5d673ee06b84cc4056c395b36dd8ef0154996f0996783b24490330308354b",
+          "rows": 24044
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2508.csv",
+          "sha256": "0dfc4531c718fcbdd6bf953017aebdf6baaa1553a0d7205534c8b5cf8ce35b6a",
+          "rows": 18623
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2509.csv",
+          "sha256": "4474ad94526d1d476c55683e98a3f4291c5c52011e2fa701b5fa35ceaad61e2f",
+          "rows": 70870
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2510.csv",
+          "sha256": "8458c97241bf86bc3b6a065fc89165ba3d75ee6ae4bffa136289dc2a221e2bc4",
+          "rows": 27054
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2511.csv",
+          "sha256": "16ffc6df52692c1f2b18237aa6a92b07be8f3247048a692567415ddb8f1f1764",
+          "rows": 25342
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2512.csv",
+          "sha256": "1ef63e129e3bd3e09289f80fffe4da2f23252309902bc250f165299fa040f22e",
+          "rows": 22882
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2601.csv",
+          "sha256": "44abc429acfb1c2154255fa3cd3147bb041373d0dc239f5a341c36933693707c",
+          "rows": 70640
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2602.csv",
+          "sha256": "b70a1f5e0074cce695e1773a691b67482db4b0220a28ce1c61dfd33c1d074290",
+          "rows": 28357
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2603.csv",
+          "sha256": "2b59639e9fb720283f162642e7ddd24d64c3ad9dd0f675a2debf8d34efbf4837",
+          "rows": 33456
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2604.csv",
+          "sha256": "95c35c22af8e442686cdfb9e8736687430a9cdee2d6151e78d206246445096b2",
+          "rows": 28551
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2605.csv",
+          "sha256": "6f43e04950f3c2b3b6f38601ff50ba4ae4aff776faac69af61ecb915be5ef7f0",
+          "rows": 71301
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2606.csv",
+          "sha256": "405e82a5ca83fce35c4f726a5ade1b6aab34412c0774c5e089196fb71f7cd042",
+          "rows": 33740
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2607.csv",
+          "sha256": "f471eebce0d6453e66df52a68ed1523c2d93cc6d7fa4f20e4a01e660d5ed390c",
+          "rows": 36753
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2608.csv",
+          "sha256": "1021ff9de449d230016070e451a4bb4fd39c2cfd658efdea064d5163abdb8765",
+          "rows": 37445
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/V_PVC_退市.zip!/v2609.csv",
+          "sha256": "107a75bbf42eb22e3fa41d84d8a0b725925ab404033409308dcaa9b8c741f270",
+          "rows": 71805
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2610.csv",
+          "sha256": "82cec00f2763893b1a3f673de415ffe44f479f86edd49cc8da71472ab2800e72",
+          "rows": 50211
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2611.csv",
+          "sha256": "238bc36ef219a5c64d6a4cbf44ea7778ec520a42e2e5e53d0a7972da776bd15e",
+          "rows": 38917
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2612.csv",
+          "sha256": "c9dd554042b5c090ef887897b2cabc086753cc976e103d99725d28323a9e690e",
+          "rows": 31227
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2701.csv",
+          "sha256": "25fe5ad80e5641a6ea76182fe4f0cbcc67ca4fd249d20fc369a24cdaaab48546",
+          "rows": 56239
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2702.csv",
+          "sha256": "df6bdc91963eeff73e17a3e9a1f25524b458dc8bb283edbe1546dd0054a7e5d7",
+          "rows": 19101
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2703.csv",
+          "sha256": "9a2e7deb9be68456c0b7931d42edd63535d50370a3037245fca320fc8e3e8164",
+          "rows": 10277
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2704.csv",
+          "sha256": "da3ff6a92bf68c1ed678565670602cc752aa90f8ce66c4a30b4a1d6c29a006c0",
+          "rows": 3559
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2705.csv",
+          "sha256": "107897aae0d573d1a3586430c45b12bfa8b7b05e33b998f60ccb275ad03c49c5",
+          "rows": 24731
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2706.csv",
+          "sha256": "62d5ef1ea8af793d1423c42b141dc5170bf96a5d0a2af0e4c45c6ee7d615ec53",
+          "rows": 2976
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2707.csv",
+          "sha256": "0df7cde4382df7b405e5b0c2110c42a835ec9d76b4f6fc3ca785f087e381fa4a",
+          "rows": 2955
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2708.csv",
+          "sha256": "ee932c0ac283a5a16c30935942c98015f0f5b212e2914454b4b2c3b85b8b7852",
+          "rows": 1759
+        },
+        {
+          "name": "DCE_大连商品交易所/V_PVC/v2709.csv",
+          "sha256": "6ffd7469d5fc5366d250e42ec6ee8ce0f4cbc8c4eeb83b67cb53f6453e3756fb",
+          "rows": 2546
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/pvc_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "e77b6e9cde7de9f488636cffe533562511ed483b2834dd7921dab4dc638876af",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "1b187644e51a8257eac10696c5dc2094564e12638d5d60245d34a5a7396428a6",
-      "rows": 16461
+      "sha256": "10ad6faa80399ac3d78be7424254039ad91e62361b6d17c07b2bd61a5e412570",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "bb07dec377d335a5b00c97d73f4f6c56e2048fb361683bbdb7d8263a87b8a15c",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "689bf05e020bc3b15a2a1e46ec81fd72ae843f79f412d357ec45f593bf3a279f",
-      "rows": 3
+      "sha256": "f383e4409f8f92b60e76f454059e43f2e673f533707cd414f2d761f46d0d68f7",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "651813bea332ac483fc0fec4252bfe134cae3c2db5f1abe9b8bc222fba53a3c8",
-      "rows": 241
+      "sha256": "93c292f8af0a9b8d4d5ecef6c8a4d03836143e79e11d405355594cd0f2b37d5c",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "e05a6ede3339fc1d6a68b087bff3b1b301e67dfe6a8d4b0cb3cee0f6f393fa8b",
+      "rows": 15
     }
   }
 }

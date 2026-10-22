@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-soda_ash_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "soda_ash_main",
   "mainSymbol": "KQ.m@CZCE.SA",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@CZCE.SA"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "b133ccda9cffc4ca9a362186d34686cce8f62b50a0898da53bde1cade6ed445e",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA主力连续.csv",
+          "sha256": "0eb971d5adbd2993163fa7c6f4b596315676297b1dfaf886c448352da2f0ccb3",
+          "rows": 558963
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2110.csv",
+          "sha256": "ddb108733545c7c782be1a17136bc7c8b7831906d981414a7d564fcfb713f71f",
+          "rows": 26654
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2111.csv",
+          "sha256": "cb79c5c186139554d09ae434001009388bdbf1be6200c4031ef60ec77bb564ca",
+          "rows": 25329
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2112.csv",
+          "sha256": "72d2076246d30b2cdeb846e553b1b8e08993619902735e66337982479ccb99ea",
+          "rows": 23722
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2201.csv",
+          "sha256": "ed7127da4814e272771ff8efd0043553ac5452fad3798ada1522bf03ea0c8284",
+          "rows": 74478
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2202.csv",
+          "sha256": "80a296fa58383646eae65694a5ac8266499927865ad9ee6eb0f6ac907a71784a",
+          "rows": 29314
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2203.csv",
+          "sha256": "bda95282eba7947b75110c45d0f4ed563b46cc834638bdc3feada2bd43b83a5e",
+          "rows": 32081
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2204.csv",
+          "sha256": "6cd41e22cef8c74bc11e7164e16bf0d7210077966517e9e29001719463349e19",
+          "rows": 29416
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2205.csv",
+          "sha256": "3a55047dc435ad11c59aed320ebed4c7c9d43609f0083c7ab94dfaa4bfb16c48",
+          "rows": 77784
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2206.csv",
+          "sha256": "d66f551008cf676188540430c7575f5374a6a770d65dcffae70b4318eb667959",
+          "rows": 42805
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2207.csv",
+          "sha256": "3f08ea284dbb2005cf301ba01fccc82c3582a26821cd0ca7a814e7a7ab1e74be",
+          "rows": 34028
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2208.csv",
+          "sha256": "ea28bd00c2f1bf80d8587aeb4dc6c5b743d3934914eed837d12acd135d0b247f",
+          "rows": 38205
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2209.csv",
+          "sha256": "c83f5d26bf73135ac668220a0cf1710d330880a29d9ca9f00addcd76e176b28a",
+          "rows": 78503
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2210.csv",
+          "sha256": "8550be5b7055e2215e0fe8904a688e74f4ad83692533d92dd581911842427661",
+          "rows": 51853
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2211.csv",
+          "sha256": "cf4104e60da3afb73cf04c70b0df3bbfd1839a06f5a994eb755c713262efca98",
+          "rows": 36803
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2212.csv",
+          "sha256": "8943f121b834cf2dee531923f334410ef1d9d3c588d8785494decfe7307a83b2",
+          "rows": 38079
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2301.csv",
+          "sha256": "90900e7976b91499d41a42b8cc6c7e8f3cc61a71b43d3b55a3be9260ca2016dd",
+          "rows": 75324
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2302.csv",
+          "sha256": "eb940d08f15266ceeb6bb49e409898ce63b0f28258a9b2842b8b942c9de4dcf6",
+          "rows": 40107
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2303.csv",
+          "sha256": "6f9af8045e1e28a0820912143c7340b80547e61cc6048c8fa8dfee3bd73b26c3",
+          "rows": 48632
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2304.csv",
+          "sha256": "5813493d5264d6c8a70732590fc6a7e20e8c830f3e89632910654c7211291e1f",
+          "rows": 39721
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2305.csv",
+          "sha256": "55b391409c6be19694cb8c8b727272dbea61454da3386e7bf2b4d79991dd5739",
+          "rows": 79291
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2306.csv",
+          "sha256": "57f5a51d5b2462160bd164ad7eae11ad93772b25a3070e54c618f9048afc59af",
+          "rows": 51591
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2307.csv",
+          "sha256": "95f3631dfe6d0adbdebe88ceb409f00c067eed01f427eb18cfb8cf049156643c",
+          "rows": 58177
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2308.csv",
+          "sha256": "2cc3483b65f335901ff1f8f32246bdc76e26100fb29b65be269de23684da2af1",
+          "rows": 52889
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2309.csv",
+          "sha256": "75e761d0f713485fc37654de9134f6ae3cbffbeb30a1ebc645e9a7648b8a536c",
+          "rows": 79539
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2310.csv",
+          "sha256": "60975a6ec4bdb60c39cc259a1283d9c0a5ce6abc363f07689c42117ee45ceb74",
+          "rows": 61921
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2311.csv",
+          "sha256": "e274cc5d3e59df1728ca146a33b255ce1a6b39563a847ab7119f81d98c8ff27e",
+          "rows": 77012
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2312.csv",
+          "sha256": "97b9f45f5ce6a5f0664d575365d61501808449971576d65a0d31380b6e690920",
+          "rows": 71675
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2401.csv",
+          "sha256": "a2a7145f3c508caeeaabae800d6e748601554c859bc46f1a34e5ee31088106a5",
+          "rows": 79587
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2402.csv",
+          "sha256": "bfc0acc576ae46d2d5fe3636086c9acc3c1b50f9ecf9be4383eacb06f8fb778b",
+          "rows": 68473
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2403.csv",
+          "sha256": "9cf7172ef9714a76fe400366c5ec58427e408b1f9d28a3a7ee8a0429533a24e4",
+          "rows": 72487
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2404.csv",
+          "sha256": "8abe72dd3e15339e3862aba7af9152623a6b6ee88e115836291761e35a487fdf",
+          "rows": 57160
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2405.csv",
+          "sha256": "b8b6f82dca077da3ccc2112f3cf728adb89768dc4fbcc698e82dc976789344a3",
+          "rows": 79494
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2406.csv",
+          "sha256": "6ab693cf840d4817f51ef81b3278ec6335c7504aeeb557869cbfff7bff258605",
+          "rows": 45875
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2407.csv",
+          "sha256": "8f99ac24bdacd671d6df9aebf5d40d17fba0e86996ea6a6bae8b2a45b07513fc",
+          "rows": 50071
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2408.csv",
+          "sha256": "2a624cb83e3221a66d5d9f45346f7794fafe529db70c072b9be613e48d288d99",
+          "rows": 39773
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2409.csv",
+          "sha256": "f918ae3ca2359ae495c80848fe117142eaa091399d8b17fc4d37bfde3fdaab5a",
+          "rows": 78923
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2410.csv",
+          "sha256": "d9199da72a1a9c7ec6859a585380a1bb001144bb4432c3140104e47ad3c57aca",
+          "rows": 58757
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2411.csv",
+          "sha256": "5eaf1584ca2e5d6125582dffdb2d25ffa85917bd8b8021761ad7c161658e9057",
+          "rows": 61258
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2412.csv",
+          "sha256": "58c8fc43ee8e5258c61ed9899788d9312ef778ef7671ff093f4703f2668379bd",
+          "rows": 47209
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2501.csv",
+          "sha256": "8c7c36f3bfc419414808de97064ba700dd6e334975fc71c45e701246fbb1c5c0",
+          "rows": 77767
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2502.csv",
+          "sha256": "55712ae1ce647e64719a49a2050915c15fccb36e18a4a7140346ceab9e1e2c64",
+          "rows": 40456
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2503.csv",
+          "sha256": "f5ed9b7c958e96a2172b5cbbacf8c8eb454e793ccfc4a7bed9f4c682d3fa9706",
+          "rows": 53855
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2504.csv",
+          "sha256": "3aab2c5a8e13d1e122e28575305ea09729cad28ed0226cae1b7297199a961c3a",
+          "rows": 37343
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2505.csv",
+          "sha256": "84eef214c96a4784efd13a18af59cd31e4c3e498c032472979ab91080a3b53fe",
+          "rows": 76793
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2506.csv",
+          "sha256": "c5fc1cbd3814c5756b16246aa0cd8a74c223e299618bbcfa0063f12de375f625",
+          "rows": 39282
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2507.csv",
+          "sha256": "5118609340c58f72c88efc039cd202122a552992af0a69b138e4ae85721fdfb8",
+          "rows": 45086
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2508.csv",
+          "sha256": "ff57a72a562ba8a25fad4d9c2d420f62a4a44e8aa8ad0cb35e41fedd01d0bbc9",
+          "rows": 36692
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2509.csv",
+          "sha256": "b0626f6bd66b0628b33d04bc6a2e2e16c05a7db3dd6e8916c512db9af0ba17d9",
+          "rows": 77740
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2510.csv",
+          "sha256": "90f517882ba0cce536b0da91f45cfe88fcc6a70e5ad77c7e63a8897c65939c64",
+          "rows": 43661
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2511.csv",
+          "sha256": "221f118187124be296c14b917ff98350f0f4e3cccc16d5f78b62541e97e8d297",
+          "rows": 46810
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2512.csv",
+          "sha256": "7c56b6d9d85b4c2579c08fad4d941dadd8c6d31a2189ec7dc901bb300cad9769",
+          "rows": 47665
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2601.csv",
+          "sha256": "2e9495b086e21f925b4967428a7d5d772cec9b93ea84e56b2b8fb5252aca8bd3",
+          "rows": 74526
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2602.csv",
+          "sha256": "2b496a7cbd300a06a97ac897ffe88b743b3f84bf6ffd62fa33faeb10635ca279",
+          "rows": 49264
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2603.csv",
+          "sha256": "5a2fc74e8b028c2c8e768b16c8501a15b840ccc3a622750245c6a4a248746f9f",
+          "rows": 53563
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2604.csv",
+          "sha256": "587eb03c3d209126c4a03bbcab810134dee982c875449e87d2ed87ba19d1594a",
+          "rows": 43004
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2605.csv",
+          "sha256": "9c0b98b4c6ee4cfb329686afe505b8b439b3c29b0721cf7cab32a848149b44c0",
+          "rows": 76360
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2606.csv",
+          "sha256": "fb96438be9f8772b1a6c7f01b4a585ee244dc00687a82b42e0d506e8d80016c6",
+          "rows": 44810
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2607.csv",
+          "sha256": "cb608258e48f9c20383f093fe3357ba3b22fe10dc3efa0ee7518b5854cb8f77a",
+          "rows": 51013
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2608.csv",
+          "sha256": "0474925555abb8219b9b42e91c1fcd943cc83893e8e2a951d902fc43b9c8536b",
+          "rows": 43159
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA_纯碱_退市.zip!/SA2609.csv",
+          "sha256": "6e270ec9739bf117bcd33b8e130cb85aeac0f3ede598e3f53e58635197d6c29b",
+          "rows": 74678
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2610.csv",
+          "sha256": "7728ca4306eb9098ad8f04933bcc682482b17f4be3d875797ad2905d8bbf8fb8",
+          "rows": 46158
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2611.csv",
+          "sha256": "24ca1fd5f5f87a20d900cd194fad26d23dc25c1de9a9535c85bae801c0a2ec03",
+          "rows": 50436
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2612.csv",
+          "sha256": "5228ef4b4350909c8b46c90310da9ebcf3ec9ec58502193d0f2e341fa6528ff0",
+          "rows": 38012
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2701.csv",
+          "sha256": "2f4aaef8011eb13161f79ccbca34db94717d97b6cf192c3aad3cf038ec8c86ae",
+          "rows": 54818
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2702.csv",
+          "sha256": "91af0010429f699f9dd563e7e32b95ecb62e7b214da5595549d30509ea29c5a0",
+          "rows": 19760
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2703.csv",
+          "sha256": "ae82f13c57286e51799cf568fc2aa364b624448416e7d5d59b2b88870e94ea2b",
+          "rows": 28064
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2704.csv",
+          "sha256": "975534d5dd342da4f0c05bf19baba0abc729fd06b520054e1c9404f0ee6e8b1f",
+          "rows": 12843
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2705.csv",
+          "sha256": "76dd28926916487d339fa2a6a85b5e2d7208cecee41299ec1b1353f6b22cf2a4",
+          "rows": 28323
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2706.csv",
+          "sha256": "dbbbe733052a1ba7d42c58c3279a9ab09f438f15ed47e871423402d562c0653d",
+          "rows": 12093
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2707.csv",
+          "sha256": "0b2b01f730fd41927d4f1bb8e62110b0cb4b40361c4471a812e5038948d9ee39",
+          "rows": 12309
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2708.csv",
+          "sha256": "ec14d2ca75cec936f41fe0de15fd6cb0ec4bd7c44cf4f7515bdc0cfeafbc2633",
+          "rows": 7198
+        },
+        {
+          "name": "CZCE_郑州商品交易所/SA_纯碱/SA2709.csv",
+          "sha256": "7beb05f64090a9517a19451647300ef755daee3d8d42d279b4d1016657907e77",
+          "rows": 3732
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/soda_ash_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "b133ccda9cffc4ca9a362186d34686cce8f62b50a0898da53bde1cade6ed445e",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "41e81dc93217e4f2de52c5c15f442eafbebaff9671bb9aa636066c5d4662615a",
-      "rows": 16461
+      "sha256": "33c6d5491259c14b24a286da730ab0fa282d9feb24ec4035e661f0e8db181736",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "7cf5797626f24b11dc59d1cdf276b1130ed988552ace5231d7a88d5a15c6a98d",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "e3ecd7b6d19f466958141598499af2976f3dc7d157d7b1f07cfb810d13d03caa",
-      "rows": 3
+      "sha256": "aeea89671c872c3b6fe01f13bf79436d6f8b479c86e880e618b282c7813d0a85",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "e58906075f6b8d7557a834018047952ba7a127d6dbf44a0883f0daff6d8b3cc3",
-      "rows": 241
+      "sha256": "bc15ba906fc553ed52abffd7d35669c0ca4baa7b72f5876be1995c50aa56821c",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "36d91a3b1df3d92b141e1171126ca9d6b27728a7d10068bbca11d78eac5298fd",
+      "rows": 16
     }
   }
 }

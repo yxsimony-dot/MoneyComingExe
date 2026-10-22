@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "purpose": "tonghuashun-local-export-capability-probe",
+  "capturedOn": "2026-10-20",
+  "application": {
+    "processRunning": true,
+    "executable": "G:\\同花顺期货通\\bin\\happ.exe"
+  },
+  "inspectionPolicy": {
+    "readOnlyLocalInspection": true,
+    "packetCapturePerformed": false,
+    "packetPayloadInspected": false,
+    "privateProtocolReverseEngineeringPerformed": false,
+    "nativeSdkProbePerformed": true,
+    "accountContentPersisted": false,
+    "logContentPersisted": false,
+    "marketRowsPersisted": false,
+    "rawSocketRowsPersisted": false
+  },
+  "networkObservation": {
+    "observationMethod": "操作系统进程连接表与日志中的主机名摘要；未读取网络载荷",
+    "privateTcpMarketPathObserved": true,
+    "publicHttpHistoricalKlineEndpointFound": false,
+    "establishedRemoteConnectionCount": 10,
+    "remotePorts": [
+      8601,
+      8602,
+      9000,
+      9602,
+      9603,
+      9604,
+      9605,
+      9606
+    ],
+    "loopbackPorts": [
+      7897
+    ],
+    "serviceHosts": [
+      "hevofuhq2.123ths.com",
+      "hevoinfo1.123ths.com",
+      "hevoqht.123ths.com",
+      "hevoqht-function.123ths.com",
+      "hevozhuhq1.123ths.com",
+      "qhtarbitro.123ths.com"
+    ],
+    "loadedMarketModules": [
+      "Product.Data.dll",
+      "Hevo.Core.DataModel.dll",
+      "Hevo.Api.Quotes.dll",
+      "Hevo.DataVisualization.Component.dll",
+      "Hevo.DataVisualization.dll",
+      "Flight.Quote.dll"
+    ],
+    "classification": "客户端私有 TCP 行情链路，不是可直接调用的公开 HTTP 历史 K 线导出接口"
+  },
+  "databaseInventory": [
+    {
+      "path": "G:\\同花顺期货通\\bin\\data\\FuturesDataBackup.db",
+      "bytes": 3788800,
+      "tables": [
+        {
+          "name": "FuturesData",
+          "rows": 1,
+          "columns": [
+            "ID",
+            "COMPANIESDETAIL",
+            "MAINCONTRACT",
+            "CONDITION",
+            "OPTION",
+            "COMPANYVERSION",
+            "CONTRACTINFOS",
+            "ARBITRAGECONTRACTINFOS",
+            "ARBITRAGEQUOTECODEDIC",
+            "INDUSTRY",
+            "AllVarietyInfo",
+            "MAINCONTRACTDETAIL"
+          ],
+          "classification": "公司、合约、主力和客户端配置元数据"
+        },
+        {
+          "name": "sqlite_sequence",
+          "rows": 1,
+          "columns": [
+            "name",
+            "seq"
+          ],
+          "classification": "SQLite 内部序列元数据"
+        }
+      ],
+      "historicalMinuteBarsFound": false
+    },
+    {
+      "path": "G:\\同花顺期货通\\bin\\data\\code\\code.db",
+      "bytes": 8224768,
+      "tables": [
+        {
+          "name": "Contracts",
+          "rows": 37846,
+          "columns": [
+            "Code",
+            "Name",
+            "Pinyin",
+            "MarketNumber",
+            "MarketCode",
+            "DisplayCode",
+            "ExprieDate",
+            "Subject",
+            "Limits",
+            "TradeCode",
+            "VarietyCode",
+            "OptionSide",
+            "ExecutePrice",
+            "TradeAmount",
+            "AllPinyin"
+          ],
+          "classification": "合约代码与展示元数据"
+        }
+      ],
+      "historicalMinuteBarsFound": false
+    }
+  ],
+  "filesystemSummary": {
+    "reviewedDirectory": "G:\\同花顺期货通\\bin\\data",
+    "fileExtensionCounts": {
+      ".db": 2,
+      ".txt": 2,
+      ".xml": 2
+    },
+    "contractMetadataTextFile": {
+      "path": "G:\\同花顺期货通\\bin\\data\\code\\code_db_all_data_1792417501761.txt",
+      "bytes": 4327133,
+      "rows": 37846,
+      "classification": "与 Contracts 表规模一致的合约代码元数据"
+    },
+    "csvOrParquetMinuteExportsFound": false,
+    "historicalMinuteDatabaseTablesFound": false
+  },
+  "uiReview": {
+    "runningClientReviewed": true,
+    "accessibilityElementCountScanned": 127,
+    "accessibilityExportOrHistoryControlFound": false,
+    "documentedBulkHistoricalMinuteExportEntryFound": false,
+    "supportedLocalHistoryDownloadEntryFound": false
+  },
+  "nativeSdkProbe": {
+    "startedAt": "2026-10-20T02:50:08.586948+00:00",
+    "completedAt": "2026-10-20T02:56:09.024948+00:00",
+    "sdkVersion": "3.0.0",
+    "requestTimeoutSeconds": 120,
+    "authenticationSucceeded": true,
+    "securityDiscovery": {
+      "succeeded": true,
+      "verifiedCodes": [
+        "m2701",
+        "m7777",
+        "m8888",
+        "m9999"
+      ]
+    },
+    "historicalKlineRequests": [
+      {
+        "id": "specific-contract-5m",
+        "security": "UCFDm2701",
+        "interval": "5-minute",
+        "status": "failed",
+        "errorType": "APIError",
+        "errorCode": "timeout",
+        "durationSeconds": 120.005
+      },
+      {
+        "id": "main-continuous-day",
+        "security": "UCFDm9999",
+        "interval": "day",
+        "status": "failed",
+        "errorType": "APIError",
+        "errorCode": "query_failed",
+        "durationSeconds": 120.003
+      },
+      {
+        "id": "main-continuous-5m",
+        "security": "UCFDm9999",
+        "interval": "5-minute",
+        "status": "failed",
+        "errorType": "APIError",
+        "errorCode": "query_failed",
+        "durationSeconds": 120.004
+      }
+    ],
+    "successfulHistoricalKlineRequestCount": 0,
+    "historicalKlineAccessConfirmed": false,
+    "targetGapCoverageConfirmed": false,
+    "sessionFilePersistedAfterProbe": false,
+    "conclusion": "THSDK 认证和证券发现成功，但具体合约 5 分钟、主连日线和主连 5 分钟请求均在 120 秒后失败，当前历史 K 线链路整体不可用，不能用于补齐目标缺口。"
+  },
+  "conclusion": {
+    "localThreeYearFiveMinuteExportCapabilityConfirmed": false,
+    "targetGapCoverageConfirmed": false,
+    "redistributionPermissionConfirmed": false,
+    "releaseEligibility": "blocked-private-client-path-no-supported-export-or-redistribution-rights",
+    "note": "当前本机安装只发现配置和合约代码元数据，没有可读取的历史分钟 K 线表、CSV/Parquet 导出或公开批量历史下载入口。THSDK 可以完成认证和证券发现，但具体合约 5 分钟、主连日线和主连 5 分钟历史请求均失败，不能补齐目标缺口。运行中的客户端仍通过 123ths.com 私有 TCP 行情链路取数；继续从该链路取得数据将需要抓包、调用或逆向私有协议，超出本变更边界，且当前没有随 Git、EXE 或安装包再分发的授权依据。"
+  },
+  "retention": {
+    "summaryOnly": true,
+    "rawDatabaseRowsPersisted": false,
+    "rawKlineRowsPersisted": false,
+    "rawNetworkPayloadPersisted": false,
+    "rawLogLinesPersisted": false,
+    "userConfigurationValuesPersisted": false,
+    "accountIdentifiersPersisted": false,
+    "sessionFilePersisted": false,
+    "probeScriptsStoredInRepository": false
+  }
+}

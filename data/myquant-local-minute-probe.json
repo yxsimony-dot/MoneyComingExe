@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 1,
+  "purpose": "myquant-local-main-continuous-one-minute-probe",
+  "capturedAt": "2026-10-20T01:24:06.517Z",
+  "source": {
+    "name": "本机 MyQuant/gm.api 期货 1 分钟整理数据",
+    "provider": "MyQuant",
+    "api": "gm.api history(frequency=\"60s\")",
+    "seriesKind": "main-continuous",
+    "frequencyMinutes": 1,
+    "specificContractAttributionAvailable": false,
+    "datasetDirectoryName": "期货1分钟数据_MyQuant_整理",
+    "standardDirectoryName": "standard_csv_复盘台读取",
+    "documentation": {
+      "readmeFile": "README.md",
+      "readmeSha256": "46b772fbab883fdea86bb2616ee039340a4486c809d4194385223f10bfe5aa09",
+      "coverageSummaryFile": "coverage_summary.csv",
+      "coverageSummarySha256": "0cd3ca8cadcc353b85150fa76180b8bca35f1336033f284926c76301c5401b65"
+    },
+    "observedAccountLimit": {
+      "recentNaturalDays": 180,
+      "documentedInDatasetReadme": true,
+      "documentedEarliestStartDate": "2025-12-05"
+    }
+  },
+  "inspectionPolicy": {
+    "readOnlyLocalInspection": true,
+    "rawCsvMarketRowsRead": false,
+    "rawCsvMarketRowsPersisted": false,
+    "standardizedCsvMarketRowsRead": false,
+    "standardizedCsvMarketRowsPersisted": false,
+    "coverageSummaryRead": true,
+    "documentationRead": true
+  },
+  "inventory": {
+    "coverageSummaryRowCount": 82,
+    "targetInstrumentCount": 15,
+    "presentTargetInstrumentCount": 15,
+    "nonEmptyTargetInstrumentCount": 15,
+    "targetRowCount": 560674,
+    "firstTimestamp": "2025-12-05 09:01:00",
+    "lastTimestamp": "2026-06-03 15:00:00"
+  },
+  "coverage": {
+    "targetGapOverlappingInstrumentCount": 0,
+    "targetGapCoveredInstrumentCount": 0,
+    "allTargetSymbolsPresent": true,
+    "targetGapCoverageConfirmed": false,
+    "conclusion": "十五个目标品种的数据均晚于 2025-07 至 2025-10 的目标缺口，不能用于缺口回填。"
+  },
+  "instruments": [
+    {
+      "symbol": "M0",
+      "instrumentId": "main_continuous",
+      "displayName": "豆粕主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-08"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "M0.csv",
+        "exists": true,
+        "bytes": 2799714,
+        "modifiedAt": "2026-06-03T07:20:46.498Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-08",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "RM0",
+      "instrumentId": "rapeseed_meal_main",
+      "displayName": "菜粕主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "RM0.csv",
+        "exists": true,
+        "bytes": 2750354,
+        "modifiedAt": "2026-06-03T07:17:39.033Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "V0",
+      "instrumentId": "pvc_main",
+      "displayName": "PVC主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "V0.csv",
+        "exists": true,
+        "bytes": 2786281,
+        "modifiedAt": "2026-06-03T07:21:24.927Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "RB0",
+      "instrumentId": "rebar_main",
+      "displayName": "螺纹钢主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 7125,
+        "firstTimestamp": "2026-05-06 09:01:00",
+        "lastTimestamp": "2026-06-03 15:00:00",
+        "status": "SHORT_CHECK"
+      },
+      "csvMetadata": {
+        "fileName": "RB0.csv",
+        "exists": true,
+        "bytes": 503680,
+        "modifiedAt": "2026-06-03T07:08:20.748Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "FG0",
+      "instrumentId": "glass_main",
+      "displayName": "玻璃主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "FG0.csv",
+        "exists": true,
+        "bytes": 2773943,
+        "modifiedAt": "2026-06-03T07:16:24.290Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "OI0",
+      "instrumentId": "rapeseed_oil_main",
+      "displayName": "菜油主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "OI0.csv",
+        "exists": true,
+        "bytes": 2733207,
+        "modifiedAt": "2026-06-03T07:16:47.198Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "P0",
+      "instrumentId": "palm_oil_main",
+      "displayName": "棕榈油主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "P0.csv",
+        "exists": true,
+        "bytes": 2750347,
+        "modifiedAt": "2026-06-03T07:20:54.451Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "Y0",
+      "instrumentId": "soybean_oil_main",
+      "displayName": "豆油主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "Y0.csv",
+        "exists": true,
+        "bytes": 2736640,
+        "modifiedAt": "2026-06-03T07:21:33.271Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "SP0",
+      "instrumentId": "pulp_main",
+      "displayName": "纸浆主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "SP0.csv",
+        "exists": true,
+        "bytes": 2732703,
+        "modifiedAt": "2026-06-03T07:24:53.169Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "C0",
+      "instrumentId": "corn_main",
+      "displayName": "玉米主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "C0.csv",
+        "exists": true,
+        "bytes": 2774213,
+        "modifiedAt": "2026-06-03T07:19:12.104Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "SA0",
+      "instrumentId": "soda_ash_main",
+      "displayName": "纯碱主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "SA0.csv",
+        "exists": true,
+        "bytes": 2778659,
+        "modifiedAt": "2026-06-03T07:17:53.946Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "A0",
+      "instrumentId": "soybean_1_main",
+      "displayName": "豆一主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "A0.csv",
+        "exists": true,
+        "bytes": 2729630,
+        "modifiedAt": "2026-06-03T07:18:48.527Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "MA0",
+      "instrumentId": "methanol_main",
+      "displayName": "甲醇主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39530,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "MA0.csv",
+        "exists": true,
+        "bytes": 2763077,
+        "modifiedAt": "2026-06-03T07:16:39.445Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "SR0",
+      "instrumentId": "sugar_main",
+      "displayName": "白糖主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39540,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "SR0.csv",
+        "exists": true,
+        "bytes": 2737836,
+        "modifiedAt": "2026-06-03T07:18:22.808Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    },
+    {
+      "symbol": "B0",
+      "instrumentId": "soybean_2_main",
+      "displayName": "豆二主连",
+      "gap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19"
+      },
+      "coverageSummary": {
+        "rowPresent": true,
+        "rows": 39539,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-02 23:00:00",
+        "status": "OK"
+      },
+      "csvMetadata": {
+        "fileName": "B0.csv",
+        "exists": true,
+        "bytes": 2723075,
+        "modifiedAt": "2026-06-03T07:18:55.950Z",
+        "contentReadByProbe": false
+      },
+      "targetGap": {
+        "firstDate": "2025-07-01",
+        "lastDate": "2025-10-19",
+        "overlaps": false,
+        "wholeGapCovered": false,
+        "beginsAfterGap": true
+      }
+    }
+  ],
+  "rights": {
+    "accountDownloadPermissionObserved": true,
+    "accountDownloadPermissionGrantsRedistributionRights": false,
+    "writtenMarketDataRedistributionAuthorizationFound": false,
+    "gitStoragePermissionConfirmed": false,
+    "packagedApplicationRedistributionPermissionConfirmed": false,
+    "derivedBarsRedistributionPermissionConfirmed": false,
+    "commercialUsePermissionConfirmed": false,
+    "conclusion": "数据目录只记录账号可下载最近约 180 个自然日，没有提供允许将行情写入 Git、随 EXE/安装包分发、分发派生 K 线或商业使用的书面授权。"
+  },
+  "retention": {
+    "datasetCopiedIntoRepository": false,
+    "rawRowsPersisted": false,
+    "absoluteSourceFilePathsPersisted": false,
+    "summaryOnly": true
+  },
+  "releaseDecision": {
+    "technicalGapCoverageConfirmed": false,
+    "redistributionPermissionConfirmed": false,
+    "releasableGapSourceFound": false,
+    "baselineReplacementAllowed": false,
+    "task4_2MayBeMarkedComplete": false,
+    "releaseEligibility": "blocked-post-gap-main-continuous-and-redistribution-rights-unconfirmed",
+    "note": "该批 1 分钟主连数据从 2025-12-05 左右开始，晚于目标缺口，且不是具体合约级历史；当前也没有行情再分发授权，因此只能保留摘要审计，不能替换发布基线。"
+  }
+}

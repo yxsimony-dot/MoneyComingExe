@@ -5,6 +5,7 @@ import {
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
   DEFAULT_ENTRY_RANGE_PERCENT,
   DEFAULT_OPPOSITE_CANDLE_COUNT,
+  DEFAULT_SESSION_EXIT_MINUTES,
   ENTRY_SESSION_POLICIES,
   MAX_ENTRY_RANGE_PERCENT,
   MAX_OPPOSITE_CANDLE_COUNT,
@@ -12,12 +13,15 @@ import {
   MIN_ENTRY_RANGE_PERCENT,
   MIN_OPPOSITE_CANDLE_COUNT,
   MIN_REACTION_BODY_TICKS,
+  SESSION_EXIT_MINUTE_OPTIONS,
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryExitDecisionUnits,
+  filterEntryLifecycleByDateRange,
   entryLifecycle as entryLifecycleWithTick,
   entryObservationLine,
   entryObservationWindow,
+  entrySessionPolicy,
   entryQuarterSignal as entryQuarterSignalWithTick,
   entryReactionRange as entryReactionRangeWithTick,
   entryStopLossSignal as entryStopLossSignalWithTick,
@@ -229,6 +233,35 @@ describe('session-bounded entry lifecycle', () => {
     });
   });
 
+  it.each([
+    ['day', 5, 220, 215, '14:55', '14:50'],
+    ['day', 15, 210, 205, '14:45', '14:40'],
+    ['day', 30, 195, 190, '14:30', '14:25'],
+    ['night', 5, 115, 110, '22:55', '22:50'],
+    ['night', 15, 105, 100, '22:45', '22:40'],
+    ['night', 30, 90, 85, '22:30', '22:25'],
+  ] as const)(
+    'derives the %s session cutoff and forced-exit candle for %i minutes',
+    (session, minutes, entryCutoffIndex, forcedExitBarStartIndex, entryCutoffWallTime, forcedExitStart) => {
+      const policy = entrySessionPolicy(session, minutes);
+      expect(policy).toMatchObject({
+        session,
+        entryCutoffIndex,
+        forcedExitBarStartIndex,
+        entryCutoffWallTime,
+      });
+      expect(policy.entryCutoffIndex - policy.forcedExitBarStartIndex!).toBe(5);
+      expect(beijingMs(forcedExitStart)).toBe(beijingMs(entryCutoffWallTime) - M);
+    },
+  );
+
+  it.each(['day', 'night'] as const)('disables the forced-exit candle for zero minutes in the %s session', (session) => {
+    const policy = entrySessionPolicy(session, 0);
+    expect(policy.entryCutoffIndex).toBe(policy.sessionEndIndex);
+    expect(policy.entryCutoffWallTime).toBe(policy.sessionEndWallTime);
+    expect(policy.forcedExitBarStartIndex).toBeUndefined();
+  });
+
   it('keeps the day-session lunch gap but never joins night or the next Beijing date', () => {
     const trigger = sessionCandle('09:50', 100, 101, 98, 99);
     const sameDay = [
@@ -406,11 +439,21 @@ describe('session-bounded entry lifecycle', () => {
     expect(result.endReason).toBe('no-entry-session-end');
   });
 
-  it('gives take-profit and stop-loss priority over the forced session close', () => {
-    const trigger = sessionCandle('14:30', 100, 104, 100, 103);
-    const entry = sessionCandle('14:35', 103, 105, 101, 103);
-    const takeProfit = sessionCandle('14:40', 103, 112, 102, 110);
-    const profit = entryLifecycle(lifecycleEntry(trigger, 'long'), [trigger, entry, takeProfit]);
+  it('gives take-profit and stop-loss priority over a dynamically selected forced session close', () => {
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 30 as const,
+    };
+    const trigger = sessionCandle('14:15', 100, 104, 100, 103);
+    const entry = sessionCandle('14:20', 103, 105, 101, 103);
+    const takeProfit = sessionCandle('14:25', 103, 112, 102, 110);
+    const profit = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [trigger, entry, takeProfit],
+      [],
+      1,
+      settings,
+    );
     expect(profit.exitAnalysis?.exitSignal).toMatchObject({
       type: 'take-profit',
       price: 112,
@@ -418,8 +461,14 @@ describe('session-bounded entry lifecycle', () => {
     });
     expect(profit.endReason).toBe('take-profit');
 
-    const stop = sessionCandle('14:40', 101, 103, 97, 98);
-    const loss = entryLifecycle(lifecycleEntry(trigger, 'long'), [trigger, entry, stop]);
+    const stop = sessionCandle('14:25', 101, 103, 97, 98);
+    const loss = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [trigger, entry, stop],
+      [],
+      1,
+      settings,
+    );
     expect(loss.exitAnalysis?.exitSignal).toMatchObject({
       type: 'stop-loss',
       price: 97,
@@ -428,8 +477,8 @@ describe('session-bounded entry lifecycle', () => {
     expect(loss.endReason).toBe('stop-loss');
   });
 
-  it('uses complete minute order on the forced bar before falling back to its close', () => {
-    const trigger = sessionCandle('14:35', 100, 104, 100, 103);
+  it('uses complete minute order on a dynamically selected forced bar before falling back to its close', () => {
+    const trigger = sessionCandle('14:20', 100, 104, 100, 103);
     const forced = minuteBackedCandle(67, [
       [103, 104, 101, 102],
       [102, 103, 100, 101],
@@ -439,8 +488,8 @@ describe('session-bounded entry lifecycle', () => {
     ]);
     const forcedBar = {
       ...forced.bar,
-      startMs: beijingMs('14:40'),
-      endMs: beijingMs('14:45'),
+      startMs: beijingMs('14:25'),
+      endMs: beijingMs('14:30'),
       session: 'day' as const,
     };
     const minutes = forced.minutes.map((minute, index) => ({
@@ -449,7 +498,16 @@ describe('session-bounded entry lifecycle', () => {
       datetimeNano: String(BigInt(forcedBar.startMs + index * 60_000) * 1_000_000n),
       start: formatBeijing(forcedBar.startMs + index * 60_000),
     }));
-    const result = entryLifecycle(lifecycleEntry(trigger, 'long'), [trigger, forcedBar], minutes);
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [trigger, forcedBar],
+      minutes,
+      1,
+      {
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        sessionExitMinutes: 30,
+      },
+    );
 
     expect(result.quarterSignal?.entryBar).toBe(forcedBar);
     expect(result.exitAnalysis?.riskTouchSignal).toMatchObject({
@@ -465,6 +523,31 @@ describe('session-bounded entry lifecycle', () => {
       granularity: 'one-minute',
     });
     expect(result.endReason).toBe('take-profit');
+  });
+
+  it('does not fabricate a close from an incomplete dynamically selected forced bar', () => {
+    const trigger = sessionCandle('14:20', 100, 104, 100, 103);
+    const incompleteForcedBar = {
+      ...sessionCandle('14:25', 103, 105, 101, 104),
+      observedMinutes: 4,
+      complete: false,
+    };
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      [trigger, incompleteForcedBar],
+      [],
+      1,
+      {
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        sessionExitMinutes: 30,
+      },
+    );
+
+    expect(result.entryCutoff).toBe(beijingMs('14:30'));
+    expect(result.forcedExitBar).toBeUndefined();
+    expect(result.quarterSignal?.entryBar).toBe(incompleteForcedBar);
+    expect(result.exitAnalysis?.exitSignal).toBeUndefined();
+    expect(result.endReason).toBe('data-end');
   });
 
   it('stays data-end when data stops before the forced bar or final session bar', () => {
@@ -488,6 +571,51 @@ describe('session-bounded entry lifecycle', () => {
     expect(waiting.quarterSignal?.entryBar).toBeUndefined();
     expect(waiting.endReason).toBe('data-end');
     expect(waiting.analysisBars).toEqual(waitingBars);
+  });
+
+  it.each([
+    { session: 'day' as const, times: ['14:50', '14:55'], end: '15:00' },
+    { session: 'night' as const, times: ['22:50', '22:55'], end: '23:00' },
+  ])('allows entry on the final natural-session candle when forced close is disabled: $session', ({
+    session,
+    times,
+    end,
+  }) => {
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 0 as const,
+    };
+    const bars = [
+      sessionCandle(times[0], 100, 104, 100, 103, session),
+      sessionCandle(times[1], 103, 105, 101, 103, session),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, settings);
+
+    expect(result.entryCutoff).toBe(beijingMs(end));
+    expect(result.forcedExitBar).toBeUndefined();
+    expect(result.quarterSignal?.entryBar).toBe(bars[1]);
+    expect(result.exitAnalysis?.exitSignal).toBeUndefined();
+    expect(result.endReason).toBe('open-position-session-end');
+    expect(result.analysisBars).toEqual(bars);
+    expect(result.attempts[0].endReason).toBe('open-position-session-end');
+  });
+
+  it('never carries a zero-minute open position into another session', () => {
+    const bars = [
+      sessionCandle('14:50', 100, 104, 100, 103),
+      sessionCandle('14:55', 103, 105, 101, 103),
+      sessionCandle('21:00', 103, 120, 90, 110, 'night'),
+      sessionCandle('09:00', 110, 130, 80, 120, 'day', '2026-02-03'),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 0,
+    });
+
+    expect(result.analysisBars).toEqual(bars.slice(0, 2));
+    expect(result.quarterSignal?.entryBar).toBe(bars[1]);
+    expect(result.exitAnalysis?.exitSignal).toBeUndefined();
+    expect(result.endReason).toBe('open-position-session-end');
   });
 
   it('replaces the complete lifecycle when the reaction threshold changes', () => {
@@ -923,14 +1051,122 @@ describe('second entry attempt trigger', () => {
     expect(result.analysisBars).toEqual(bars);
     expect(result.endReason).toBe('no-entry-session-end');
   });
+
+  it('applies the same dynamic cutoff to first and second attempts', () => {
+    const bars = [
+      sessionCandle('14:20', 100, 104, 100, 103),
+      sessionCandle('14:25', 103, 103, 101, 102),
+      sessionCandle('14:30', 102, 112, 102, 111),
+      sessionCandle('14:35', 101, 105, 101, 104),
+      sessionCandle('14:40', 104, 104, 102, 103),
+      sessionCandle('14:45', 103, 115, 103, 114),
+      sessionCandle('14:50', 100, 105, 100, 104),
+      sessionCandle('14:55', 104, 105, 102, 103),
+    ];
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes: 5 as const,
+    };
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, settings);
+
+    expect(result.entryCutoff).toBe(beijingMs('14:55'));
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[0].quarterSignal?.entryBar).toBe(bars[1]);
+    expect(result.attempts[1].triggerBar).toBe(bars[6]);
+    expect(result.attempts[1].quarterSignal).toMatchObject({
+      searchStartBar: bars[7],
+      entryBar: undefined,
+    });
+  });
+});
+
+describe('entry lifecycle review date range', () => {
+  it('uses only the true entry bar date, not the earlier trigger date', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+    ];
+    const lifecycle = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars);
+    const entryBar = lifecycle.attempts[0].quarterSignal!.entryBar!;
+    const filtered = filterEntryLifecycleByDateRange({
+      ...lifecycle,
+      attempts: lifecycle.attempts.map(attempt => ({
+        ...attempt,
+        triggerBar: { ...attempt.triggerBar, startMs: beijingMs('13:30', '2026-02-01') },
+      })),
+    }, {
+      startDate: '2026-02-02',
+      endDate: '2026-02-02',
+    });
+
+    expect(entryBar).toBe(bars[1]);
+    expect(filtered?.attempts).toHaveLength(1);
+    expect(filtered?.quarterSignal?.entryBar).toBe(entryBar);
+  });
+
+  it('excludes an attempt whose true entry is after the end date', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+    ];
+    const lifecycle = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars);
+
+    expect(filterEntryLifecycleByDateRange(lifecycle, {
+      startDate: '2026-02-01',
+      endDate: '2026-02-01',
+    })).toBeUndefined();
+  });
+
+  it('filters two attempts independently and rebuilds aliases from the retained attempt', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 105, 100, 104),
+      sessionCandle('13:50', 104, 104, 102, 103),
+      sessionCandle('13:55', 103, 115, 103, 114),
+    ];
+    const lifecycle = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars);
+    const secondAttempt = lifecycle.attempts[1];
+    const shiftedSecondEntry = {
+      ...secondAttempt.quarterSignal!.entryBar!,
+      startMs: beijingMs('13:50', '2026-02-03'),
+    };
+    const mixedLifecycle = {
+      ...lifecycle,
+      attempts: [
+        lifecycle.attempts[0],
+        {
+          ...secondAttempt,
+          quarterSignal: {
+            ...secondAttempt.quarterSignal!,
+            entryBar: shiftedSecondEntry,
+          },
+        },
+      ],
+    };
+    const filtered = filterEntryLifecycleByDateRange(mixedLifecycle, {
+      startDate: '2026-02-03',
+      endDate: '2026-02-03',
+    });
+
+    expect(filtered?.attempts.map(attempt => attempt.number)).toEqual([2]);
+    expect(filtered?.quarterSignal?.entryBar).toBe(shiftedSecondEntry);
+    expect(filtered?.reactionRange).toBe(secondAttempt.reactionRange);
+    expect(filtered?.abandonedSetups).toEqual([]);
+    expect(filtered?.analysisBars.at(-1)).toBe(secondAttempt.analysisBars.at(-1));
+  });
 });
 
 describe('entry strategy settings', () => {
-  it('defaults to one tick, 25 percent, and six opposite candles and accepts all boundaries', () => {
+  it('defaults to one tick, 25 percent, six opposite candles, and 15-minute session exit', () => {
     expect(DEFAULT_ENTRY_STRATEGY_SETTINGS).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 25,
       oppositeCandleCount: 6,
+      sessionExitMinutes: 15,
     });
     expect(MIN_REACTION_BODY_TICKS).toBe(1);
     expect(MAX_REACTION_BODY_TICKS).toBe(20);
@@ -940,24 +1176,37 @@ describe('entry strategy settings', () => {
     expect(MIN_OPPOSITE_CANDLE_COUNT).toBe(0);
     expect(MAX_OPPOSITE_CANDLE_COUNT).toBe(10);
     expect(DEFAULT_OPPOSITE_CANDLE_COUNT).toBe(6);
+    expect(DEFAULT_SESSION_EXIT_MINUTES).toBe(15);
+    expect(SESSION_EXIT_MINUTE_OPTIONS).toEqual([0, 5, 10, 15, 20, 25, 30]);
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
       oppositeCandleCount: 0,
+      sessionExitMinutes: 0,
     })).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
       oppositeCandleCount: 0,
+      sessionExitMinutes: 0,
     });
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
       oppositeCandleCount: 10,
+      sessionExitMinutes: 30,
     })).toEqual({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
       oppositeCandleCount: 10,
+      sessionExitMinutes: 30,
     });
+  });
+
+  it.each(SESSION_EXIT_MINUTE_OPTIONS)('accepts the supported session exit option: %i', (sessionExitMinutes) => {
+    expect(validateEntryStrategySettings({
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      sessionExitMinutes,
+    }).sessionExitMinutes).toBe(sessionExitMinutes);
   });
 
   it.each([0, 21, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
@@ -990,6 +1239,16 @@ describe('entry strategy settings', () => {
     },
   );
 
+  it.each([-5, 12, 35, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
+    'rejects a missing or invalid session exit minute value: %s',
+    (sessionExitMinutes) => {
+      expect(() => validateEntryStrategySettings({
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        sessionExitMinutes,
+      } as EntryStrategySettings)).toThrow(RangeError);
+    },
+  );
+
   it('rejects invalid settings at lifecycle entry even without matching bars', () => {
     const trigger = sessionCandle('13:30', 100, 101, 99, 100);
     expect(() => entryLifecycle(
@@ -1002,7 +1261,7 @@ describe('entry strategy settings', () => {
   });
 });
 
-describe('continuous opposite candle filter', () => {
+describe('continuous opposite momentum abandonment', () => {
   const settings = (oppositeCandleCount: number): EntryStrategySettings => ({
     ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
     oppositeCandleCount,
@@ -1028,39 +1287,59 @@ describe('continuous opposite candle filter', () => {
   }) => {
     const exactOpposites = Array.from({ length: 3 }, (_, index) => opposite(index));
     const exactCandidate = candidate(3);
-    const exactLater = candidate(4);
-    expect(entryReactionRange(
-      direction,
-      [...exactOpposites, exactCandidate, exactLater],
+    const exactBars = [...exactOpposites, exactCandidate];
+    const exact = entryLifecycle(
+      lifecycleEntry(exactBars[0], direction),
+      exactBars,
+      [],
       1,
       settings(3),
-    )?.reactionBar).toBe(exactLater);
+    );
+    expect(exact.attempts).toHaveLength(0);
+    expect(exact.abandonedSetups).toHaveLength(1);
+    expect(exact.abandonedSetups[0]).toMatchObject({
+      triggerBar: exactBars[0],
+      candidateBar: exactCandidate,
+      reason: 'opposite-momentum',
+    });
+    expect(entryReactionRange(direction, exactBars, 1, settings(3))).toBeUndefined();
 
     const overOpposites = Array.from({ length: 4 }, (_, index) => opposite(index));
     const overCandidate = candidate(4);
-    const overLater = candidate(5);
-    expect(entryReactionRange(
-      direction,
-      [...overOpposites, overCandidate, overLater],
+    const overBars = [...overOpposites, overCandidate];
+    const over = entryLifecycle(
+      lifecycleEntry(overBars[0], direction),
+      overBars,
+      [],
       1,
       settings(3),
-    )?.reactionBar).toBe(overLater);
+    );
+    expect(over.abandonedSetups.map(setup => setup.candidateBar)).toEqual([overCandidate]);
+    expect(over.attempts).toHaveLength(0);
 
     const belowOpposites = Array.from({ length: 2 }, (_, index) => opposite(index));
     const belowCandidate = candidate(2);
-    expect(entryReactionRange(
-      direction,
-      [...belowOpposites, belowCandidate],
+    const belowBars = [...belowOpposites, belowCandidate];
+    const below = entryLifecycle(
+      lifecycleEntry(belowBars[0], direction),
+      belowBars,
+      [],
       1,
       settings(3),
-    )?.reactionBar).toBe(belowCandidate);
+    );
+    expect(below.abandonedSetups).toHaveLength(0);
+    expect(below.attempts[0].reactionRange?.reactionBar).toBe(belowCandidate);
 
-    expect(entryReactionRange(
-      direction,
-      [...exactOpposites, exactCandidate],
+    const disabledBars = [...exactOpposites, exactCandidate];
+    const disabled = entryLifecycle(
+      lifecycleEntry(disabledBars[0], direction),
+      disabledBars,
+      [],
       1,
       settings(0),
-    )?.reactionBar).toBe(exactCandidate);
+    );
+    expect(disabled.abandonedSetups).toHaveLength(0);
+    expect(disabled.attempts[0].reactionRange?.reactionBar).toBe(exactCandidate);
   });
 
   it('ignores doji without interrupting and does not count it toward the threshold', () => {
@@ -1078,18 +1357,27 @@ describe('continuous opposite candle filter', () => {
       bearish(6),
     ];
 
-    expect(entryReactionRange(
-      'long',
-      [...sixOpposites, candidate, later],
+    const exactBars = [...sixOpposites, candidate, later];
+    const exact = entryLifecycle(
+      lifecycleEntry(exactBars[0], 'long'),
+      exactBars,
+      [],
       1,
       settings(6),
-    )?.reactionBar).toBe(later);
-    expect(entryReactionRange(
-      'long',
-      sixOpposites.slice(1).concat(candidate),
+    );
+    expect(exact.abandonedSetups.map(setup => setup.candidateBar)).toEqual([candidate]);
+    expect(exact.attempts).toHaveLength(0);
+
+    const belowBars = sixOpposites.slice(1).concat(candidate);
+    const below = entryLifecycle(
+      lifecycleEntry(belowBars[0], 'long'),
+      belowBars,
+      [],
       1,
       settings(6),
-    )?.reactionBar).toBe(candidate);
+    );
+    expect(below.abandonedSetups).toHaveLength(0);
+    expect(below.attempts[0].reactionRange?.reactionBar).toBe(candidate);
   });
 
   it('stops at an earlier same-direction candle before using older opposites', () => {
@@ -1111,91 +1399,310 @@ describe('continuous opposite candle filter', () => {
     )?.reactionBar).toBe(bars[6]);
   });
 
-  it('keeps a filtered candidate in the risk-side extreme and uses the final candidate profit edge', () => {
+  it('applies the three-times wick skip before opposite momentum abandonment', () => {
     const bars = [
       candle(0, 100, 101, 97, 98),
       candle(1, 100, 101, 97, 98),
-      candle(2, 98, 102, 80, 101),
-      candle(3, 101, 102, 90, 99),
-      candle(4, 99, 106, 91, 104),
-    ];
-
-    expect(entryReactionRange('long', bars, 1, settings(2))).toEqual({
-      direction: 'long',
-      pricingMode: 'configured-percent',
-      reactionBar: bars[4],
-      extremeBar: bars[2],
-      high: 106,
-      low: 80,
-    });
-  });
-
-  it('looks before the first trigger while excluding pre-trigger prices from the red box', () => {
-    const history = [
-      sessionCandle('09:30', 100, 101, 50, 98),
-      sessionCandle('09:35', 100, 101, 97, 98),
-      sessionCandle('09:40', 100, 101, 97, 98),
-      sessionCandle('09:45', 100, 101, 97, 98),
-      sessionCandle('09:50', 100, 101, 97, 98),
-      sessionCandle('09:55', 100, 101, 97, 98),
-      sessionCandle('10:00', 100, 104, 90, 103),
-      sessionCandle('10:05', 103, 104, 88, 101),
-      sessionCandle('10:10', 101, 106, 91, 105),
-    ];
-    const trigger = history[6];
-    const result = entryLifecycle(
-      lifecycleEntry(trigger, 'long'),
-      history,
-      [],
-      1,
-      settings(6),
-    );
-
-    expect(result.reactionRange).toMatchObject({
-      reactionBar: history[8],
-      extremeBar: history[7],
-      high: 106,
-      low: 88,
-    });
-    expect(result.reactionRange?.low).not.toBe(50);
-    expect(result.analysisBars[0]).toBe(trigger);
-  });
-
-  it('uses pre-trigger history for the second attempt and still stops after two attempts', () => {
-    const bars = [
-      sessionCandle('13:30', 100, 104, 100, 103),
-      sessionCandle('13:35', 103, 103, 101, 102),
-      sessionCandle('13:40', 102, 112, 102, 111),
-      sessionCandle('13:45', 104, 105, 101, 103),
-      sessionCandle('13:50', 104, 105, 101, 103),
-      sessionCandle('13:55', 104, 105, 101, 103),
-      sessionCandle('14:00', 104, 105, 101, 103),
-      sessionCandle('14:05', 104, 105, 101, 103),
-      sessionCandle('14:10', 104, 105, 101, 103),
-      sessionCandle('14:15', 103, 107, 99, 106),
-      sessionCandle('14:20', 106, 107, 98, 104),
-      sessionCandle('14:25', 104, 110, 100, 108),
-      sessionCandle('14:30', 100, 101, 90, 91),
-      sessionCandle('14:35', 91, 115, 91, 114),
+      candle(2, 98, 107, 97, 100),
+      candle(3, 100, 104, 99, 103),
     ];
     const result = entryLifecycle(
       lifecycleEntry(bars[0], 'long'),
       bars,
       [],
       1,
-      settings(6),
+      settings(2),
+    );
+
+    expect(bars[2].high - bars[2].close).toBe((bars[2].close - bars[2].open) * 3.5);
+    expect(result.abandonedSetups).toHaveLength(0);
+    expect(result.attempts[0].reactionRange).toMatchObject({
+      reactionBar: bars[3],
+      high: 104,
+      low: 97,
+    });
+  });
+
+  it.each([
+    {
+      label: 'long',
+      direction: 'long' as const,
+      history: [
+        sessionCandle('09:30', 100, 101, 50, 98),
+        sessionCandle('09:35', 100, 101, 97, 98),
+        sessionCandle('09:40', 100, 101, 96, 98),
+      ],
+      trigger: sessionCandle('09:45', 100, 101, 90, 98),
+      candidate: sessionCandle('09:50', 98, 104, 95, 103),
+      expectedRange: { high: 104, low: 90 },
+      excludedExtreme: 50,
+    },
+    {
+      label: 'short',
+      direction: 'short' as const,
+      history: [
+        sessionCandle('09:30', 98, 150, 97, 100),
+        sessionCandle('09:35', 98, 103, 97, 100),
+        sessionCandle('09:40', 98, 104, 97, 100),
+      ],
+      trigger: sessionCandle('09:45', 98, 110, 97, 100),
+      candidate: sessionCandle('09:50', 100, 105, 94, 95),
+      expectedRange: { high: 110, low: 94 },
+      excludedExtreme: 150,
+    },
+  ])('uses pre-trigger history for $label counting but excludes it from the abandoned box', ({
+    direction,
+    history,
+    trigger,
+    candidate,
+    expectedRange,
+    excludedExtreme,
+  }) => {
+    const bars = [...history, trigger, candidate];
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, direction),
+      bars,
+      [],
+      1,
+      settings(4),
+    );
+
+    expect(result.attempts).toHaveLength(0);
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(result.abandonedSetups[0]).toMatchObject({
+      triggerBar: trigger,
+      candidateBar: candidate,
+      reactionRange: {
+        reactionBar: candidate,
+        ...expectedRange,
+      },
+    });
+    expect(direction === 'long'
+      ? result.abandonedSetups[0].reactionRange.low
+      : result.abandonedSetups[0].reactionRange.high).not.toBe(excludedExtreme);
+  });
+
+  it('uses the trigger candle itself as the abandoned box when it is the rejected candidate', () => {
+    const history = [
+      sessionCandle('09:30', 100, 101, 50, 98),
+      sessionCandle('09:35', 100, 101, 97, 98),
+      sessionCandle('09:40', 100, 101, 97, 98),
+      sessionCandle('09:45', 98, 105, 92, 104),
+    ];
+    const trigger = history[3];
+    const result = entryLifecycle(
+      lifecycleEntry(trigger, 'long'),
+      history,
+      [],
+      1,
+      settings(3),
+    );
+
+    expect(result.abandonedSetups[0].reactionRange).toMatchObject({
+      reactionBar: trigger,
+      extremeBar: trigger,
+      high: 105,
+      low: 92,
+    });
+    expect(result.abandonedSetups[0].reactionRange.low).not.toBe(50);
+    expect(result.attempts).toHaveLength(0);
+  });
+
+  it.each([
+    {
+      label: 'long equality touch',
+      direction: 'long' as const,
+      bars: [
+        sessionCandle('13:30', 103, 104, 100, 102),
+        sessionCandle('13:35', 102, 103, 99, 101),
+        sessionCandle('13:40', 101, 105, 99, 104),
+        sessionCandle('13:45', 104, 105, 100, 103),
+        sessionCandle('13:50', 100, 104, 99, 103),
+      ],
+      abandonedBoundary: 99,
+    },
+    {
+      label: 'short equality touch',
+      direction: 'short' as const,
+      bars: [
+        sessionCandle('13:30', 101, 104, 100, 102),
+        sessionCandle('13:35', 102, 105, 101, 103),
+        sessionCandle('13:40', 103, 105, 99, 100),
+        sessionCandle('13:45', 100, 104, 99, 101),
+        sessionCandle('13:50', 105, 105, 100, 101),
+      ],
+      abandonedBoundary: 105,
+    },
+  ])('restarts after the candidate and lets the equality-touching bar join the new search: $label', ({
+    direction,
+    bars,
+    abandonedBoundary,
+  }) => {
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], direction),
+      bars,
+      [],
+      1,
+      settings(2),
+    );
+
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(direction === 'long'
+      ? result.abandonedSetups[0].reactionRange.low
+      : result.abandonedSetups[0].reactionRange.high).toBe(abandonedBoundary);
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0].triggerBar).toBe(bars[4]);
+    expect(result.attempts[0].reactionRange?.reactionBar).toBe(bars[4]);
+    expect(result.abandonedSetups[0].candidateBar).toBe(bars[2]);
+    expect(result.attempts[0].triggerBar).not.toBe(bars[2]);
+  });
+
+  it('keeps every repeated abandonment while only the latest boundary can restart the same formal opportunity', () => {
+    const bars = [
+      sessionCandle('13:30', 103, 104, 90, 102),
+      sessionCandle('13:35', 102, 103, 89, 101),
+      sessionCandle('13:40', 101, 105, 88, 104),
+      sessionCandle('13:45', 104, 105, 88, 103),
+      sessionCandle('13:50', 103, 104, 80, 102),
+      sessionCandle('13:55', 102, 106, 85, 105),
+      sessionCandle('14:00', 105, 106, 85, 104),
+      sessionCandle('14:05', 104, 105, 80, 103),
+      sessionCandle('14:10', 103, 104, 70, 102),
+      sessionCandle('14:15', 102, 107, 75, 106),
+      sessionCandle('14:20', 70, 105, 70, 104),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(2),
+    );
+
+    expect(result.abandonedSetups.map(setup => setup.candidateBar)).toEqual([
+      bars[2],
+      bars[5],
+      bars[9],
+    ]);
+    expect(result.abandonedSetups.map(setup => setup.triggerBar)).toEqual([
+      bars[0],
+      bars[3],
+      bars[7],
+    ]);
+    expect(result.abandonedSetups.map(setup => setup.reactionRange.low)).toEqual([88, 80, 70]);
+    expect(bars[6].low).toBeLessThanOrEqual(result.abandonedSetups[0].reactionRange.low);
+    expect(bars[6].low).toBeGreaterThan(result.abandonedSetups[1].reactionRange.low);
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0].triggerBar).toBe(bars[10]);
+    expect(result.attempts[0].reactionRange).toMatchObject({
+      reactionBar: bars[10],
+      high: 105,
+      low: 70,
+    });
+  });
+
+  it('does not consume either formal opportunity before completing two real trades', () => {
+    const bars = [
+      sessionCandle('13:30', 103, 104, 100, 102),
+      sessionCandle('13:35', 102, 103, 99, 101),
+      sessionCandle('13:40', 101, 105, 99, 104),
+      sessionCandle('13:45', 99, 104, 99, 103),
+      sessionCandle('13:50', 103, 103, 101, 102),
+      sessionCandle('13:55', 102, 115, 102, 114),
+      sessionCandle('14:00', 99, 104, 99, 103),
+      sessionCandle('14:05', 103, 103, 101, 102),
+      sessionCandle('14:10', 102, 115, 102, 114),
+      sessionCandle('14:15', 99, 120, 90, 119),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(2),
+    );
+
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts.map(attempt => attempt.number)).toEqual([1, 2]);
+    expect(result.attempts.map(attempt => attempt.triggerBar)).toEqual([bars[3], bars[6]]);
+    expect(result.attempts.map(attempt => attempt.exitAnalysis?.exitSignal?.bar)).toEqual([bars[5], bars[8]]);
+    expect(result.analysisBars).toEqual(bars.slice(0, 9));
+  });
+
+  it('abandons during the second formal opportunity without turning the eventual trade into a third', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 103, 104, 100, 102),
+      sessionCandle('13:50', 102, 103, 99, 101),
+      sessionCandle('13:55', 101, 105, 99, 104),
+      sessionCandle('14:00', 99, 104, 99, 103),
+      sessionCandle('14:05', 103, 103, 101, 102),
+      sessionCandle('14:10', 102, 115, 102, 114),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(2),
     );
 
     expect(result.attempts).toHaveLength(2);
-    expect(result.attempts[1].triggerBar).toBe(bars[9]);
-    expect(result.attempts[1].reactionRange).toMatchObject({
-      reactionBar: bars[11],
-      extremeBar: bars[10],
-      high: 110,
-      low: 98,
+    expect(result.attempts[0].triggerBar).toBe(bars[0]);
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(result.abandonedSetups[0]).toMatchObject({
+      triggerBar: bars[3],
+      candidateBar: bars[5],
     });
-    expect(result.attempts[1].reactionRange?.low).not.toBe(101);
-    expect(result.attempts[1].analysisBars[0]).toBe(bars[9]);
+    expect(result.attempts[1].number).toBe(2);
+    expect(result.attempts[1].triggerBar).toBe(bars[6]);
+    expect(result.attempts[1].exitAnalysis?.exitSignal?.bar).toBe(bars[8]);
+  });
+
+  it('stops at data end when the latest abandoned boundary is never touched', () => {
+    const bars = [
+      sessionCandle('13:30', 103, 104, 100, 102),
+      sessionCandle('13:35', 102, 103, 99, 101),
+      sessionCandle('13:40', 101, 105, 99, 104),
+      sessionCandle('13:45', 104, 106, 100, 105),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(2),
+    );
+
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(result.attempts).toHaveLength(0);
+    expect(result.analysisBars).toEqual(bars);
+    expect(result.endReason).toBe('data-end');
+  });
+
+  it('does not restart an abandoned setup across the day-session boundary', () => {
+    const bars = [
+      sessionCandle('14:40', 103, 104, 100, 102),
+      sessionCandle('14:45', 102, 103, 99, 101),
+      sessionCandle('14:50', 101, 105, 99, 104),
+      sessionCandle('14:55', 104, 106, 100, 105),
+      sessionCandle('21:00', 99, 104, 90, 103, 'night'),
+    ];
+    const result = entryLifecycle(
+      lifecycleEntry(bars[0], 'long'),
+      bars,
+      [],
+      1,
+      settings(2),
+    );
+
+    expect(result.abandonedSetups).toHaveLength(1);
+    expect(result.attempts).toHaveLength(0);
+    expect(result.analysisBars).toEqual(bars.slice(0, 4));
+    expect(result.endReason).toBe('no-entry-session-end');
   });
 });
 

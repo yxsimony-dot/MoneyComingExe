@@ -1,0 +1,2387 @@
+{
+  "schemaVersion": 1,
+  "purpose": "target-gap-history-source-audit",
+  "reviewedOn": "2026-10-20",
+  "targetGaps": [
+    {
+      "scope": "除豆粕外十四个品种",
+      "firstDate": "2025-07-01",
+      "lastDate": "2025-10-19"
+    },
+    {
+      "scope": "豆粕主连",
+      "firstDate": "2025-07-01",
+      "lastDate": "2025-10-08"
+    }
+  ],
+  "policy": {
+    "accessCapabilityDoesNotGrantRedistributionRights": true,
+    "rawProbeMarketDataMayEnterRepository": false,
+    "rawProbeMarketDataMayEnterPackagedApplication": false
+  },
+  "inputs": {
+    "pytdxProbe": {
+      "path": "data/pytdx-public-exhq-probe.json",
+      "capturedAt": "2026-10-20T00:34:03+08:00",
+      "probeStatus": "success",
+      "summaryOnly": true
+    },
+    "modelscopeProbe": {
+      "path": "data/modelscope-tick-source-probe.json",
+      "capturedAt": "2026-10-19T21:55:05.741Z",
+      "commit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+      "technicalGapCoverageConfirmed": true,
+      "boundedAggregationSamplePassed": true,
+      "boundedAggregationPassedInstrumentCount": 15,
+      "boundedAggregationSampleFileCount": 60,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "kaggleProbe": {
+      "path": "data/kaggle-high-frequency-futures-data-china-probe.json",
+      "capturedAt": "2026-10-19T20:23:57.173409Z",
+      "datasetVersion": 1,
+      "targetGapCoverageConfirmed": false,
+      "absolutePriceScaleAvailable": false,
+      "concreteContractAttributionAvailable": false,
+      "summaryOnly": true
+    },
+    "huggingfaceProbe": {
+      "path": "data/huggingface-domestic-futures-ticks-probe.json",
+      "capturedAt": "2026-10-19T20:50:57.269589Z",
+      "commit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+      "presentInstrumentCount": 13,
+      "targetGapCoverageConfirmed": false,
+      "concreteContractAttributionAvailable": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "tushareProbe": {
+      "path": "data/tushare-ft-mins-probe.json",
+      "capturedAt": "2026-10-19T20:33:09.470Z",
+      "probeStatus": "blocked-no-token",
+      "tokenPresent": false,
+      "sampleAccessConfirmed": false,
+      "targetGapCoverageConfirmed": false,
+      "summaryOnly": true
+    },
+    "tonghuashunProbe": {
+      "path": "data/tonghuashun-local-export-probe.json",
+      "capturedOn": "2026-10-20",
+      "localThreeYearFiveMinuteExportCapabilityConfirmed": false,
+      "targetGapCoverageConfirmed": false,
+      "privateTcpMarketPathObserved": true,
+      "publicHttpHistoricalKlineEndpointFound": false,
+      "nativeSdkVersion": "3.0.0",
+      "nativeSdkAuthenticationSucceeded": true,
+      "nativeSdkSecurityDiscoverySucceeded": true,
+      "nativeSdkHistoricalKlineAccessConfirmed": false,
+      "nativeSdkSuccessfulHistoricalKlineRequestCount": 0,
+      "nativeSdkSessionFilePersistedAfterProbe": false,
+      "summaryOnly": true
+    },
+    "myquantProbe": {
+      "path": "data/myquant-local-minute-probe.json",
+      "capturedAt": "2026-10-20T01:24:06.517Z",
+      "targetInstrumentCount": 15,
+      "presentTargetInstrumentCount": 15,
+      "firstTimestamp": "2025-12-05 09:01:00",
+      "lastTimestamp": "2026-06-03 15:00:00",
+      "targetGapOverlappingInstrumentCount": 0,
+      "targetGapCoverageConfirmed": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "easyfutProbe": {
+      "path": "data/easyfut-futures-minute-probe.json",
+      "reviewedOn": "2026-10-19",
+      "successfulContractCount": 4,
+      "serverTimeoutCount": 26,
+      "soybeanMealCalendarGapOverlapObserved": true,
+      "allTargetInstrumentCoverageConfirmed": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    },
+    "sinaContractProbe": {
+      "path": "data/sina-futures-minute-probe.json",
+      "capturedAt": "2026-10-19T23:02:58.915Z",
+      "instrumentCount": 15,
+      "requestedSymbolCount": 138,
+      "nonEmptyResponseCount": 104,
+      "gapOverlappingResponseCount": 58,
+      "technicalGapCoverageConfirmed": false,
+      "redistributionPermissionConfirmed": false,
+      "summaryOnly": true
+    }
+  },
+  "writtenAuthorizationInquiry": {
+    "status": "awaiting-provider-written-response",
+    "product": "MoneyComing 多品种主连离线历史看盘",
+    "recipient": {
+      "name": "ylzmota1",
+      "email": "ylzmota1@163.com",
+      "evidence": {
+        "commit": "52a15a8a00eef67c25755a2aa1a830741ec25755",
+        "commitSubject": "Upload 202211.zip"
+      }
+    },
+    "subject": "咨询 chinese-commodity 期货 Tick 数据来源与再分发授权",
+    "requestedDataset": {
+      "instrumentCount": 15,
+      "sourceGranularity": "具体合约 Tick",
+      "derivedGranularities": [
+        "1 分钟",
+        "5 分钟",
+        "60 分钟"
+      ],
+      "requiredFields": [
+        "北京时间时间戳",
+        "合约代码",
+        "开盘价",
+        "最高价",
+        "最低价",
+        "收盘价",
+        "成交量",
+        "持仓量"
+      ],
+      "targetGaps": [
+        {
+          "scope": "除豆粕外十四个品种",
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-19"
+        },
+        {
+          "scope": "豆粕主连",
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-10-08"
+        }
+      ],
+      "repositoryArchiveRange": {
+        "firstPeriod": "202211",
+        "lastPeriod": "20260730",
+        "archiveCount": 66
+      }
+    },
+    "questions": [
+      {
+        "id": "instrument-and-date-coverage",
+        "question": "能否提供十五个目标期货品种的具体合约 5 分钟数据，并完整覆盖 2025-07-01 至 2025-10-19（豆粕至少至 2025-10-08）？"
+      },
+      {
+        "id": "git-storage",
+        "question": "是否书面允许将购买或授权的数据保存到本项目的私有或公开 Git 仓库？"
+      },
+      {
+        "id": "exe-redistribution",
+        "question": "是否书面允许将数据作为离线资源随 MoneyComing EXE 和安装包复制、交付和更新？"
+      },
+      {
+        "id": "derived-bars-redistribution",
+        "question": "是否书面允许从 Tick 聚合生成 1/5/60 分钟 K 线，并将这些派生数据随产品分发？"
+      },
+      {
+        "id": "commercial-use",
+        "question": "是否书面允许在商业软件、收费服务或企业内部生产环境中使用这些数据？"
+      },
+      {
+        "id": "authorization-and-provenance",
+        "question": "能否提供盖章合同、授权函或等效书面许可，并说明原始行情来源及自身取得的分发权？"
+      }
+    ],
+    "message": "您好，ylzmota1：\n我们正在为 MoneyComing 桌面软件评估您在 ModelScope 发布的 chinese-commodity 期货 Tick 数据集。\n仓库清单目前包含 66 个 ZIP，时间标识从 202211 到 20260730。\n我们的用途是为十五个商品期货品种生成主连 5 分钟和 60 分钟离线历史，并在可取得时保留 1 分钟数据用于后台精确计算。\n请书面说明原始行情提供方、数据取得方式，以及您是否拥有授权他人复制、转换并再分发原始 Tick 和派生 K 线的权利。\n同时请逐项确认：允许保存至 Git 仓库；允许作为离线资源随 EXE/安装包复制和交付；允许商业使用；允许从 Tick 聚合并分发 1/5/60 分钟 K 线。\n若任一项有限制，请明确可允许的部署范围、用户数量、期限、署名要求和续费条件。",
+    "acceptanceRule": "只有覆盖范围、Git 存储、EXE/安装包再分发、派生数据分发、商业使用和上游权利链全部获得明确书面确认后，候选数据才可进入发布基线。"
+  },
+  "enterpriseAuthorizationInquiry": {
+    "status": "ready-to-send-awaiting-provider-written-quotes",
+    "preparedOn": "2026-10-20",
+    "document": "docs/历史分钟数据OEM授权询价.md",
+    "product": "MoneyComing 多品种主连离线历史看盘",
+    "requestedDataset": {
+      "targetInstrumentCount": 15,
+      "targetInstruments": [
+        "DCE.m 豆粕",
+        "CZCE.RM 菜粕",
+        "DCE.v PVC",
+        "SHFE.rb 螺纹钢",
+        "CZCE.FG 玻璃",
+        "CZCE.OI 菜油",
+        "DCE.p 棕榈油",
+        "DCE.y 豆油",
+        "SHFE.sp 纸浆",
+        "DCE.c 玉米",
+        "CZCE.SA 纯碱",
+        "DCE.a 豆一",
+        "CZCE.MA 甲醇",
+        "CZCE.SR 白糖",
+        "DCE.b 豆二"
+      ],
+      "requiredSeries": "逐具体交割合约",
+      "requiredNativeGranularity": "5 分钟，或可完整聚合为 5 分钟的 1 分钟/Tick",
+      "minimumHistoryFirstDate": "2022-10-20",
+      "requiredHistoryLastDate": "2026-10-16",
+      "requiredFields": [
+        "北京时间时间戳",
+        "交易所",
+        "具体合约代码",
+        "开盘价",
+        "最高价",
+        "最低价",
+        "收盘价",
+        "成交量",
+        "持仓量"
+      ]
+    },
+    "requiredWrittenRights": [
+      "允许将原始交付物和派生 5/60 分钟 K 线保存到项目私有 Git、构建缓存和备份",
+      "允许把派生 5/60 分钟 K 线作为离线资源随 MoneyComing EXE、安装包和升级包复制交付",
+      "允许从具体合约数据计算主力映射、换月记录和盈亏结果",
+      "允许商业软件、收费交付或企业内部生产使用",
+      "明确授权地域、用户数量、期限、署名、加密、审计、续费和终止后的已发布版本处理方式",
+      "说明原始行情来源及供应商拥有覆盖上述用途的上游授权"
+    ],
+    "priorityProviders": [
+      {
+        "sourceId": "wenhua-historical-data-service",
+        "provider": "文华财经历史数据服务",
+        "contact": "400-811-3366",
+        "status": "awaiting-written-oem-redistribution-quote"
+      },
+      {
+        "sourceId": "wind-client-api-futures-intraday",
+        "provider": "Wind Client API",
+        "contact": "Service@wind.com.cn / 400-820-9463",
+        "status": "awaiting-written-oem-redistribution-quote"
+      },
+      {
+        "sourceId": "ifind-enterprise-data-interface",
+        "provider": "同花顺 iFinD 数据接口",
+        "contact": "952555",
+        "status": "awaiting-written-oem-redistribution-quote"
+      },
+      {
+        "sourceId": "rqdata-futures-minute",
+        "provider": "RQData 企业数据服务",
+        "contact": "bd@ricequant.com / 0755-22676337",
+        "status": "awaiting-written-oem-redistribution-quote"
+      },
+      {
+        "sourceId": "csmar-futures-high-frequency-data",
+        "provider": "CSMAR 定制数据服务",
+        "contact": "service@csmar.com / 400-639-8883",
+        "status": "awaiting-written-oem-redistribution-quote"
+      }
+    ],
+    "acceptanceRule": "报价、试用账号、普通数据库订阅或 API 可访问性均不构成发布许可；只有合同或盖章授权逐项覆盖数据范围和全部必需权利后，才允许下载真实数据并生成发布候选。"
+  },
+  "assessments": [
+    {
+      "sourceId": "tushare-futures-minute",
+      "sourceName": "Tushare Pro 期货分钟行情",
+      "accessAssessment": {
+        "minuteHistoryCapabilityDocumented": true,
+        "documentedIntervals": [
+          "1min",
+          "5min",
+          "15min",
+          "30min",
+          "60min"
+        ],
+        "documentedHistory": "超过 10 年",
+        "credentialOrPaidPermissionRequired": true,
+        "tokenPresent": false,
+        "probeStatus": "blocked-no-token",
+        "sampleRequest": {
+          "apiName": "ft_mins",
+          "tsCode": "M2509.DCE",
+          "freq": "5min",
+          "startDate": "2025-07-01 09:00:00",
+          "endDate": "2025-07-01 15:00:00",
+          "fields": [
+            "ts_code",
+            "trade_time",
+            "open",
+            "high",
+            "low",
+            "close",
+            "vol",
+            "amount",
+            "oi"
+          ]
+        },
+        "sampleAccessConfirmed": false,
+        "concreteContractAttributionAvailable": true,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-token-and-non-commercial-license",
+        "reason": "本机未发现 TUSHARE_TOKEN 或 TS_TOKEN，未执行行情请求；即使后续开通期货历史分钟权限，公开数据服务协议仍只授予个人、不可转让、非商业用途，不能直接用于 Git、EXE 或安装包再分发。"
+      },
+      "retention": {
+        "rawResponsePersisted": false,
+        "rawRowsPersisted": false,
+        "tokenPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/tushare-ft-mins-probe.json",
+          "capturedAt": "2026-10-19T20:33:09.470Z",
+          "probeStatus": "blocked-no-token"
+        },
+        {
+          "type": "official-api-documentation",
+          "url": "https://tushare.pro/document/2?doc_id=313"
+        },
+        {
+          "type": "official-data-service-agreement",
+          "url": "https://tushare.pro/document/1?doc_id=405"
+        }
+      ]
+    },
+    {
+      "sourceId": "ftshare-futures-minutes",
+      "sourceName": "FTShare 期货历史分钟 K 线",
+      "accessAssessment": {
+        "officialSkillCommit": "f6840b1dbeaefebdac29c53479a9cd38c42a3459",
+        "endpoint": "https://market.ft.tech/gateway/api/v2/market/data/futures_minutes",
+        "specificContractOnly": true,
+        "documentedIntervals": [
+          "1min",
+          "5min",
+          "15min",
+          "30min",
+          "60min"
+        ],
+        "documentedMaximumNaturalDaySpanPerRequest": 3,
+        "documentedMaximumRowsPerContract": 1000,
+        "credentialRequired": true,
+        "apiKeyPresent": false,
+        "probeStatus": "blocked-missing-api-key",
+        "probeHttpStatus": 403,
+        "sampleRequest": {
+          "symbol": "M2509.DCE",
+          "interval": "5min",
+          "firstDate": "2025-07-01",
+          "lastDate": "2025-07-03",
+          "limit": 1000
+        },
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "clientCodeLicense": "MIT",
+        "clientCodeLicenseAppliesToHostedMarketData": false,
+        "hostedDataRedistributionRightsGrantedByRepositoryLicense": false,
+        "commercialMarketDataUseRightsGrantedByRepositoryLicense": false,
+        "conclusion": "官方 Skill 仓库明确说明 MIT 只覆盖代码和 Skill 实现，不自动授予托管数据服务的访问额度、数据授权、再分发权或商业数据使用权。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-api-key-and-data-rights-unconfirmed",
+        "reason": "正确的分钟接口支持具体合约 1/5/15/30/60 分钟 K 线，但当前环境没有 FTSHARE_API_KEY，最小真实请求返回 HTTP 403，无法确认十五个品种的目标缺口；官方仓库同时明确排除数据再分发和商业使用授权。"
+      },
+      "retention": {
+        "rawResponsePersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-official-skill-commit",
+          "url": "https://github.com/FTShare-Lab/FTShare-skill/tree/f6840b1dbeaefebdac29c53479a9cd38c42a3459"
+        },
+        {
+          "type": "official-futures-minutes-contract",
+          "url": "https://github.com/FTShare-Lab/FTShare-skill/blob/f6840b1dbeaefebdac29c53479a9cd38c42a3459/ftshare-market-data/sub-skills/futures-minutes/SKILL.md"
+        },
+        {
+          "type": "official-license-boundary",
+          "url": "https://github.com/FTShare-Lab/FTShare-skill/blob/f6840b1dbeaefebdac29c53479a9cd38c42a3459/README.md#license"
+        },
+        {
+          "type": "live-endpoint-metadata-probe",
+          "endpoint": "https://market.ft.tech/gateway/api/v2/market/data/futures_minutes",
+          "reviewedOn": "2026-10-20",
+          "rawRowsPersisted": false
+        }
+      ]
+    },
+    {
+      "sourceId": "easyfut-tianqin-hosted-minute-api",
+      "sourceName": "EasyFut/TianQin 托管分钟接口",
+      "accessAssessment": {
+        "skillRepositoryCommit": "84bb9443544cbbf7a6b57f0f907982569bca227c",
+        "endpoint": "http://47.115.228.20:8888",
+        "specificContractOnly": true,
+        "documentedMaximumLength": 8000,
+        "requestedContractCount": 30,
+        "successfulContractCount": 4,
+        "serverTimeoutCount": 26,
+        "serviceStabilityConfirmed": false,
+        "soybeanMealCalendarGapOverlapObserved": true,
+        "soybeanMealTradingSessionCompletenessConfirmed": false,
+        "allTargetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "clientCodeLicense": "Apache-2.0",
+        "clientCodeLicenseAppliesToHostedMarketData": false,
+        "skillRepositoryLicenseFound": false,
+        "hostedDataTermsFound": false,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "conclusion": "EasyFut 客户端代码的 Apache-2.0 许可不覆盖托管接口返回的行情；Skill 仓库、运营方身份、上游来源和托管数据条款均不足以建立分发权利链。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-unstable-partial-access-and-data-rights-unconfirmed",
+        "reason": "Apache-2.0 只覆盖 EasyFut 客户端代码；托管接口没有可核验的运营方身份、上游行情来源、服务条款或允许随商业 EXE 再分发的书面授权。"
+      },
+      "retention": {
+        "rawResponsesPersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/easyfut-futures-minute-probe.json",
+          "reviewedOn": "2026-10-19",
+          "rawRowsPersisted": false
+        },
+        {
+          "type": "pinned-skill-repository-commit",
+          "url": "https://github.com/PPsteven/skills/tree/84bb9443544cbbf7a6b57f0f907982569bca227c/tianqin-data"
+        },
+        {
+          "type": "client-code-repository",
+          "url": "https://github.com/hanwanhe/easyfut-python",
+          "license": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "sourceId": "tqsdk-history-download",
+      "sourceName": "TqSdk 历史数据下载",
+      "accessAssessment": {
+        "minuteHistoryCapabilityDocumented": true,
+        "credentialOrPaidPermissionRequired": true,
+        "realGapProbePerformed": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-without-separate-written-authorization",
+        "reason": "专业版或试用账号的数据访问权限不等同于产品内静态行情再分发授权。"
+      },
+      "evidence": [
+        {
+          "type": "official-download-documentation",
+          "url": "https://doc.shinnytech.com/tqsdk/latest/reference/tqsdk.tools.download.html"
+        },
+        {
+          "type": "official-market-data-documentation",
+          "url": "https://doc.shinnytech.com/tqsdk/latest/usage/mddatas.html"
+        }
+      ]
+    },
+    {
+      "sourceId": "rqdata-futures-minute",
+      "sourceName": "RQData 期货分钟行情",
+      "accessAssessment": {
+        "minuteHistoryCapabilityDocumented": true,
+        "institutionalDataServiceDocumented": true,
+        "credentialOrPaidPermissionRequired": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "0755-22676337",
+        "email": "bd@ricequant.com",
+        "page": "https://www.ricequant.com/doc/rqdata-institution"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-oem-redistribution-quote",
+        "reason": "账号可查询历史分钟数据不代表允许把查询结果固化到本项目发布物中；已列入企业 OEM/静态分发询价，但尚未取得书面合同。"
+      },
+      "evidence": [
+        {
+          "type": "official-api-documentation",
+          "url": "https://rqdatac2.readthedocs.io/en/latest/intro.html"
+        },
+        {
+          "type": "official-institutional-data-service",
+          "url": "https://www.ricequant.com/doc/rqdata-institution"
+        }
+      ]
+    },
+    {
+      "sourceId": "itick-futures-kline-api",
+      "sourceName": "iTick 期货历史 K 线接口",
+      "accessAssessment": {
+        "officialFuturesKlineApiDocumented": true,
+        "documentedIntervalsMinutes": [
+          1,
+          5,
+          15,
+          30,
+          60
+        ],
+        "documentedEndTimestampParameter": true,
+        "tokenRequired": true,
+        "tokenPresent": false,
+        "realGapProbePerformed": true,
+        "probeStatus": "blocked-missing-token",
+        "probeHttpStatus": 401,
+        "sampleRequest": {
+          "region": "CN",
+          "code": "M2509",
+          "kType": 2,
+          "limit": 5
+        },
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false
+      },
+      "licenseAssessment": {
+        "apiAccessTermsReviewed": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false,
+        "commercialStaticRedistributionPermissionConfirmed": false,
+        "conclusion": "公开文档证明接口支持中国期货分钟 K 线和结束时间参数，但当前环境没有 token，且接口文档本身不构成行情再分发授权。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-missing-token-and-data-rights-unconfirmed",
+        "reason": "无 token 的真实请求返回 HTTP 401，尚未验证十五个品种及目标缺口；也未取得允许写入 Git 并随商业 EXE/安装包分发返回行情的书面许可。"
+      },
+      "retention": {
+        "rawResponsePersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "official-futures-kline-documentation",
+          "url": "https://docs.itick.org/en/rest-api/future/future-kline"
+        },
+        {
+          "type": "official-futures-batch-kline-documentation",
+          "url": "https://docs.itick.org/en/rest-api/future/future-klines"
+        },
+        {
+          "type": "unauthenticated-live-endpoint-probe",
+          "endpoint": "https://api.itick.org/future/kline?region=CN&code=M2509&kType=2&limit=5",
+          "status": 401,
+          "reviewedOn": "2026-10-20",
+          "rawRowsPersisted": false
+        }
+      ]
+    },
+    {
+      "sourceId": "akshare-sina-rolling-window",
+      "sourceName": "AKShare 封装与新浪期货分钟接口",
+      "accessAssessment": {
+        "minuteHistoryCapabilityDocumented": true,
+        "credentialOrPaidPermissionRequired": false,
+        "realGapProbePerformed": true,
+        "probe": {
+          "probeStatus": "success",
+          "request": {
+            "symbol": "M0",
+            "intervalMinutes": 5,
+            "endpoint": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_M0_5=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5"
+          },
+          "response": {
+            "httpStatus": 200,
+            "rows": 1023,
+            "fields": [
+              "c",
+              "d",
+              "h",
+              "l",
+              "o",
+              "p",
+              "v"
+            ],
+            "firstTimestamp": "2026-09-18 21:20:00",
+            "lastTimestamp": "2026-10-20 15:00:00"
+          },
+          "coverage": {
+            "targetGaps": [
+              {
+                "scope": "除豆粕外十四个品种",
+                "firstDate": "2025-07-01",
+                "lastDate": "2025-10-19",
+                "covered": false
+              },
+              {
+                "scope": "豆粕主连",
+                "firstDate": "2025-07-01",
+                "lastDate": "2025-10-08",
+                "covered": false
+              }
+            ],
+            "allTargetGapsCovered": false,
+            "conclusion": "当前滚动窗口不能覆盖 2025-07-01 至现有内置基线起点之间的目标缺口。"
+          },
+          "retention": {
+            "rawResponsePersisted": false,
+            "rawRowsPersisted": false,
+            "note": "审计报告只保留行数、字段、首末时间和覆盖结论。"
+          }
+        },
+        "specificContractMatrix": {
+          "capturedAt": "2026-10-19T23:02:58.915Z",
+          "targetInstrumentCount": 15,
+          "requestedSymbolCount": 138,
+          "nonEmptyResponseCount": 104,
+          "gapOverlappingResponseCount": 58,
+          "czceFourDigitAndThreeDigitAliasesCompared": true,
+          "technicalGapCoverageConfirmed": false,
+          "instrumentWindows": [
+            {
+              "instrumentId": "main_continuous",
+              "displayName": "豆粕主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-09-11",
+              "observedGapTradingDateCount": 43,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "rapeseed_meal_main",
+              "displayName": "菜粕主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 49,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "pvc_main",
+              "displayName": "PVC主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 64,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "rebar_main",
+              "displayName": "螺纹钢主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-15",
+              "observedGapTradingDateCount": 65,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "glass_main",
+              "displayName": "玻璃主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 64,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "rapeseed_oil_main",
+              "displayName": "菜油主连",
+              "firstObservedGapDate": "2025-07-04",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 21,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "palm_oil_main",
+              "displayName": "棕榈油主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 62,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "soybean_oil_main",
+              "displayName": "豆油主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 44,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "pulp_main",
+              "displayName": "纸浆主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-14",
+              "observedGapTradingDateCount": 61,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "corn_main",
+              "displayName": "玉米主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 33,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "soda_ash_main",
+              "displayName": "纯碱主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 56,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "soybean_1_main",
+              "displayName": "豆一主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 27,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "methanol_main",
+              "displayName": "甲醇主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 61,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "sugar_main",
+              "displayName": "白糖主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 33,
+              "technicalGapCompletenessConfirmed": false
+            },
+            {
+              "instrumentId": "soybean_2_main",
+              "displayName": "豆二主连",
+              "firstObservedGapDate": "2025-07-01",
+              "lastObservedGapDate": "2025-10-17",
+              "observedGapTradingDateCount": 59,
+              "technicalGapCompletenessConfirmed": false
+            }
+          ]
+        },
+        "historicalPagingProbe": {
+          "sampleContract": "M2509",
+          "dateAndPaginationArgumentsTested": true,
+          "argumentsChangedReturnedWindow": false,
+          "returnedRowsApproximately": 1023,
+          "legacyGetMinLineHistoryPagingConfirmed": false,
+          "conclusion": "日期和分页参数没有突破相同的短滚动窗口；旧 getMinLine 接口也未发现可复核的历史分页能力。"
+        }
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-by-coverage-and-rights",
+        "reason": "AKShare 代码许可不自动覆盖上游新浪行情；主连实时探测只有 1023 根滚动窗口。具体合约矩阵虽取得 104 个非空响应，但各 1023 根左右的短窗口之间存在断档，日期和分页参数也未扩大窗口，不能证明目标主连缺口完整，且未取得随商业 EXE 再分发的书面授权。"
+      },
+      "evidence": [
+        {
+          "type": "official-akshare-documentation",
+          "url": "https://akshare.akfamily.xyz/data/futures/futures.html"
+        },
+        {
+          "type": "live-endpoint-metadata-probe",
+          "endpoint": "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_M0_5=/InnerFuturesNewService.getFewMinLine?symbol=M0&type=5"
+        },
+        {
+          "type": "specific-contract-window-matrix-summary",
+          "path": "data/sina-futures-minute-probe.json",
+          "capturedAt": "2026-10-19T23:02:58.915Z",
+          "rawRowsPersisted": false
+        },
+        {
+          "type": "specific-contract-pagination-variant-summary",
+          "symbol": "M2509",
+          "returnedRowsApproximately": 1023,
+          "reviewedOn": "2026-10-20",
+          "rawRowsPersisted": false
+        }
+      ]
+    },
+    {
+      "sourceId": "eastmoney-push2his-five-minute",
+      "sourceName": "东方财富 push2his 期货 5 分钟历史接口",
+      "accessAssessment": {
+        "publicEndpointProbePerformed": true,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true,
+        "probe": {
+          "probeStatus": "http-error",
+          "request": {
+            "symbol": "114.m0",
+            "intervalMinutes": 5,
+            "firstDate": "2025-07-01",
+            "lastDate": "2025-10-19",
+            "endpoint": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=114.m0&klt=5&fqt=1&beg=20250701&end=20251019&lmt=1000000&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+          },
+          "response": {
+            "httpStatus": 403,
+            "contentType": "text/html"
+          },
+          "coverage": {
+            "targetGaps": [
+              {
+                "scope": "除豆粕外十四个品种",
+                "firstDate": "2025-07-01",
+                "lastDate": "2025-10-19",
+                "covered": false
+              },
+              {
+                "scope": "豆粕主连",
+                "firstDate": "2025-07-01",
+                "lastDate": "2025-10-08",
+                "covered": false
+              }
+            ],
+            "allTargetGapsCovered": false,
+            "conclusion": "公开历史接口返回 HTTP 403，未取得目标缺口记录。"
+          },
+          "retention": {
+            "rawResponsePersisted": false,
+            "rawRowsPersisted": false
+          }
+        }
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-by-access-and-rights",
+        "reason": "本次带浏览器标识和来源页的直接请求返回 HTTP 403，未取得目标缺口；同时没有允许将该接口行情写入 Git 并随商业 EXE/安装包再分发的书面许可。"
+      },
+      "evidence": [
+        {
+          "type": "live-endpoint-metadata-probe",
+          "endpoint": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=114.m0&klt=5&fqt=1&beg=20250701&end=20251019&lmt=1000000&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "pytdx-public-exhq",
+      "sourceName": "pytdx 公共扩展行情服务器连续合约 5 分钟数据",
+      "accessAssessment": {
+        "publicEndpointProbePerformed": true,
+        "accountOrTokenRequiredByProbe": false,
+        "targetInstrumentCount": 15,
+        "targetGapCoverageConfirmed": true,
+        "allTargetDateBoundsReached": true,
+        "allRequiredFieldsComplete": true,
+        "concreteContractAttributionAvailable": false,
+        "expiredSpecificContractHistoryAvailable": false,
+        "specificContractGapCapabilityConfirmed": false,
+        "historicalMainContractMappingCapabilityConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "clientCodeLicenseConfirmed": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false,
+        "codeLicenseAppliesToMarketData": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-contract-attribution-and-no-redistribution-rights",
+        "reason": "真实探测确认十五个连续 L9 序列能够覆盖目标日期并返回完整 OHLC、成交量和持仓量，但记录没有具体合约归属，已到期具体合约也不可查询，无法生成可审计的历史主力换月映射；同时没有取得允许写入 Git 并随 EXE/安装包分发返回行情的书面授权。"
+      },
+      "retention": {
+        "rawMarketRowsPersisted": false,
+        "rawPricesPersisted": false,
+        "rawVolumeOrPositionPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/pytdx-public-exhq-probe.json",
+          "capturedAt": "2026-10-20T00:34:03+08:00",
+          "server": {
+            "host": "116.205.143.214",
+            "port": 7727,
+            "accountRequiredByProbe": false,
+            "marketCount": 52,
+            "instrumentCount": 108874
+          }
+        },
+        {
+          "type": "upstream-client-repository",
+          "url": "https://github.com/rainx/pytdx"
+        }
+      ]
+    },
+    {
+      "sourceId": "tonghuashun-local-client-export",
+      "sourceName": "本机同花顺期货通客户端与本地缓存",
+      "accessAssessment": {
+        "runningClientReviewed": true,
+        "databaseCount": 2,
+        "localHistoricalMinuteBarsFound": false,
+        "bulkHistoricalMinuteExportFound": false,
+        "targetGapCoverageConfirmed": false,
+        "privateProtocolInspectionPerformed": false,
+        "privateTcpMarketPathObserved": true,
+        "publicHttpHistoricalKlineEndpointFound": false,
+        "observedRemotePorts": [
+          8601,
+          8602,
+          9000,
+          9602,
+          9603,
+          9604,
+          9605,
+          9606
+        ],
+        "observedServiceHosts": [
+          "hevofuhq2.123ths.com",
+          "hevoinfo1.123ths.com",
+          "hevoqht.123ths.com",
+          "hevoqht-function.123ths.com",
+          "hevozhuhq1.123ths.com",
+          "qhtarbitro.123ths.com"
+        ],
+        "accessibilityExportOrHistoryControlFound": false,
+        "nativeSdkProbePerformed": true,
+        "nativeSdkVersion": "3.0.0",
+        "nativeSdkAuthenticationSucceeded": true,
+        "nativeSdkSecurityDiscoverySucceeded": true,
+        "nativeSdkHistoricalKlineRequestCount": 3,
+        "nativeSdkSuccessfulHistoricalKlineRequestCount": 0,
+        "nativeSdkHistoricalKlineAccessConfirmed": false,
+        "nativeSdkSessionFilePersistedAfterProbe": false,
+        "realGapProbePerformed": true
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-private-client-path-no-supported-export-or-redistribution-rights",
+        "reason": "当前本机安装只发现配置和合约代码元数据，没有可读取的历史分钟 K 线表、CSV/Parquet 导出或公开批量历史下载入口。THSDK 可以完成认证和证券发现，但具体合约 5 分钟、主连日线和主连 5 分钟历史请求均失败，不能补齐目标缺口。运行中的客户端仍通过 123ths.com 私有 TCP 行情链路取数；继续从该链路取得数据将需要抓包、调用或逆向私有协议，超出本变更边界，且当前没有随 Git、EXE 或安装包再分发的授权依据。"
+      },
+      "retention": {
+        "summaryOnly": true,
+        "rawDatabaseRowsPersisted": false,
+        "rawKlineRowsPersisted": false,
+        "rawNetworkPayloadPersisted": false,
+        "rawLogLinesPersisted": false,
+        "userConfigurationValuesPersisted": false,
+        "accountIdentifiersPersisted": false,
+        "sessionFilePersisted": false,
+        "probeScriptsStoredInRepository": false
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-client-inspection",
+          "path": "data/tonghuashun-local-export-probe.json",
+          "capturedOn": "2026-10-20",
+          "executable": "G:\\同花顺期货通\\bin\\happ.exe",
+          "observationMethod": "操作系统进程连接表与日志中的主机名摘要；未读取网络载荷",
+          "networkClassification": "客户端私有 TCP 行情链路，不是可直接调用的公开 HTTP 历史 K 线导出接口"
+        },
+        {
+          "type": "local-summary-only-native-sdk-probe",
+          "path": "data/tonghuashun-local-export-probe.json",
+          "startedAt": "2026-10-20T02:50:08.586948+00:00",
+          "completedAt": "2026-10-20T02:56:09.024948+00:00",
+          "sdkVersion": "3.0.0",
+          "authenticationSucceeded": true,
+          "historicalKlineRequests": [
+            {
+              "id": "specific-contract-5m",
+              "security": "UCFDm2701",
+              "interval": "5-minute",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "timeout",
+              "durationSeconds": 120.005
+            },
+            {
+              "id": "main-continuous-day",
+              "security": "UCFDm9999",
+              "interval": "day",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "query_failed",
+              "durationSeconds": 120.003
+            },
+            {
+              "id": "main-continuous-5m",
+              "security": "UCFDm9999",
+              "interval": "5-minute",
+              "status": "failed",
+              "errorType": "APIError",
+              "errorCode": "query_failed",
+              "durationSeconds": 120.004
+            }
+          ],
+          "retention": {
+            "summaryOnly": true,
+            "rawDatabaseRowsPersisted": false,
+            "rawKlineRowsPersisted": false,
+            "rawNetworkPayloadPersisted": false,
+            "rawLogLinesPersisted": false,
+            "userConfigurationValuesPersisted": false,
+            "accountIdentifiersPersisted": false,
+            "sessionFilePersisted": false,
+            "probeScriptsStoredInRepository": false
+          }
+        }
+      ]
+    },
+    {
+      "sourceId": "local-myquant-main-continuous-one-minute",
+      "sourceName": "本机 MyQuant/gm.api 主连 1 分钟整理数据",
+      "accessAssessment": {
+        "localDatasetPresent": true,
+        "seriesKind": "main-continuous",
+        "frequencyMinutes": 1,
+        "specificContractAttributionAvailable": false,
+        "targetInstrumentCount": 15,
+        "presentTargetInstrumentCount": 15,
+        "nonEmptyTargetInstrumentCount": 15,
+        "firstTimestamp": "2025-12-05 09:01:00",
+        "lastTimestamp": "2026-06-03 15:00:00",
+        "targetGapOverlappingInstrumentCount": 0,
+        "targetGapCoverageConfirmed": false,
+        "documentedRecentNaturalDayLimit": 180,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "accountDownloadPermissionObserved": true,
+        "accountDownloadPermissionGrantsRedistributionRights": false,
+        "writtenMarketDataRedistributionAuthorizationFound": false,
+        "conclusion": "数据目录只记录账号可下载最近约 180 个自然日，没有提供允许将行情写入 Git、随 EXE/安装包分发、分发派生 K 线或商业使用的书面授权。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-post-gap-main-continuous-and-redistribution-rights-unconfirmed",
+        "reason": "该批 1 分钟主连数据从 2025-12-05 左右开始，晚于目标缺口，且不是具体合约级历史；当前也没有行情再分发授权，因此只能保留摘要审计，不能替换发布基线。"
+      },
+      "retention": {
+        "datasetCopiedIntoRepository": false,
+        "rawRowsPersisted": false,
+        "absoluteSourceFilePathsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-dataset-inspection",
+          "path": "data/myquant-local-minute-probe.json",
+          "capturedAt": "2026-10-20T01:24:06.517Z",
+          "datasetDirectoryName": "期货1分钟数据_MyQuant_整理",
+          "coverageSummarySha256": "0cd3ca8cadcc353b85150fa76180b8bca35f1336033f284926c76301c5401b65"
+        }
+      ]
+    },
+    {
+      "sourceId": "modelscope-ylzmota1-chinese-commodity-tick",
+      "sourceName": "ModelScope ylzmota1/chinese-commodity 期货 Tick 数据集",
+      "accessAssessment": {
+        "datasetCommit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+        "archiveTradingDays": 181,
+        "firstArchiveTradingDate": "2022-11-01",
+        "lastArchiveTradingDate": "2025-10-31",
+        "targetInstrumentCount": 15,
+        "targetGapCoverageConfirmed": true,
+        "repositoryArchiveCount": 66,
+        "repositoryArchiveBytes": 118695945459,
+        "repositoryFirstArchivePeriod": "202211",
+        "repositoryLastArchivePeriod": "20260730",
+        "threeYearCoveragePotentialConfirmed": true,
+        "threeYearContinuousStructureConfirmed": false,
+        "concreteContractAttributionAvailable": true,
+        "historicalMainContractMappingCapabilityConfirmed": true,
+        "boundedAggregationSamplePassed": true,
+        "boundedAggregationSampleInstrumentCount": 15,
+        "boundedAggregationSampleFileCount": 60,
+        "boundedAggregationSampleTradingDates": [
+          "2025-07-01",
+          "2025-08-01",
+          "2025-09-01",
+          "2025-10-09"
+        ],
+        "boundedAggregationPassedInstrumentCount": 15,
+        "boundedAggregationFiveMinuteBars": 3780,
+        "boundedAggregationSixtyMinuteBars": 330,
+        "boundedAggregationReconciliationMismatches": 0,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "repositoryLicenseClaimPresent": true,
+        "repositoryLicenseIdentifier": "Apache-2.0",
+        "repositoryLicenseAppliesToFilesAsClaimedByCard": true,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "upstreamMarketDataRedistributionAuthorityDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-upstream-provenance-and-redistribution-rights",
+        "reason": "真实 Range 探测确认四个缺口归档可以完整覆盖十五个品种的目标缺口，具体合约、每日主力映射、换月和 5/60 分钟聚合样本均通过技术校验；仓库树和四个年度代表归档还确认了三年以上历史覆盖潜力；但数据集卡只声明 Apache-2.0，未说明原始行情来源、取得方式或上游分发权利链，因此不能把原始 Tick 或派生 K 线写入 Git、EXE 或安装包。"
+      },
+      "retention": {
+        "fullArchivesDownloaded": false,
+        "centralDirectoriesOnlyForProbedArchives": true,
+        "probedArchiveCount": 9,
+        "rawTickFilesPersisted": false,
+        "reportContainsRawTickRows": false,
+        "reportContainsDerivedBarRows": false
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-range-probe",
+          "path": "data/modelscope-tick-source-probe.json",
+          "capturedAt": "2026-10-19T21:55:05.741Z",
+          "commit": "1f1e6cdcc8eea53e6b10cbd3f4a5209eb19acab6",
+          "normalizedDailyMappingSha256": "669acb87cf2ee837454e6d639c097da2b3f50cb75d90db3c0b2acfc4b819a5c0",
+          "repositoryManifestSha256": "d25a5c676809a60a4debd3286f9e51b931dc26fc0a13308c9d7c7f4cb762de77",
+          "representativePeriods": [
+            "202211",
+            "202301",
+            "202401",
+            "202501"
+          ],
+          "sampleDerivedHashes": {
+            "bars5Sha256": "195ed7c5402bdec7aef1119390edcc6ba429a3b7e88bd749735eceaea9ba5528",
+            "bars60Sha256": "1cab1428db875f3bc70f59072ad129f0d5a20337ccc4ced1eff6ef180bc2ac0b"
+          },
+          "sampleSuiteDerivedHashes": [
+            {
+              "instrumentId": "main_continuous",
+              "instrumentName": "豆粕主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "195ed7c5402bdec7aef1119390edcc6ba429a3b7e88bd749735eceaea9ba5528",
+                "bars60Sha256": "1cab1428db875f3bc70f59072ad129f0d5a20337ccc4ced1eff6ef180bc2ac0b"
+              }
+            },
+            {
+              "instrumentId": "rapeseed_meal_main",
+              "instrumentName": "菜粕主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "970b055338e81a0f91c0bc505ce5a4a17be3201bb52150ef57c03de3a7517ea0",
+                "bars60Sha256": "fb5bde1b5815d5cff97392b5d9fe8be5671a53775b69f0bff185697859c513f6"
+              }
+            },
+            {
+              "instrumentId": "pvc_main",
+              "instrumentName": "PVC主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "c1f7585eb2dd7e0b10fa334c22694c2bcdfd7fb71ae8a77dc51b0460aa9110dc",
+                "bars60Sha256": "a3074a7bffb78b7795448a9958cac54cf0261358811ce6dd27c23fa0ed393685"
+              }
+            },
+            {
+              "instrumentId": "rebar_main",
+              "instrumentName": "螺纹钢主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "bec0d2ea65f6ba2e2dde8c55b1ceae4f8ba9261bb0c5f09a5ecf51409c2b3c79",
+                "bars60Sha256": "72b25264a032659c8bb4bc495f0e5c45c82f4670260d099e347c75c35a396dbe"
+              }
+            },
+            {
+              "instrumentId": "glass_main",
+              "instrumentName": "玻璃主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "42c7620784ac5e60034c2746afaa8fc139a407634e5e748ca5ecc328f96a5213",
+                "bars60Sha256": "cf59821577f9d362127e9a59cd0166f5f62b47e3f65d461fbdc09e5c16fecc0d"
+              }
+            },
+            {
+              "instrumentId": "rapeseed_oil_main",
+              "instrumentName": "菜油主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "c6a6ef05a40c5a9f83e37bebc027c6316b062936d57701025a0fbf2c9d085c52",
+                "bars60Sha256": "ec80f5fa0f8b4063133c5532b49f522f5fa17eb3c22b8a46febcd9f642b68e87"
+              }
+            },
+            {
+              "instrumentId": "palm_oil_main",
+              "instrumentName": "棕榈油主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "a0db14876509f81b4f769ca9f0b0538426ea2173c9742421d69223e57dd54b44",
+                "bars60Sha256": "dd40b9a2fdbc9c4f458a766e21b58e60423d82573b3e45e4e28618a17dc1bb51"
+              }
+            },
+            {
+              "instrumentId": "soybean_oil_main",
+              "instrumentName": "豆油主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "c5ca2756418d21efc8477384c26d8a0ae3b767e89a73f64781e79b5cc32250aa",
+                "bars60Sha256": "60994f14096da65585a3f96fcac0f3255231b01e42345e97b4a72d0023d3f8be"
+              }
+            },
+            {
+              "instrumentId": "pulp_main",
+              "instrumentName": "纸浆主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "7f3ae721c114ad01e03c0b6e0931bf983f31e857f4a3780fcf2201d508fdc767",
+                "bars60Sha256": "1d6f2d3693ea86b8246ecdb37e3a6c425239f246168ab248869668e55061836a"
+              }
+            },
+            {
+              "instrumentId": "corn_main",
+              "instrumentName": "玉米主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "372054c19a1e06cc94f0db794ac4170feaa34bfd4d73cedc16b29d093d5e511c",
+                "bars60Sha256": "bb50eb9349b98ad72a2dbc414f8647813079cf4e9049e5e3f4a08e537932c395"
+              }
+            },
+            {
+              "instrumentId": "soda_ash_main",
+              "instrumentName": "纯碱主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "18469301a7b2c7aed9499fc8e1a9ef44708b173cf3852f31cf0f1fb69d3fe04b",
+                "bars60Sha256": "1e0f5742e5e89d5d8fc4c816354e435884c786203ac965ae96bcc2f5f991acfa"
+              }
+            },
+            {
+              "instrumentId": "soybean_1_main",
+              "instrumentName": "豆一主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "eb73324a11dcaae3de092910fae7fa7ae087391ac761deac0325e97ea749283b",
+                "bars60Sha256": "12d5264c9d49ed5d7244213766ee0d121c1aa70207c1cf3d22c7cc10834cfbed"
+              }
+            },
+            {
+              "instrumentId": "methanol_main",
+              "instrumentName": "甲醇主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "5907d3b5fb704accedefc1a500428fb725a5254b029a3e5d8a0c339e96c405cf",
+                "bars60Sha256": "35aec8b7d83a5040a220f7339b3b5a6b0e41ec1e4f0a343066606e979bfd0afd"
+              }
+            },
+            {
+              "instrumentId": "sugar_main",
+              "instrumentName": "白糖主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "c40c860013e8ce3e52a59faa7ad27d75f6c94429b2329fa2d9f2c792cc67040c",
+                "bars60Sha256": "60ff025df48b75d79830c5207f49401ab1fd8478f6f7f1dd008e1218da88100a"
+              }
+            },
+            {
+              "instrumentId": "soybean_2_main",
+              "instrumentName": "豆二主连",
+              "passed": true,
+              "derivedHashes": {
+                "bars5Sha256": "79822c8da1566854458413a93e53e570d6d1c607b03d88c59a9c21baeefaf191",
+                "bars60Sha256": "55884d1a006fe81b7135849e291678e34610a77767771ab16b9e6a1563a3ec86"
+              }
+            }
+          ]
+        },
+        {
+          "type": "uploader-git-author-contact",
+          "account": "ylzmota1",
+          "email": "ylzmota1@163.com",
+          "commit": "52a15a8a00eef67c25755a2aa1a830741ec25755",
+          "commitSubject": "Upload 202211.zip"
+        },
+        {
+          "type": "dataset-card",
+          "url": "https://www.modelscope.cn/datasets/ylzmota1/chinese-commodity",
+          "declaredLicense": "Apache License 2.0"
+        }
+      ]
+    },
+    {
+      "sourceId": "modelscope-wzywuan-futures-kline-data",
+      "sourceName": "ModelScope wzywuan/futures-kline-data",
+      "accessAssessment": {
+        "datasetId": "wzywuan/futures-kline-data",
+        "description": "期货历史K线数据集",
+        "createdAt": "2026-01-06T16:09:19Z",
+        "lastModifiedAt": "2026-01-18T13:24:10Z",
+        "repositoryBytes": 197523731,
+        "downloadsAtReview": 2,
+        "visibility": "gated",
+        "gatedMode": "manual",
+        "loginRequired": true,
+        "fileTreeAccessStatus": 403,
+        "fileInventoryReviewed": false,
+        "documentedIntervals": [],
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "threeYearFiveMinuteCoverageConfirmed": false,
+        "threeYearSixtyMinuteCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "licenseAssessment": {
+        "datasetCardLicenseClaim": "Apache License 2.0",
+        "datasetCardLicenseClaimPresent": true,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "upstreamMarketDataRedistributionAuthorityDocumented": false,
+        "repositoryLicenseClaimSufficientForProductRedistribution": false,
+        "conclusion": "公开元数据只声明 Apache License 2.0；数据集需登录并由作者手动审批，文件清单、分钟周期、品种范围和上游行情权利链都无法在未授权状态下核验。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-access-and-written-redistribution-authorization",
+        "reason": "必须先取得数据集访问权限并检查实际文件，再由发布者书面确认 Git 存储、EXE/安装包交付、派生 5/60 分钟 K 线、商业使用及其上游再分发授权。"
+      },
+      "retention": {
+        "rawResponsePersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "official-modelscope-openapi-metadata",
+          "url": "https://modelscope.cn/openapi/v1/datasets/wzywuan/futures-kline-data",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "unauthorized-file-tree-probe",
+          "status": 403,
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-china-futures-5min-forks",
+      "sourceName": "china-futures-5min-2015-2025 原仓库及公开 fork",
+      "accessAssessment": {
+        "repositoriesReviewed": [
+          "Freddy-Hexas/china-futures-5min-2015-2025",
+          "masaopin/china-futures-5min-2015-2025",
+          "pandal0ve/china-futures-5min-2015-2025"
+        ],
+        "originalHead": "1a402721d639432875504a343e2b9ffe9508cd36",
+        "forkHeads": {
+          "masaopin/china-futures-5min-2015-2025": "1a402721d639432875504a343e2b9ffe9508cd36",
+          "pandal0ve/china-futures-5min-2015-2025": "1a402721d639432875504a343e2b9ffe9508cd36"
+        },
+        "latestDatasetDate": "2025-06-30",
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "repositoryLicenseIdentifier": "CC0-1.0",
+        "repositoryLicenseClaimPresent": true,
+        "upstreamMarketDataProvenanceDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-new-gap-data-and-upstream-rights-unconfirmed",
+        "reason": "两个公开 fork 的 HEAD 与原仓库完全相同，均未追加 2025-07-01 之后的数据，因此不能补齐目标缺口；原始行情上游权利链也仍未说明。"
+      },
+      "evidence": [
+        {
+          "type": "git-ls-remote-head-comparison",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "local-public-source-audit",
+          "path": "data/public-history-source-audit.json"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-tradingagents-for-futures-daily-data",
+      "sourceName": "haoge10241024/TradingAgents_for_Futures 内置技术分析数据",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/haoge10241024/TradingAgents_for_Futures",
+        "commit": "7eccff24ba128af4d9f4b88a7f68a03d1616a60c",
+        "targetInstrumentCount": 15,
+        "targetSymbols": [
+          "A",
+          "C",
+          "FG",
+          "M",
+          "MA",
+          "OI",
+          "P",
+          "PP",
+          "RB",
+          "RM",
+          "SA",
+          "SP",
+          "SR",
+          "V",
+          "Y"
+        ],
+        "allTargetDailyFilesPresent": true,
+        "committedDataGranularity": "daily",
+        "committedMinuteDatasetPresent": false,
+        "soybeanMealDailyRows": 6156,
+        "soybeanMealFirstDate": "2000-07-18",
+        "soybeanMealLastDate": "2025-11-17",
+        "latestDailyDateMinAcrossTargets": "2025-11-14",
+        "updaterInterfaces": [
+          "ak.futures_hist_em(period=\"daily\")",
+          "ak.futures_zh_daily_sina",
+          "ak.get_futures_daily"
+        ],
+        "targetGapCoverageConfirmed": false,
+        "threeYearFiveMinuteCoverageConfirmed": false,
+        "threeYearSixtyMinuteCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "codeLicense": "MIT",
+        "codeLicenseAppliesToCommittedMarketData": false,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "upstreamMarketDataRedistributionAuthorityDocumented": false,
+        "conclusion": "仓库 MIT 许可覆盖软件代码；技术数据由 AKShare、新浪等日线接口生成，仓库没有证明这些上游行情可以随商业产品再次分发。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-daily-only-and-upstream-rights-unconfirmed",
+        "reason": "十五个目标品种都存在长区间 CSV，但内容是日线而非 5/60 分钟，无法补齐当前分钟缺口；同时上游行情来源和再分发授权没有得到确认。"
+      },
+      "retention": {
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/haoge10241024/TradingAgents_for_Futures/tree/7eccff24ba128af4d9f4b88a7f68a03d1616a60c"
+        },
+        {
+          "type": "repository-license",
+          "url": "https://github.com/haoge10241024/TradingAgents_for_Futures/blob/7eccff24ba128af4d9f4b88a7f68a03d1616a60c/LICENSE"
+        },
+        {
+          "type": "daily-updater-implementation",
+          "url": "https://github.com/haoge10241024/TradingAgents_for_Futures/blob/7eccff24ba128af4d9f4b88a7f68a03d1616a60c/modules/technical_updater.py"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-demondamon-rbhot-5m",
+      "sourceName": "DemonDamon/futures-data-visualization-via-EChart 螺纹钢主连 5 分钟数据",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/DemonDamon/futures-data-visualization-via-EChart",
+        "commit": "758766f266bf7e88f96a56af753ec077c2d2034b",
+        "committedDatasetPath": "data/RBHot_5m.csv",
+        "committedDataGranularity": "5-minute",
+        "coveredSymbols": [
+          "RB"
+        ],
+        "firstTimestamp": "2010-05-31",
+        "lastTimestamp": "2017-10-09",
+        "targetInstrumentCount": 15,
+        "coveredTargetInstrumentCount": 1,
+        "targetGapCoverageConfirmed": false,
+        "threeYearFiveMinuteCoverageConfirmedForAllTargets": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "repositoryLicenseFilePresent": false,
+        "codeLicenseConfirmed": false,
+        "datasetLicense": null,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "upstreamMarketDataRedistributionAuthorityDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-stale-single-instrument-and-no-license",
+        "reason": "仓库只提交了螺纹钢主连的旧 5 分钟文件，数据截止 2017-10-09，既不覆盖十五个目标品种，也不能补齐 2025 年目标缺口；仓库还没有 LICENSE 或上游行情再分发依据。"
+      },
+      "retention": {
+        "datasetCopiedIntoRepository": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/DemonDamon/futures-data-visualization-via-EChart/tree/758766f266bf7e88f96a56af753ec077c2d2034b"
+        },
+        {
+          "type": "committed-dataset",
+          "url": "https://github.com/DemonDamon/futures-data-visualization-via-EChart/blob/758766f266bf7e88f96a56af753ec077c2d2034b/data/RBHot_5m.csv"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-kevinsherry-cta-daily-data",
+      "sourceName": "KevinSherry2016/CTA 日线合约截面数据",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/KevinSherry2016/CTA",
+        "commit": "0e7a2b1496acdd1dfc9136f9f3b2a2f851d6a34b",
+        "approximateRepositoryBytes": 643000000,
+        "committedFileCount": 4222,
+        "sampleDatasetPath": "daily_data/20250703.csv",
+        "committedDataGranularity": "daily-contract-cross-section",
+        "committedMinuteDatasetPresent": false,
+        "targetGapCoverageConfirmed": false,
+        "threeYearFiveMinuteCoverageConfirmed": false,
+        "threeYearSixtyMinuteCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "repositoryLicenseFilePresent": false,
+        "codeLicenseConfirmed": false,
+        "datasetLicense": null,
+        "upstreamMarketDataProvenanceDocumented": false,
+        "upstreamMarketDataRedistributionAuthorityDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-daily-only-and-no-license",
+        "reason": "仓库中的 daily_data 是按交易日保存的合约日线截面，不是 5/60 分钟 K 线，无法补齐分钟缺口；仓库同时没有 LICENSE 或数据再分发授权说明。"
+      },
+      "retention": {
+        "repositoryClonedIntoProject": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/KevinSherry2016/CTA/tree/0e7a2b1496acdd1dfc9136f9f3b2a2f851d6a34b"
+        },
+        {
+          "type": "daily-contract-cross-section-sample",
+          "url": "https://github.com/KevinSherry2016/CTA/blob/0e7a2b1496acdd1dfc9136f9f3b2a2f851d6a34b/daily_data/20250703.csv"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-quantiger-tdx-futures-data",
+      "sourceName": "quantiger/tdx-futures-data 通达信抓取工具",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "commit": "0fd59eb9ce1aa32fee7da099a348799edd65bd19",
+        "committedFileCount": 32,
+        "committedMarketDataFilesPresent": false,
+        "localTdxQuantApiRequired": true,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "readmeLicenseClaim": "MIT",
+        "repositoryLicenseFilePresent": false,
+        "codeLicenseConfirmed": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-tool-only-no-data-license",
+        "reason": "仓库只有抓取代码和配置，没有提交行情文件；README 的 MIT 描述没有对应 LICENSE 文件，即使代码许可后续确认，也不会自动授予本地通达信接口返回行情的再分发权。"
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/quantiger/tdx-futures-data/tree/0fd59eb9ce1aa32fee7da099a348799edd65bd19"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-irontowersh-future-highfreq",
+      "sourceName": "irontowersh/future_highFreq",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/irontowersh/future_highFreq",
+        "commit": "d30d57fbab55ca56c95a50ac6c34de305aaa49dc",
+        "lastCommitAt": "2019-11-02T13:45:21+08:00",
+        "packagedExecutableOnly": true,
+        "sourceCodePresent": false,
+        "executable": {
+          "path": "future_highFreq.exe",
+          "bytes": 726016,
+          "sha256": "206526857432189E04F319BD3036D7DF84DB0D52417EEF93C42DB653FAE54374"
+        },
+        "serverConnectedAccordingToReadme": false,
+        "claimedDataSources": [
+          "天软科技",
+          "掘金量化 3"
+        ],
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "repositoryLicenseFilePresent": false,
+        "codeLicenseConfirmed": false,
+        "upstreamRedistributionAuthorityDocumented": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false,
+        "conclusion": "仓库没有 LICENSE，也没有源代码；README 对天软和掘金的来源说明没有提供允许第三方再次分发行情的上游授权。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-disconnected-binary-and-no-license",
+        "reason": "README 明确写明服务器端尚未接入，仓库也自 2019 年停止更新，既不能补齐 2025 年目标缺口，也没有可用于产品发布的数据权利链。"
+      },
+      "retention": {
+        "executableCopiedIntoRepository": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/irontowersh/future_highFreq/tree/d30d57fbab55ca56c95a50ac6c34de305aaa49dc"
+        },
+        {
+          "type": "temporary-local-binary-metadata",
+          "path": "C:\\Windows\\Temp\\MoneyComing-gap-source-probe\\future_highFreq\\future_highFreq.exe",
+          "rawRowsPersisted": false
+        }
+      ]
+    },
+    {
+      "sourceId": "github-putt-futures-collect",
+      "sourceName": "putt/futures-collect",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/putt/futures-collect",
+        "commit": "e89700eb7d92e309d866e7ef70a723a7c6664ec9",
+        "collectionEndpoint": "InnerFuturesNewService.getFewMinLine",
+        "committedDatabase": {
+          "path": "futures.db3",
+          "bytes": 2646016,
+          "sha256": "0D11E2B05F145BB1AD76C3C710D2F1BD4B18EF8FEA2B051489537DC4E17D736A",
+          "tableCount": 43,
+          "rowCount": 27527,
+          "firstTimestamp": "2019-07-10 10:00:00",
+          "lastTimestamp": "2019-08-15 00:45:00"
+        },
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "codeLicense": "MIT",
+        "codeLicenseAppliesToCommittedMarketData": false,
+        "upstreamMarketDataProvider": "新浪",
+        "upstreamRedistributionAuthorityDocumented": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false,
+        "conclusion": "MIT 许可可以覆盖仓库代码，但不会自动覆盖内置 SQLite 中的新浪行情；仓库没有提供新浪允许再分发该数据库的证明。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-stale-data-and-upstream-rights-unconfirmed",
+        "reason": "内置数据库只覆盖 2019-07-10 至 2019-08-15，完全不覆盖 2025 年目标缺口；上游行情再分发权也未确认。"
+      },
+      "retention": {
+        "databaseCopiedIntoRepository": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/putt/futures-collect/tree/e89700eb7d92e309d866e7ef70a723a7c6664ec9"
+        },
+        {
+          "type": "temporary-local-database-metadata",
+          "path": "C:\\Windows\\Temp\\MoneyComing-gap-source-probe\\futures-collect\\futures.db3",
+          "rawRowsPersisted": false
+        }
+      ]
+    },
+    {
+      "sourceId": "github-bobbyshiyi-cnfutures",
+      "sourceName": "BobbyShiyi/cnfutures",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/BobbyShiyi/cnfutures",
+        "commit": "8a45a117008f1495070ef6e0b56bd321c809d761",
+        "lastCommitAt": "2026-08-07T15:47:43+08:00",
+        "documentedSourceFrequency": "Level-2 快照聚合为 1 分钟",
+        "documentedEvaluationSpanMonths": 18,
+        "committedMarketDataPresent": false,
+        "committedCachePresent": false,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "codeLicense": "MIT",
+        "codeLicenseAppliesToMarketData": false,
+        "marketDataOwnership": "proprietary",
+        "marketDataProvider": "Turing Private Equity Fund Management (Hainan)",
+        "upstreamRedistributionAuthorityDocumented": false,
+        "returnedMarketDataRedistributionPermissionConfirmed": false,
+        "conclusion": "MIT 只覆盖研究代码；README 明确写明购买的 Level-2 行情属于专有数据，未包含在仓库中，也没有向第三方授予再分发权。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-code-only-proprietary-data-not-included",
+        "reason": "仓库没有可拉取的行情文件，只有需要外部原始 L2 CSV 的聚合代码；因此既不能补齐目标缺口，也不能据其 MIT 许可证分发机构购买的行情。"
+      },
+      "retention": {
+        "proprietaryMarketDataDownloaded": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/BobbyShiyi/cnfutures/tree/8a45a117008f1495070ef6e0b56bd321c809d761"
+        },
+        {
+          "type": "repository-readme-proprietary-data-notice",
+          "url": "https://github.com/BobbyShiyi/cnfutures/blob/8a45a117008f1495070ef6e0b56bd321c809d761/README.md"
+        }
+      ]
+    },
+    {
+      "sourceId": "kaggle-wentinglu-highfrequency-futures-data-china",
+      "sourceName": "Kaggle wentinglu/highfrequency-futures-data-china",
+      "accessAssessment": {
+        "datasetVersion": 1,
+        "datasetLastUpdated": "2022-05-15T22:46:54.49Z",
+        "datasetFileCount": 57,
+        "targetInstrumentCount": 15,
+        "allTargetFilesPresent": true,
+        "sampleFile": "minDataSum/M.csv",
+        "sampleRows": 610004,
+        "sampleFirstTimestamp": "2013-09-17 08:59:00.005004",
+        "sampleLastTimestamp": "2021-02-01 22:59:00.213",
+        "normalizedPriceScaleObserved": true,
+        "absolutePriceScaleAvailable": false,
+        "concreteContractAttributionAvailable": false,
+        "historicalMainContractMappingCapabilityConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "datasetLicense": "CC BY-SA 4.0",
+        "datasetLicenseClaimPresent": true,
+        "upstreamMarketDataProviderDocumented": false,
+        "upstreamRedistributionAuthorityDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-target-gap-no-absolute-prices-no-contract-attribution",
+        "reason": "数据集当前版本停留在 2022 年；豆粕样本只到 2021-02-01，OHLC 为以 1.0 附近表示的归一化比例且没有基准价格字段，也没有具体合约代码。因此它既不能补齐 2025 年目标缺口，也不能恢复真实价格或生成可审计的主力换月映射。"
+      },
+      "retention": {
+        "sampleArchiveStoredOnlyInTemporaryDirectory": true,
+        "temporarySampleDeletedAfterProbe": true,
+        "rawCsvPersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/kaggle-high-frequency-futures-data-china-probe.json",
+          "capturedAt": "2026-10-19T20:23:57.173409Z",
+          "datasetRef": "wentinglu/highfrequency-futures-data-china",
+          "datasetVersion": 1,
+          "normalizedManifestSha256": "fb6d716913369bdb9cd547441a2e0c90aa0f1e7e7881f6d43e81184577162520",
+          "sampleArchiveSha256": "1cdbd42d6e9937f9b4a64f7e0f7759ec8c042d4d04f692a9f6b09f2d93e7214f",
+          "sampleCsvSha256": "35496890a8cbb94aea84cbb7114721f468088f9c8c611c53c22d9c0d1d3d850a"
+        },
+        {
+          "type": "dataset-page",
+          "url": "https://www.kaggle.com/datasets/wentinglu/highfrequency-futures-data-china",
+          "declaredLicense": "CC BY-SA 4.0"
+        }
+      ]
+    },
+    {
+      "sourceId": "huggingface-edisonfu2025-domestic-futures-ticks",
+      "sourceName": "Hugging Face EdisonFU2025/Domestic_Futures_ticks",
+      "accessAssessment": {
+        "datasetCommit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+        "targetInstrumentCount": 15,
+        "presentInstrumentCount": 13,
+        "allTargetFilesPresent": false,
+        "missingSymbols": [
+          "RM",
+          "OI"
+        ],
+        "sampleFile": "M9999_XDCE_2025-08-24-17-45-05.parquet",
+        "sampleRows": 5162154,
+        "sampleFirstTimestamp": "2025-01-02 08:59:00.008000",
+        "sampleLastTimestamp": "2025-08-22 22:59:59.976000",
+        "concreteContractAttributionAvailable": false,
+        "historicalMainContractMappingCapabilityConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "threeYearHistoryConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "datasetLicense": "mit",
+        "datasetLicenseClaimPresent": true,
+        "upstreamMarketDataProviderDocumented": false,
+        "upstreamRedistributionAuthorityDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-incomplete-target-set-and-gap-no-contract-attribution-and-upstream-rights-unconfirmed",
+        "reason": "The dataset contains 13 of 15 target products and omits RM and OI. The soybean-meal sample covers only part of the July-October 2025 gap, identifies a continuous 9999 symbol instead of concrete delivery contracts, and does not provide three years of history. Its dataset card declares MIT but does not document the upstream market-data provider, acquisition method, or redistribution authority."
+      },
+      "retention": {
+        "sampleStoredOnlyInTemporaryDirectory": true,
+        "temporarySampleDeletedAfterProbe": true,
+        "temporaryPyarrowEnvironmentManagedByRunner": true,
+        "rawParquetPersisted": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "local-summary-only-live-probe",
+          "path": "data/huggingface-domestic-futures-ticks-probe.json",
+          "capturedAt": "2026-10-19T20:50:57.269589Z",
+          "datasetId": "EdisonFU2025/Domestic_Futures_ticks",
+          "commit": "12c4bb2a0a34ba449b5d9d1c7b72b3d88a7c64c5",
+          "normalizedManifestSha256": "3c7108d7c3c5469a669684c5adfbc0c629f3959a8804d6ee6087362691dfc0cc",
+          "sampleSha256": "608d831c94ef323c89868e69d003d784b09066ac0a70defad68a6eb736d3aad9"
+        },
+        {
+          "type": "dataset-page",
+          "url": "https://huggingface.co/datasets/EdisonFU2025/Domestic_Futures_ticks",
+          "declaredLicense": "mit"
+        }
+      ]
+    },
+    {
+      "sourceId": "huggingface-shanehans-cn-commodity-level1-hist",
+      "sourceName": "Hugging Face shanehans/cn_commodity_level1_hist",
+      "accessAssessment": {
+        "datasetReviewed": true,
+        "commit": "b461ae494b9bfd7eb0f575c8ddb47e667d7db74f",
+        "archives": [
+          "2023.zip"
+        ],
+        "documentedYearCoverage": [
+          2023
+        ],
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "datasetCardLicense": "MIT",
+        "upstreamMarketDataProvenanceDocumented": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-target-gap-and-upstream-rights-unconfirmed",
+        "reason": "仓库只提供 2023.zip，不能覆盖 2025 年目标缺口；数据集卡也未说明原始 Level1 行情提供方及上传者取得的再分发权。"
+      },
+      "evidence": [
+        {
+          "type": "dataset-api-inventory",
+          "url": "https://huggingface.co/datasets/shanehans/cn_commodity_level1_hist",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "zenodo-15726389-chinese-commodity-high-frequency",
+      "sourceName": "Zenodo 15726389 中国商品期货高频数据",
+      "accessAssessment": {
+        "recordReviewed": true,
+        "coveredFirstDate": "2022-08-01",
+        "coveredLastDate": "2023-08-01",
+        "parquetBytes": 171359171,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": true
+      },
+      "licenseAssessment": {
+        "recordLicense": "CC-BY-4.0",
+        "recordLicenseClaimPresent": true
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-target-gap",
+        "reason": "记录具有明确 CC BY 4.0 声明，但只覆盖 2022-08-01 至 2023-08-01，无法补齐 2025 年缺口。"
+      },
+      "evidence": [
+        {
+          "type": "zenodo-record",
+          "url": "https://zenodo.org/records/15726389",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "official-exchange-history",
+      "sourceName": "大商所、郑商所、上期所官方历史数据",
+      "accessAssessment": {
+        "publicHistoryPagesReviewed": true,
+        "targetGapContractFiveMinuteArchiveConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-confirmed-five-minute-gap-archive",
+        "reason": "未确认官方公开档案同时覆盖目标 5 分钟缺口并明确允许随当前产品再分发。"
+      },
+      "evidence": [
+        {
+          "type": "official-exchange-site",
+          "url": "https://www.dce.com.cn/"
+        },
+        {
+          "type": "official-exchange-site",
+          "url": "https://www.czce.com.cn/"
+        },
+        {
+          "type": "official-exchange-site",
+          "url": "https://www.shfe.com.cn/"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-chenzhuanxin-china-futures-data-terminal",
+      "sourceName": "chenzhuanxin/china-futures-data-terminal",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/chenzhuanxin/china-futures-data-terminal",
+        "commit": "5832bbefaf5d6f57d816df365de8d899da2fa2ce",
+        "committedMinuteDatasetPresent": false,
+        "committedDailyJsonFiles": 254,
+        "committedDataApproximateBytes": 44040192,
+        "minuteAccessMode": "运行时调用新浪 getFewMinLine 短滚动窗口",
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "licenseAssessment": {
+        "codeLicense": "MIT",
+        "codeLicenseAppliesToMarketData": false,
+        "datasetLicense": "not-commercially-redistributable",
+        "conclusion": "代码采用 MIT；仓库附加说明把行情版权归于东方财富、新浪，并将数据限定为学习研究用途，不能据此用于商业产品再分发。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-minute-dataset-and-no-commercial-rights",
+        "reason": "仓库内只有日线 JSON；分钟数据依赖短滚动接口，既不覆盖目标缺口，也没有商业再分发权。"
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/chenzhuanxin/china-futures-data-terminal/tree/5832bbefaf5d6f57d816df365de8d899da2fa2ce"
+        },
+        {
+          "type": "repository-license-and-rights-notice",
+          "url": "https://github.com/chenzhuanxin/china-futures-data-terminal/blob/5832bbefaf5d6f57d816df365de8d899da2fa2ce/LICENSE"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-feimax2026-china-futures-data",
+      "sourceName": "feimax2026/china-futures-data",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/feimax2026/china-futures-data",
+        "commit": "d3e3a9ee423101ecf6e2860b4c48dabe4202cac4",
+        "committedMinuteDatasetPresent": false,
+        "committedDataDirectoryPresent": false,
+        "implementedHistoryMode": "AKShare/Sina 日线",
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "licenseAssessment": {
+        "codeLicense": null,
+        "codeLicenseConfirmed": false,
+        "datasetLicense": null,
+        "datasetRedistributionPermissionConfirmed": false,
+        "conclusion": "仓库没有 LICENSE，也没有提交可审计的数据文件或分钟历史。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-no-license-no-minute-dataset",
+        "reason": "缺少代码和数据许可，且仓库不包含可覆盖目标缺口的分钟数据。"
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/feimax2026/china-futures-data/tree/d3e3a9ee423101ecf6e2860b4c48dabe4202cac4"
+        }
+      ]
+    },
+    {
+      "sourceId": "github-farfromexact-china-commodities-engine",
+      "sourceName": "farfromexact/China-Commodities-Engine",
+      "accessAssessment": {
+        "repositoryReviewed": true,
+        "repositoryUrl": "https://github.com/farfromexact/China-Commodities-Engine",
+        "commit": "af640f11ff3f55c2aef82b11f3203147010a2c7f",
+        "committedMinuteDatasetPresent": false,
+        "documentedHistoryScope": "日终数据和夜盘快照",
+        "minuteTickOrOrderBookHistoryExplicitlyOutOfScope": true,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "licenseAssessment": {
+        "codeLicense": null,
+        "codeLicenseConfirmed": false,
+        "datasetLicense": null,
+        "datasetRedistributionPermissionConfirmed": false,
+        "conclusion": "仓库没有 LICENSE；README 所述范围也不包含分钟历史。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-out-of-scope-and-unlicensed",
+        "reason": "该项目明确不建设分钟、逐笔或盘口历史，无法补齐目标缺口，且没有可用许可。"
+      },
+      "evidence": [
+        {
+          "type": "pinned-repository-commit",
+          "url": "https://github.com/farfromexact/China-Commodities-Engine/tree/af640f11ff3f55c2aef82b11f3203147010a2c7f"
+        },
+        {
+          "type": "repository-readme",
+          "url": "https://github.com/farfromexact/China-Commodities-Engine/blob/af640f11ff3f55c2aef82b11f3203147010a2c7f/README.md"
+        }
+      ]
+    },
+    {
+      "sourceId": "wstock-static-futures-minute-data",
+      "sourceName": "WSTOCK 国内期货分钟历史数据",
+      "accessAssessment": {
+        "providerPageReviewed": true,
+        "advertisedHistoryStartYear": 2003,
+        "advertisedIntervalsMinutes": [
+          1,
+          5,
+          15,
+          30,
+          60,
+          120
+        ],
+        "advertisedSpecificContracts": true,
+        "advertisedContinuousContracts": true,
+        "advertisedFormats": [
+          "CSV",
+          "TXT",
+          "Excel",
+          "数据库",
+          "同花顺",
+          "通达信"
+        ],
+        "targetInstrumentCoverageClaimed": true,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "licenseAssessment": {
+        "publicTermsReviewed": true,
+        "selfUseOnly": true,
+        "redistributionExplicitlyProhibited": true,
+        "commercialStaticRedistributionPermissionConfirmed": false,
+        "conclusion": "公开使用条款写明从该站取得的数据和服务仅能自用，不得以任何形式传播，因此普通购买不能用于 MoneyComing 数据发布。"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "blocked-public-terms-prohibit-redistribution",
+        "reason": "供应商宣传的年份、周期、品种和格式在技术上可能满足需求，但公开条款直接禁止传播；除非另行取得覆盖 Git、EXE、安装包和商业使用的书面授权。"
+      },
+      "retention": {
+        "sampleDownloaded": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "provider-futures-product-page",
+          "url": "https://www.wstock.net/wstock/futures.htm",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "provider-terms-prohibiting-redistribution",
+          "url": "https://www.wstock.net/wstock/terms.htm",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "wikitter-static-minute-data",
+      "sourceName": "Wikitter 商品期货合约 K 线分钟数据",
+      "accessAssessment": {
+        "providerPageReviewed": true,
+        "advertisedMinuteIntervals": [
+          1,
+          3,
+          5,
+          10,
+          15,
+          30,
+          60
+        ],
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "sampleStatus": "商品期货页面列出的样本链接在审计时返回 404",
+        "sampleReviewedOn": "2026-10-20",
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "qq": "365815656",
+        "wechat": "365815656",
+        "email": "wikitter@foxmail.com",
+        "page": "https://wikitter.com/contact"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-quote-and-authorization",
+        "reason": "销售页面证明存在分钟数据产品，但未公开允许写入 Git 或随商业 EXE/安装包再分发。"
+      },
+      "evidence": [
+        {
+          "type": "provider-product-page",
+          "url": "https://wikitter.com/data/%E6%9C%9F%E8%B4%A7%E5%95%86%E5%93%81%E5%90%88%E7%BA%A6K%E7%BA%BF%E5%88%86%E9%92%9F%E6%95%B0%E6%8D%AE.html"
+        },
+        {
+          "type": "provider-contact-page",
+          "url": "https://wikitter.com/contact"
+        }
+      ]
+    },
+    {
+      "sourceId": "caifutong-static-minute-data",
+      "sourceName": "财富通期货分钟数据",
+      "accessAssessment": {
+        "providerPageReviewed": true,
+        "advertisedMainContinuousData": true,
+        "advertisedContractFiveMinuteData": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "sampleStatus": "已发现的 5 分钟样本只覆盖 2018 年 11 月的部分区间",
+        "sampleReviewedOn": "2026-10-20",
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "15927130262",
+        "qq": "1702516511",
+        "page": "http://www.qiquanshuju.com/html/lxwm/"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-quote-and-authorization",
+        "reason": "产品页展示分钟数据能力，但目标十五品种、目标缺口和再分发权都尚未获得书面确认。"
+      },
+      "evidence": [
+        {
+          "type": "provider-product-page",
+          "url": "http://www.qiquanshuju.com/html/5/607.html"
+        },
+        {
+          "type": "provider-contact-page",
+          "url": "http://www.qiquanshuju.com/html/lxwm/"
+        }
+      ]
+    },
+    {
+      "sourceId": "cmes-static-minute-data",
+      "sourceName": "CMES 国内期货分钟数据",
+      "accessAssessment": {
+        "providerPageReviewed": true,
+        "advertisedHistoryStartYear": 2005,
+        "advertisedUpdatedToCurrent": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "sampleStatus": "未取得覆盖目标缺口的可验证样本",
+        "sampleReviewedOn": "2026-10-20",
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "qq": "3646144134",
+        "page": "https://www.cmes.org/qihuoxinwen/1332.html"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-quote-and-authorization",
+        "reason": "供应商页面宣称有长期分钟数据，但未确认目标品种字段、实际缺口覆盖和产品再分发许可。"
+      },
+      "evidence": [
+        {
+          "type": "provider-product-page",
+          "url": "https://www.cmes.org/qihuoxinwen/1332.html"
+        },
+        {
+          "type": "provider-contact-page",
+          "url": "https://www.cmes.org/qhgs/1411.html"
+        }
+      ]
+    },
+    {
+      "sourceId": "csmar-futures-high-frequency-data",
+      "sourceName": "CSMAR 中国商品期货高频数据",
+      "accessAssessment": {
+        "providerPageReviewed": true,
+        "commodityFuturesDataAdvertised": true,
+        "customizedDataServiceAdvertised": true,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "sampleStatus": "需通过产品咨询确认分钟频率、字段、覆盖范围和交付格式",
+        "sampleReviewedOn": "2026-10-20",
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "400-639-8883",
+        "email": "service@csmar.com",
+        "page": "https://www.csmar.com/channels/31.html"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "standardDatabaseLicenseAllowsThirdPartyTransfer": false,
+        "releaseEligibility": "awaiting-separate-oem-license-standard-license-prohibits-transfer",
+        "reason": "官方产品包含商品期货和定制数据服务，但官方数据库使用说明将普通许可限定为注册用户内部使用并禁止向第三方转移、出售或公开；只能另行商谈明确覆盖 MoneyComing 离线分发的 OEM 合同。"
+      },
+      "evidence": [
+        {
+          "type": "official-provider-product-page",
+          "url": "https://www.csmar.com/channels/31.html"
+        },
+        {
+          "type": "official-provider-financial-data-service",
+          "url": "https://csmar.com/channels/%E9%87%91%E8%9E%8D%E6%95%B0%E6%8D%AE%E6%9C%8D%E5%8A%A1.html"
+        },
+        {
+          "type": "official-database-user-guide-license-notice",
+          "url": "https://rs.csmar.com/"
+        }
+      ]
+    },
+    {
+      "sourceId": "wenhua-historical-data-service",
+      "sourceName": "文华财经历史数据服务",
+      "accessAssessment": {
+        "officialHistoricalDataServiceDocumented": true,
+        "domesticFuturesHistoryFromListingAdvertised": true,
+        "documentedNativeOneMinuteBars": true,
+        "documentedTickData": true,
+        "documentedApiAccess": true,
+        "specificContractCoverageConfirmed": false,
+        "openInterestFieldConfirmed": false,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "400-811-3366",
+        "page": "https://www.wenhua.com.cn/guide/lssj.htm"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-oem-redistribution-quote",
+        "reason": "官方历史数据服务证明具备长期国内期货 K 线、Tick 和 API 能力，但普通购买或单机 API 访问没有公开授予 Git 存储、派生 K 线再分发及随 EXE/安装包离线交付权。"
+      },
+      "retention": {
+        "sampleDownloaded": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "official-historical-data-service",
+          "url": "https://www.wenhua.com.cn/guide/lssj.htm",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "wind-client-api-futures-intraday",
+      "sourceName": "Wind Client API 期货高频历史数据",
+      "accessAssessment": {
+        "officialClientApiDocumented": true,
+        "highFrequencyHistoricalDataAdvertised": true,
+        "futuresCoverageAdvertised": true,
+        "specificContractCoverageConfirmed": false,
+        "openInterestFieldConfirmed": false,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "400-820-9463",
+        "email": "Service@wind.com.cn",
+        "page": "https://www.wind.com.cn/portal/zh/WDS/ClientApi.html"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-oem-redistribution-quote",
+        "reason": "Client API 的查询和研究能力不等同于把历史分钟数据固化进第三方桌面软件；尚需 Wind 与相关交易所权利链共同覆盖静态离线再分发。"
+      },
+      "retention": {
+        "sampleDownloaded": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "official-client-api-product-page",
+          "url": "https://www.wind.com.cn/portal/zh/WDS/ClientApi.html",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "official-contact-page",
+          "url": "https://www.wind.com.cn/portal/zh/WDS/ContactUs.html",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "ifind-enterprise-data-interface",
+      "sourceName": "同花顺 iFinD 企业数据接口",
+      "accessAssessment": {
+        "officialDataInterfaceDocumented": true,
+        "futuresIntradayDataAdvertised": true,
+        "specificContractCoverageConfirmed": false,
+        "openInterestFieldConfirmed": false,
+        "targetInstrumentCoverageConfirmed": false,
+        "targetGapCoverageConfirmed": false,
+        "realGapProbePerformed": false
+      },
+      "contact": {
+        "phone": "952555",
+        "page": "https://quantapi.51ifind.com/"
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "awaiting-written-oem-redistribution-quote",
+        "reason": "iFinD 企业数据接口是合法商务路径，但 API 访问或终端订阅本身未公开允许将返回行情写入 Git 并作为 MoneyComing 离线资源再分发。"
+      },
+      "retention": {
+        "sampleDownloaded": false,
+        "rawRowsPersisted": false,
+        "summaryOnly": true
+      },
+      "evidence": [
+        {
+          "type": "official-data-interface-documentation",
+          "url": "https://quantapi.51ifind.com/",
+          "reviewedOn": "2026-10-20"
+        },
+        {
+          "type": "official-service-contact",
+          "url": "https://ft.10jqka.com.cn/ifindpc/",
+          "reviewedOn": "2026-10-20"
+        }
+      ]
+    },
+    {
+      "sourceId": "one-time-written-static-data-license",
+      "sourceName": "一次性书面静态数据授权",
+      "accessAssessment": {
+        "capableOfCoveringTargetGap": true,
+        "authorizationObtained": false,
+        "realGapProbePerformed": false
+      },
+      "redistributionAssessment": {
+        "redistributionPermissionConfirmed": false,
+        "releaseEligibility": "eligible-only-after-written-authorization",
+        "reason": "需要授权方明确覆盖目标合约、时间区间、Git 存储和 EXE/安装包再分发后才能进入候选基线。"
+      },
+      "evidence": []
+    }
+  ],
+  "releaseDecision": {
+    "redistributionPermissionConfirmed": false,
+    "releasableGapSourceFound": false,
+    "realBaselineGapPublicationMustRemainIncomplete": true,
+    "baselineReplacementAllowed": false,
+    "task4_2MayBeMarkedComplete": false,
+    "note": "尚未找到覆盖目标缺口且允许随产品再分发的来源；真实缺口回填和基线替换保持未完成。"
+  }
+}

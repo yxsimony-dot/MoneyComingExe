@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  aggregateFiveMinuteBars,
   aggregateMinutes,
   assertBarsValid,
+  assertContinuousBarCoverage,
+  assertMinuteCoverageMatchesFiveMinuteBars,
   assertMinuteRecordsValid,
+  assertSegmentedSixtyMinuteBarsValid,
   completeMinutesForFiveMinuteBar,
   mergeBars,
   mergeMinuteHistory,
@@ -12,9 +16,13 @@ import {
   reconcileBars,
   serializeMinuteRecords,
 } from '../src/domain/market-data';
-import { parseBeijing } from '../src/domain/time';
-import type { Bar, EdbMinuteRecord } from '../src/shared/types';
-import type { TradingSchedule } from '../src/shared/instruments';
+import { formatBeijing, parseBeijing } from '../src/domain/time';
+import type { Bar, EdbMinuteRecord, MainContractMapping } from '../src/shared/types';
+import {
+  DEFAULT_INSTRUMENT,
+  type InstrumentDefinition,
+  type TradingSchedule,
+} from '../src/shared/instruments';
 
 const HEADER = 'datetime_nano,open,high,low,close,volume,open_oi,close_oi';
 const nano = (time: string) => String(BigInt(parseBeijing(time)) * 1_000_000n);
@@ -159,6 +167,99 @@ describe('minute aggregation', () => {
       .toThrow(/非交易分钟/);
     expect(() => assertBarsValid(bars, 5, schedule)).not.toThrow();
   });
+
+  it('builds 60-minute bars inside each real day and night segment', () => {
+    const times = [
+      ...Array.from({ length: 75 }, (_, index) => 9 * 60 + index),
+      ...Array.from({ length: 60 }, (_, index) => 10 * 60 + 30 + index),
+      ...Array.from({ length: 90 }, (_, index) => 13 * 60 + 30 + index),
+      ...Array.from({ length: 120 }, (_, index) => 21 * 60 + index),
+    ].map(wallMinute => (
+      `2026-10-09 ${String(Math.floor(wallMinute / 60)).padStart(2, '0')}:${String(wallMinute % 60).padStart(2, '0')}:00`
+    ));
+    const input = parseEdbMinuteCsv(csv(...times.map(time => row(time))));
+    const bars5 = aggregateMinutes(input, 5);
+    const bars60 = aggregateFiveMinuteBars(bars5);
+
+    expect(bars60.map(bar => [bar.start, bar.end, bar.expectedMinutes])).toEqual([
+      ['2026-10-09 09:00:00', '2026-10-09 10:00:00', 60],
+      ['2026-10-09 10:00:00', '2026-10-09 10:15:00', 15],
+      ['2026-10-09 10:30:00', '2026-10-09 11:30:00', 60],
+      ['2026-10-09 13:30:00', '2026-10-09 14:30:00', 60],
+      ['2026-10-09 14:30:00', '2026-10-09 15:00:00', 30],
+      ['2026-10-09 21:00:00', '2026-10-09 22:00:00', 60],
+      ['2026-10-09 22:00:00', '2026-10-09 23:00:00', 60],
+    ]);
+    expect(bars60.every(bar => bar.complete)).toBe(true);
+    expect(() => assertSegmentedSixtyMinuteBarsValid(bars60)).not.toThrow();
+    expect(() => reconcileBars(bars5, bars60)).not.toThrow();
+  });
+
+  it('treats the 2022-12-06 temporary market suspension as scheduled non-trading minutes', () => {
+    const times = Array.from({ length: 13 }, (_, index) => (
+      `2022-12-06 10:${String(index + 2).padStart(2, '0')}:00`
+    ));
+    const input = records(...times);
+    const bars5 = aggregateMinutes(input, 5);
+    const bars60 = aggregateFiveMinuteBars(bars5);
+
+    expect(input.map(record => record.start)).toEqual(times);
+    expect(bars5).toMatchObject([
+      {
+        start: '2022-12-06 10:00:00',
+        end: '2022-12-06 10:05:00',
+        observedMinutes: 3,
+        expectedMinutes: 3,
+        complete: true,
+      },
+      {
+        start: '2022-12-06 10:05:00',
+        observedMinutes: 5,
+        expectedMinutes: 5,
+        complete: true,
+      },
+      {
+        start: '2022-12-06 10:10:00',
+        observedMinutes: 5,
+        expectedMinutes: 5,
+        complete: true,
+      },
+    ]);
+    expect(bars60).toMatchObject([{
+      start: '2022-12-06 10:00:00',
+      end: '2022-12-06 10:15:00',
+      observedMinutes: 13,
+      expectedMinutes: 13,
+      complete: true,
+    }]);
+    expect(completeMinutesForFiveMinuteBar(bars5[0], input)).toEqual(input.slice(0, 3));
+    expect(() => assertMinuteCoverageMatchesFiveMinuteBars(input, bars5)).not.toThrow();
+    expect(() => assertBarsValid(bars5, 5)).not.toThrow();
+    expect(() => assertSegmentedSixtyMinuteBarsValid(bars60)).not.toThrow();
+    expect(() => reconcileBars(bars5, bars60)).not.toThrow();
+  });
+
+  it('does not forgive the same missing minutes on an ordinary trading date', () => {
+    const input = records(...Array.from({ length: 13 }, (_, index) => (
+      `2022-12-07 10:${String(index + 2).padStart(2, '0')}:00`
+    )));
+    const bars5 = aggregateMinutes(input, 5);
+    const bars60 = aggregateFiveMinuteBars(bars5);
+
+    expect(bars5[0]).toMatchObject({
+      start: '2022-12-07 10:00:00',
+      observedMinutes: 3,
+      expectedMinutes: 5,
+      complete: false,
+    });
+    expect(bars60[0]).toMatchObject({
+      start: '2022-12-07 10:00:00',
+      observedMinutes: 13,
+      expectedMinutes: 15,
+      complete: false,
+    });
+    expect(completeMinutesForFiveMinuteBar(bars5[0], input)).toBeUndefined();
+  });
 });
 
 describe('incremental merging and reconciliation', () => {
@@ -229,7 +330,7 @@ describe('incremental merging and reconciliation', () => {
     expect(merged.records[1]).toBe(remote[0]);
   });
 
-  it('accepts matching 5m/60m bars and rejects altered OHLC or volume', () => {
+  it('accepts matching 5m/60m bars and rejects altered values or child counts', () => {
     const input: EdbMinuteRecord[] = [];
     for (let minute = 0; minute < 60; minute++) {
       input.push(...parseEdbMinuteCsv(csv(row(
@@ -238,11 +339,258 @@ describe('incremental merging and reconciliation', () => {
       ))));
     }
     const bars5 = aggregateMinutes(input, 5);
-    const bars60 = aggregateMinutes(input, 60);
+    const bars60 = aggregateFiveMinuteBars(bars5);
     assertBarsValid(bars5, 5);
-    assertBarsValid(bars60, 60);
+    assertSegmentedSixtyMinuteBarsValid(bars60);
     expect(() => reconcileBars(bars5, bars60)).not.toThrow();
     expect(() => reconcileBars(bars5, [{ ...bars60[0], volume: bars60[0].volume + 1 }])).toThrow(/volume 对账/);
+    expect(() => reconcileBars(bars5, [{ ...bars60[0], openOi: bars60[0].openOi + 1 }])).toThrow(/openOi 对账/);
+    expect(() => reconcileBars(bars5.slice(1), bars60)).toThrow(/组成 5 分钟数量/);
+  });
+
+  it('allows only a contiguous trailing 5-minute prefix of an unpublished 60-minute bucket', () => {
+    const input = parseEdbMinuteCsv(csv(...Array.from({ length: 70 }, (_, index) => row(
+      `2026-10-09 ${String(9 + Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}:00`,
+      [100, 102, 99, 101, 10, 1000, 1001],
+    ))));
+    const bars5 = aggregateMinutes(input, 5);
+    const completeBars60 = aggregateFiveMinuteBars(bars5).filter(bar => bar.complete);
+
+    expect(() => reconcileBars(bars5, completeBars60)).not.toThrow();
+    expect(() => reconcileBars(
+      [...bars5.slice(0, 12), ...bars5.slice(13)],
+      completeBars60,
+    )).toThrow(/时间桶数量/);
+  });
+});
+
+describe('continuous multi-year bar coverage', () => {
+  const coverageSchedule: TradingSchedule = [
+    {
+      id: 'day',
+      segments: [
+        { startMinute: 9 * 60, endMinute: 9 * 60 + 5 },
+        { startMinute: 9 * 60 + 10, endMinute: 9 * 60 + 15 },
+      ],
+    },
+    {
+      id: 'night',
+      segments: [
+        { startMinute: 21 * 60, endMinute: 21 * 60 + 10 },
+      ],
+    },
+  ];
+  const definition: InstrumentDefinition = {
+    ...DEFAULT_INSTRUMENT,
+    name: '连续覆盖测试品种',
+    tradingSessions: coverageSchedule,
+  };
+
+  function weekdays(first: string, last: string): string[] {
+    const dates: string[] = [];
+    for (
+      let value = Date.parse(`${first}T00:00:00Z`);
+      value <= Date.parse(`${last}T00:00:00Z`);
+      value += 24 * 60 * 60_000
+    ) {
+      const day = new Date(value).getUTCDay();
+      if (day !== 0 && day !== 6) dates.push(new Date(value).toISOString().slice(0, 10));
+    }
+    return dates;
+  }
+
+  function coverageBar(
+    date: string,
+    startMinute: number,
+    session: Bar['session'],
+    price: number,
+  ): Bar {
+    const start = `${date} ${String(Math.floor(startMinute / 60)).padStart(2, '0')}:${String(startMinute % 60).padStart(2, '0')}:00`;
+    const startMs = parseBeijing(start);
+    const endMs = startMs + 5 * 60_000;
+    return {
+      startMs,
+      endMs,
+      start,
+      end: formatBeijing(endMs),
+      open: price,
+      high: price + 2,
+      low: price - 1,
+      close: price + 1,
+      volume: 100,
+      openOi: 1_000,
+      closeOi: 1_001,
+      session,
+      observedMinutes: 5,
+      expectedMinutes: 5,
+      complete: true,
+    };
+  }
+
+  function coverageFixture(nightTradingDateIndex?: number): {
+    dates: string[];
+    bars5: Bar[];
+    bars60: Bar[];
+    mappings: MainContractMapping[];
+  } {
+    const dates = weekdays('2023-10-20', '2026-10-20');
+    const bars5 = dates.flatMap((date, index) => [
+      coverageBar(date, 9 * 60, 'day', 2_500 + index),
+      coverageBar(date, 9 * 60 + 10, 'day', 2_501 + index),
+    ]);
+    if (nightTradingDateIndex !== undefined) {
+      const naturalDate = dates[nightTradingDateIndex - 1];
+      bars5.push(
+        coverageBar(naturalDate, 21 * 60, 'night', 3_000),
+        coverageBar(naturalDate, 21 * 60 + 5, 'night', 3_001),
+      );
+    }
+    bars5.sort((left, right) => left.startMs - right.startMs);
+    return {
+      dates,
+      bars5,
+      bars60: aggregateFiveMinuteBars(bars5, coverageSchedule),
+      mappings: dates.map(tradingDate => ({ tradingDate, contract: 'm2401' })),
+    };
+  }
+
+  it('accepts a continuous weekday calendar with complete day sessions', () => {
+    const fixture = coverageFixture();
+    expect(fixture.mappings.length).toBeGreaterThan(600);
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      fixture.bars5,
+      fixture.bars60,
+      fixture.mappings,
+    )).not.toThrow();
+  });
+
+  it('rejects two distant blocks that only satisfy the first/last boundary', () => {
+    const fixture = coverageFixture();
+    const boundaryDates = [fixture.dates[0], fixture.dates.at(-1)!];
+    const bars5 = fixture.bars5.filter(bar => boundaryDates.includes(bar.start.slice(0, 10)));
+    const bars60 = aggregateFiveMinuteBars(bars5, coverageSchedule);
+    const mappings = fixture.mappings.filter(mapping => boundaryDates.includes(mapping.tradingDate));
+
+    expect(() => assertContinuousBarCoverage(definition, bars5, bars60, mappings))
+      .toThrow(/主力映射交易日间隔超过 14 天/);
+  });
+
+  it('reports the first missing day-session 5-minute bar', () => {
+    const fixture = coverageFixture();
+    const tradingDate = fixture.dates[100];
+    const missingStart = `${tradingDate} 09:10:00`;
+    const bars5 = fixture.bars5.filter(bar => bar.start !== missingStart);
+
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      bars5,
+      fixture.bars60,
+      fixture.mappings,
+    )).toThrow(new RegExp(`连续覆盖测试品种 ${tradingDate} 日盘缺少 5 分钟 K 线：${missingStart}`));
+  });
+
+  it('reports a wholly absent 60-minute bucket', () => {
+    const fixture = coverageFixture();
+    const tradingDate = fixture.dates[120];
+    const missingStart = `${tradingDate} 09:10:00`;
+    const bars60 = fixture.bars60.filter(bar => bar.start !== missingStart);
+
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      fixture.bars5,
+      bars60,
+      fixture.mappings,
+    )).toThrow(new RegExp(`连续覆盖测试品种 ${tradingDate} 日盘缺少 60 分钟 K 线：${missingStart}`));
+  });
+
+  it('allows absent night sessions but requires an observed night session to be complete', () => {
+    const withoutNight = coverageFixture();
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      withoutNight.bars5,
+      withoutNight.bars60,
+      withoutNight.mappings,
+    )).not.toThrow();
+
+    const withNight = coverageFixture(100);
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      withNight.bars5,
+      withNight.bars60,
+      withNight.mappings,
+    )).not.toThrow();
+
+    const missingNightStart = withNight.bars5.find(bar => (
+      bar.session === 'night' && bar.start.endsWith('21:05:00')
+    ))!.start;
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      withNight.bars5.filter(bar => bar.start !== missingNightStart),
+      withNight.bars60,
+      withNight.mappings,
+    )).toThrow(/夜盘缺少 5 分钟 K 线/);
+  });
+
+  it('maps a complete Friday night session to Monday and allows the trailing day session to be pending', () => {
+    const fixture = coverageFixture();
+    const monday = '2026-10-19';
+    const friday = '2026-10-16';
+    const bars5 = fixture.bars5.filter(bar => bar.start.slice(0, 10) < monday);
+    bars5.push(
+      coverageBar(friday, 21 * 60, 'night', 4_200),
+      coverageBar(friday, 21 * 60 + 5, 'night', 4_201),
+    );
+    bars5.sort((left, right) => left.startMs - right.startMs);
+    const mappings = fixture.mappings.filter(mapping => mapping.tradingDate <= monday);
+
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      bars5,
+      aggregateFiveMinuteBars(bars5, coverageSchedule),
+      mappings,
+    )).not.toThrow();
+  });
+
+  it('still rejects an intermediate trading date that only contains a night session', () => {
+    const fixture = coverageFixture(100);
+    const tradingDate = fixture.dates[100];
+    const bars5 = fixture.bars5.filter(bar => (
+      bar.session === 'night' || bar.start.slice(0, 10) !== tradingDate
+    ));
+
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      bars5,
+      aggregateFiveMinuteBars(bars5, coverageSchedule),
+      fixture.mappings,
+    )).toThrow(new RegExp(`${tradingDate} 日盘缺少 5 分钟 K 线`));
+  });
+
+  it('rejects day and night bars that cannot map to a known trading date', () => {
+    const fixture = coverageFixture();
+    const unmappedDay = coverageBar('2023-10-21', 9 * 60, 'day', 4_000);
+    const dayBars = [...fixture.bars5, unmappedDay]
+      .sort((left, right) => left.startMs - right.startMs);
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      dayBars,
+      aggregateFiveMinuteBars(dayBars, coverageSchedule),
+      fixture.mappings,
+    )).toThrow(/日盘 K 线无法映射到主力交易日/);
+
+    const lastDate = fixture.dates.at(-1)!;
+    const nightBars = [
+      ...fixture.bars5,
+      coverageBar(lastDate, 21 * 60, 'night', 4_100),
+      coverageBar(lastDate, 21 * 60 + 5, 'night', 4_101),
+    ].sort((left, right) => left.startMs - right.startMs);
+    expect(() => assertContinuousBarCoverage(
+      definition,
+      nightBars,
+      aggregateFiveMinuteBars(nightBars, coverageSchedule),
+      fixture.mappings,
+    )).toThrow(/夜盘 K 线之后缺少主力交易日/);
   });
 });
 

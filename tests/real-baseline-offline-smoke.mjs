@@ -88,6 +88,41 @@ async function sampleMemory(instrumentId) {
   );
 }
 
+async function reviewProfitLoss(page, expected) {
+  await page.getByTestId('profit-loss-review').click();
+  const dialog = page.getByTestId('review-dialog');
+  const finalCapital = page.getByTestId('review-final-capital');
+  await finalCapital.waitFor({ state: 'visible', timeout: 120_000 });
+
+  assert.equal(await dialog.evaluate(element => element.open), true);
+  assert.ok((await finalCapital.innerText()).trim().length > 0);
+
+  const completedTrades = await page.getByTestId('review-trade').count();
+  const noCompletedTrades = await page.getByTestId('review-no-completed').count();
+  assert.ok(
+    completedTrades > 0 || noCompletedTrades === 1,
+    `${expected.name} must render completed trades or an explicit no-trades result.`,
+  );
+
+  const note = await page.locator('.review-note').innerText();
+  assert.ok(
+    note.includes(`当前品种：${expected.name}`),
+    `${expected.name} profit/loss review must identify the active instrument.`,
+  );
+
+  const summary = {
+    finalCapital: (await finalCapital.locator('strong').innerText()).trim(),
+    totalPnlAndReturn: (await finalCapital.locator('em').innerText()).trim(),
+    completedTrades,
+    hasExplicitNoCompletedTrades: noCompletedTrades === 1,
+    incompleteTrades: await page.getByTestId('review-incomplete-trade').count(),
+  };
+
+  await page.getByTestId('review-done').click();
+  assert.equal(await dialog.evaluate(element => element.open), false);
+  return summary;
+}
+
 try {
   app = await launchElectronTest({
     ...(executable
@@ -152,21 +187,23 @@ try {
     assert.equal(await page.locator('#instrument-name').innerText(), expected.name);
     assert.equal(await page.locator('#instrument-symbol').innerText(), expected.mainSymbol);
     assert.equal(counts, expectedCounts);
-    assert.match(coverage, new RegExp(expected.firstMinute.slice(0, 10)));
-    assert.match(coverage, new RegExp(expected.lastMinute.slice(0, 10)));
+    assert.match(coverage, new RegExp(expected.periods.bars5.first.slice(0, 10)));
+    assert.match(coverage, new RegExp(expected.periods.bars5.last.slice(0, 10)));
     assert.match(coverage, new RegExp(expected.sourceLatestAt.slice(0, 16)));
     assert.equal(await page.locator('#error').isHidden(), true);
 
+    const profitLoss = await reviewProfitLoss(page, expected);
     await sampleMemory(expected.instrumentId);
     report.instruments.push({
       instrumentId: expected.instrumentId,
       name: expected.name,
-      firstMinute: expected.firstMinute,
-      lastMinute: expected.lastMinute,
+      firstFiveMinute: expected.periods.bars5.first,
+      lastFiveMinute: expected.periods.bars5.last,
       sourceLatestAt: expected.sourceLatestAt,
       minuteRows: expected.minuteRows,
       fiveMinuteRows: expected.fiveMinuteRows,
       sixtyMinuteRows: expected.sixtyMinuteRows,
+      profitLoss,
     });
   }
 

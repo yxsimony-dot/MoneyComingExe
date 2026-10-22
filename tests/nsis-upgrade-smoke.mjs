@@ -166,6 +166,7 @@ try {
     env: {
       ...baseEnvironment,
       MONEYCOMING_TEST_BUILTIN_DATA: join(root, 'futures_investigation_20261009'),
+      MONEYCOMING_TEST_LEGACY_UPDATE_EXPECTATIONS: '1',
     },
     timeout: 240_000,
   });

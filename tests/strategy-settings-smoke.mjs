@@ -62,6 +62,32 @@ async function storedSettings(page) {
   return raw === null ? null : JSON.parse(raw);
 }
 
+async function reviewDateRange(page) {
+  return {
+    startDate: await page.getByTestId('review-start-date').inputValue(),
+    endDate: await page.getByTestId('review-end-date').inputValue(),
+  };
+}
+
+function withReviewRange(settings, range) {
+  return {
+    ...settings,
+    reviewStartDate: range.startDate,
+    reviewEndDate: range.endDate,
+  };
+}
+
+async function setReviewDateRange(page, startDate, endDate) {
+  await page.evaluate(({ startDate, endDate }) => {
+    const start = document.querySelector('#review-start-date');
+    const end = document.querySelector('#review-end-date');
+    start.value = startDate;
+    end.value = endDate;
+    end.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { startDate, endDate });
+  await frame(page, 6);
+}
+
 async function setStoredValueAndReload(page, raw) {
   await page.evaluate(
     ({ key, value }) => value === null
@@ -118,6 +144,15 @@ async function setOppositeCount(page, count) {
   }
   await frame(page);
   assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), String(count));
+}
+
+async function setSessionExitMinutes(page, minutes) {
+  await page.getByTestId('session-exit-minutes').selectOption(String(minutes));
+  await frame(page);
+  assert.equal(
+    await page.locator('html').getAttribute('data-session-exit-minutes'),
+    String(minutes),
+  );
 }
 
 async function dispatchInvalidInput(page, testid, value) {
@@ -199,9 +234,12 @@ const report = {
   persistedTicks: undefined,
   persistedPercent: undefined,
   persistedOppositeCount: undefined,
+  persistedSessionExitMinutes: undefined,
+  persistedReviewRange: undefined,
   comparisonEventStart: undefined,
   percentageComparisonEventStart: undefined,
   oppositeComparisonEventStart: undefined,
+  sessionExitComparisonEventStart: undefined,
   entryRulesFallback: undefined,
   passed: false,
 };
@@ -222,10 +260,20 @@ try {
   const oppositeInput = page.getByTestId('opposite-count-input');
   const oppositeDecrease = page.getByTestId('opposite-count-decrease');
   const oppositeIncrease = page.getByTestId('opposite-count-increase');
+  const sessionExitSelect = page.getByTestId('session-exit-minutes');
+  const reviewStartInput = page.getByTestId('review-start-date');
+  const reviewEndInput = page.getByTestId('review-end-date');
+  const initialReviewRange = await reviewDateRange(page);
+  let expectedReviewRange = initialReviewRange;
   assert.equal(await page.getByTestId('reaction-ticks-label').innerText(), '最小入场K线浮动');
   assert.equal(await input.getAttribute('aria-label'), '最小入场K线浮动');
   assert.equal(await page.getByTestId('opposite-count-label').innerText(), '连续反向K线数量');
   assert.equal(await oppositeInput.getAttribute('aria-label'), '连续反向K线数量');
+  assert.equal(await reviewStartInput.getAttribute('type'), 'date');
+  assert.equal(await reviewEndInput.getAttribute('type'), 'date');
+  assert.match(initialReviewRange.startDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(initialReviewRange.endDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(initialReviewRange.startDate <= initialReviewRange.endDate);
   const reactionRulesInfo = page.getByTestId('reaction-rules-info');
   const reactionRulesDialog = page.getByTestId('reaction-rules-dialog');
   assert.equal(await reactionRulesInfo.getAttribute('title'), '查看5分钟K线识别规则');
@@ -236,42 +284,70 @@ try {
   assert.equal(await html.getAttribute('data-reaction-body-ticks'), '1');
   assert.equal(await html.getAttribute('data-entry-range-percent'), '25');
   assert.equal(await html.getAttribute('data-opposite-candle-count'), '6');
+  assert.equal(await html.getAttribute('data-session-exit-minutes'), '15');
   assert.equal(await input.inputValue(), '1');
   assert.equal(await percentInput.inputValue(), '25');
   assert.equal(await oppositeInput.inputValue(), '6');
-  assert.deepEqual(await storedSettings(page), {
+  assert.equal(await sessionExitSelect.inputValue(), '15');
+  assert.deepEqual(
+    await sessionExitSelect.locator('option').evaluateAll(options =>
+      options.map(option => ({ value: option.value, label: option.textContent }))),
+    [
+      { value: '0', label: '0 分钟（关闭）' },
+      { value: '5', label: '5 分钟' },
+      { value: '10', label: '10 分钟' },
+      { value: '15', label: '15 分钟' },
+      { value: '20', label: '20 分钟' },
+      { value: '25', label: '25 分钟' },
+      { value: '30', label: '30 分钟' },
+    ],
+  );
+  assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 1,
     entryRangePercent: 25,
     oppositeCandleCount: 6,
-  });
+    sessionExitMinutes: 15,
+  }, expectedReviewRange));
 
   for (const [raw, expected] of [
-    [null, { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
-    ['{broken-json', { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+    [null, { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
+    ['{broken-json', { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 0 }),
-      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 21 }),
-      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 1, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7 }),
-      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 12.5 }),
-      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 101 }),
-      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 25, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 0, entryRangePercent: 80 }),
-      { reactionBodyTicks: 1, entryRangePercent: 80, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 1, entryRangePercent: 80, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: -1 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 11 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 1.5 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 6, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 0 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 0 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 0, sessionExitMinutes: 15 }],
     [JSON.stringify({ reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 10 }),
-      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 10 }],
+      { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 10, sessionExitMinutes: 15 }],
+    [JSON.stringify({
+      reactionBodyTicks: 7,
+      entryRangePercent: 37,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 12,
+    }), { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 4, sessionExitMinutes: 15 }],
+    [JSON.stringify({
+      reactionBodyTicks: 7,
+      entryRangePercent: 37,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+    }), { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 4, sessionExitMinutes: 20 }],
   ]) {
     await setStoredValueAndReload(page, raw);
     assert.equal(
@@ -286,35 +362,154 @@ try {
       await page.locator('html').getAttribute('data-opposite-candle-count'),
       String(expected.oppositeCandleCount),
     );
-    assert.deepEqual(await storedSettings(page), expected);
+    assert.equal(
+      await page.locator('html').getAttribute('data-session-exit-minutes'),
+      String(expected.sessionExitMinutes),
+    );
+    assert.deepEqual(await storedSettings(page), withReviewRange(expected, initialReviewRange));
   }
 
   await setStoredValueAndReload(page, JSON.stringify({
     reactionBodyTicks: 1,
     entryRangePercent: 25,
     oppositeCandleCount: 6,
+    sessionExitMinutes: 15,
   }));
   await page.getByTestId('toggle-monday').click();
   await setTicks(page, 7);
   await setPercent(page, 37);
   await setOppositeCount(page, 4);
-  assert.deepEqual(await storedSettings(page), {
+  for (const minutes of [0, 5, 10, 15, 20, 25, 30]) {
+    await setSessionExitMinutes(page, minutes);
+  }
+  await setSessionExitMinutes(page, 20);
+  assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
     oppositeCandleCount: 4,
-  });
+    sessionExitMinutes: 20,
+  }, expectedReviewRange));
   await reload(page);
   assert.equal(await page.locator('html').getAttribute('data-reaction-body-ticks'), '7');
   assert.equal(await page.locator('html').getAttribute('data-entry-range-percent'), '37');
   assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), '4');
+  assert.equal(await page.locator('html').getAttribute('data-session-exit-minutes'), '20');
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
   assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
-  assert.deepEqual(await storedSettings(page), {
+  assert.equal(await page.getByTestId('session-exit-minutes').inputValue(), '20');
+  assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
     oppositeCandleCount: 4,
-  });
+    sessionExitMinutes: 20,
+  }, expectedReviewRange));
+
+  if (await page.getByTestId('entry-settings-panel').isHidden()) {
+    await page.getByTestId('toggle-monday').click();
+    await frame(page);
+  }
+  assert.equal(await page.getByTestId('review-start-date').isVisible(), true);
+  assert.equal(await page.getByTestId('review-end-date').isVisible(), true);
+  const fullRangeDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.deepEqual(
+    {
+      startDate: fullRangeDiagnostics.reviewStartDate,
+      endDate: fullRangeDiagnostics.reviewEndDate,
+    },
+    initialReviewRange,
+  );
+  const reviewDates = [...new Set(
+    fullRangeDiagnostics.attempts
+      .filter(attempt => attempt.exitStartMs !== undefined)
+      .map(attempt => attempt.entryDate),
+  )];
+  assert.ok(reviewDates.length >= 2, 'Expected at least two completed-entry dates for range refresh coverage.');
+  const [firstReviewDate, secondReviewDate] = reviewDates;
+
+  await page.getByTestId('reaction-rules-info').click();
+  assert.equal(await page.getByTestId('reaction-rules-dialog').evaluate(element => element.open), true);
+  const refreshBeforeFirstRange = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setReviewDateRange(page, firstReviewDate, firstReviewDate);
+  expectedReviewRange = { startDate: firstReviewDate, endDate: firstReviewDate };
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeFirstRange,
+  );
+  assert.equal(await page.getByTestId('reaction-rules-dialog').evaluate(element => element.open), true);
+  assert.equal(await page.getByTestId('reaction-rules-current-ticks').innerText(), '7 tick');
+  assert.deepEqual(await storedSettings(page), withReviewRange({
+    reactionBodyTicks: 7,
+    entryRangePercent: 37,
+    oppositeCandleCount: 4,
+    sessionExitMinutes: 20,
+  }, expectedReviewRange));
+  assert.equal(
+    await page.getByTestId('settings-review-range').innerText(),
+    `复盘日期：${firstReviewDate} 至 ${firstReviewDate}`,
+  );
+  const firstRangeDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.ok(firstRangeDiagnostics.visibleCandidateCount < fullRangeDiagnostics.visibleCandidateCount);
+  assert.ok(firstRangeDiagnostics.attempts.length > 0);
+  assert.ok(firstRangeDiagnostics.attempts.every(attempt => attempt.entryDate === firstReviewDate));
+  await page.getByTestId('reaction-rules-done').click();
+
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  assert.equal(
+    await page.getByTestId('review-date-range').innerText(),
+    `复盘日期：${firstReviewDate} 至 ${firstReviewDate}`,
+  );
+  await assertReviewMatchesPanel(page, await panelSummary(page));
+  const refreshBeforeSecondRange = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setReviewDateRange(page, secondReviewDate, secondReviewDate);
+  expectedReviewRange = { startDate: secondReviewDate, endDate: secondReviewDate };
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeSecondRange,
+  );
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  assert.equal(
+    await page.getByTestId('review-date-range').innerText(),
+    `复盘日期：${secondReviewDate} 至 ${secondReviewDate}`,
+  );
+  assert.equal(
+    await page.getByTestId('settings-review-range').innerText(),
+    `复盘日期：${secondReviewDate} 至 ${secondReviewDate}`,
+  );
+  const secondRangeDiagnostics = await page.evaluate(() =>
+    window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.ok(secondRangeDiagnostics.attempts.length > 0);
+  assert.ok(secondRangeDiagnostics.attempts.every(attempt => attempt.entryDate === secondReviewDate));
+  const secondRangeSummary = await panelSummary(page);
+  await assertReviewMatchesPanel(page, secondRangeSummary);
+
+  const refreshBeforeInvalidRange = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  const storedBeforeInvalidRange = await storedSettings(page);
+  const reviewBeforeInvalidRange = await page.locator('#review-content').innerText();
+  await setReviewDateRange(page, initialReviewRange.endDate, initialReviewRange.startDate);
+  assert.equal(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+    refreshBeforeInvalidRange,
+  );
+  assert.deepEqual(await storedSettings(page), storedBeforeInvalidRange);
+  assert.deepEqual(await reviewDateRange(page), expectedReviewRange);
+  assert.equal(await page.getByTestId('review-date-error').innerText(), '开始日期不能晚于结束日期');
+  assert.equal(await page.getByTestId('review-date-error').isVisible(), true);
+  assert.equal(await page.getByTestId('review-start-date').getAttribute('aria-invalid'), 'true');
+  assert.equal(await page.getByTestId('review-end-date').getAttribute('aria-invalid'), 'true');
+  assert.equal(await page.locator('#review-content').innerText(), reviewBeforeInvalidRange);
+  assert.deepEqual(await panelSummary(page), secondRangeSummary);
+  await page.getByTestId('review-done').click();
+  report.persistedReviewRange = expectedReviewRange;
 
   await app.close();
   running = await launch('strategy-settings-restart');
@@ -325,18 +520,34 @@ try {
   report.persistedOppositeCount = Number(
     await page.locator('html').getAttribute('data-opposite-candle-count'),
   );
+  report.persistedSessionExitMinutes = Number(
+    await page.locator('html').getAttribute('data-session-exit-minutes'),
+  );
+  report.persistedReviewRange = await reviewDateRange(page);
   assert.equal(report.persistedTicks, 7);
   assert.equal(report.persistedPercent, 37);
   assert.equal(report.persistedOppositeCount, 4);
+  assert.equal(report.persistedSessionExitMinutes, 20);
+  assert.deepEqual(report.persistedReviewRange, expectedReviewRange);
+  assert.equal(
+    await page.locator('html').getAttribute('data-review-start-date'),
+    expectedReviewRange.startDate,
+  );
+  assert.equal(
+    await page.locator('html').getAttribute('data-review-end-date'),
+    expectedReviewRange.endDate,
+  );
   assert.equal(await page.getByTestId('entry-settings-panel').isHidden(), true);
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
   assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
-  assert.deepEqual(await storedSettings(page), {
+  assert.equal(await page.getByTestId('session-exit-minutes').inputValue(), '20');
+  assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
     oppositeCandleCount: 4,
-  });
+    sessionExitMinutes: 20,
+  }, expectedReviewRange));
 
   const restartedPanel = page.getByTestId('entry-settings-panel');
   const restartedInput = page.getByTestId('reaction-ticks-input');
@@ -348,15 +559,21 @@ try {
   const restartedOppositeInput = page.getByTestId('opposite-count-input');
   const restartedOppositeDecrease = page.getByTestId('opposite-count-decrease');
   const restartedOppositeIncrease = page.getByTestId('opposite-count-increase');
+  const restartedSessionExitSelect = page.getByTestId('session-exit-minutes');
   const restartedReactionRulesInfo = page.getByTestId('reaction-rules-info');
   const restartedReactionRulesDialog = page.getByTestId('reaction-rules-dialog');
   const mondayToggle = page.getByTestId('toggle-monday');
   await mondayToggle.click();
   assert.equal(await restartedPanel.isVisible(), true);
   assert.equal(await restartedReactionRulesInfo.isVisible(), true);
+  assert.deepEqual(await reviewDateRange(page), expectedReviewRange);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
+  assert.equal(await restartedSessionExitSelect.inputValue(), '20');
+  await setReviewDateRange(page, initialReviewRange.startDate, initialReviewRange.endDate);
+  expectedReviewRange = initialReviewRange;
+  assert.deepEqual(await reviewDateRange(page), initialReviewRange);
   const reactionRulesButtonBox = await restartedReactionRulesInfo.boundingBox();
   assert.ok(reactionRulesButtonBox);
   assert.ok(reactionRulesButtonBox.width <= 24, JSON.stringify(reactionRulesButtonBox));
@@ -379,14 +596,23 @@ try {
     '方向侧影线 < 实体 × 2',
     '实体 × 2 ≤ 方向侧影线 < 实体 × 3',
     '方向侧影线 ≥ 实体 × 3',
-    '被跳过的K线仍参与红框风险侧极值计算',
+    '这与连续反向动能导致的整次形态放弃不同',
     '做多候选向前统计阴线',
     '做空候选向前统计阳线',
-    '数量达到或超过当前参数时跳过候选',
+    '数量达到或超过当前参数时立即终止当前形态',
     '0表示关闭',
     '允许越过本轮回调触发K线读取更早历史',
     '十字星不计数也不中断',
     '遇到与候选同方向的K线立即中断',
+    '反向动能放弃',
+    '不生成白色入场线或其他计划线',
+    '不消耗正式机会',
+    '做多使用放弃红框下沿',
+    '做空使用上沿',
+    '刚好相等也触发',
+    '重启K线自身参与新搜索',
+    '保留全部历史红框',
+    '只有最新放弃红框的风险侧边界有效',
     '仅用于回看的触发前历史不进入红框',
     '首轮和第二轮共用当前参数',
   ]) assert.match(initialReactionRulesText, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -404,7 +630,7 @@ try {
   );
   assert.match(
     await page.getByTestId('reaction-rules-content').innerText(),
-    /当前达到或超过 5 根即过滤该候选/,
+    /当前达到或超过 5 根时立即放弃本次形态/,
   );
   await setOppositeCount(page, 4);
   for (const forbidden of ['60分钟', '止盈', '止损', '休市']) {
@@ -425,6 +651,10 @@ try {
     '不继承首轮的影线分类',
     '连续反向K线数量',
     '十字星不计数且不中断',
+    '立即终止当前形态',
+    '放弃红框',
+    '不消耗首轮或第二轮正式交易机会',
+    '只有最新放弃红框的风险侧边界有效',
     '首轮和第二轮',
   ]) assert.ok(entryRulesText.includes(expected), `完整入场规则缺少：${expected}`);
   const entryRulesMeta = await page.locator('#rules-meta').innerText();
@@ -441,11 +671,13 @@ try {
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
+  assert.equal(await restartedSessionExitSelect.inputValue(), '20');
   await mondayToggle.click();
   assert.equal(await restartedPanel.isVisible(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
+  assert.equal(await restartedSessionExitSelect.inputValue(), '20');
 
   await setTicks(page, 1);
   await restartedReactionRulesInfo.click();
@@ -468,11 +700,12 @@ try {
       refreshBeforeInvalid,
       `Invalid value ${JSON.stringify(invalid)} must not refresh the strategy`,
     );
-    assert.deepEqual(await storedSettings(page), {
+    assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
       entryRangePercent: 37,
       oppositeCandleCount: 4,
-    });
+      sessionExitMinutes: 20,
+    }, expectedReviewRange));
     await restartedInput.blur();
     await frame(page);
     assert.equal(await restartedInput.inputValue(), '1');
@@ -512,11 +745,12 @@ try {
       refreshBeforeInvalidPercent,
       `Invalid percentage ${JSON.stringify(invalid)} must not refresh the strategy`,
     );
-    assert.deepEqual(await storedSettings(page), {
+    assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
       oppositeCandleCount: 4,
-    });
+      sessionExitMinutes: 20,
+    }, expectedReviewRange));
     await restartedPercentInput.blur();
     await frame(page);
     assert.equal(await restartedPercentInput.inputValue(), '0');
@@ -556,11 +790,12 @@ try {
       refreshBeforeInvalidOpposite,
       `Invalid opposite count ${JSON.stringify(invalid)} must not refresh the strategy`,
     );
-    assert.deepEqual(await storedSettings(page), {
+    assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
       entryRangePercent: 37,
       oppositeCandleCount: 0,
-    });
+      sessionExitMinutes: 20,
+    }, expectedReviewRange));
     await restartedOppositeInput.blur();
     await frame(page);
     assert.equal(await restartedOppositeInput.inputValue(), '0');
@@ -748,30 +983,139 @@ try {
   await assertReviewMatchesPanel(page, restoredOppositeSummary);
   await page.getByTestId('review-done').click();
 
+  await setTicks(page, 1);
+  await setPercent(page, 25);
+  await setOppositeCount(page, 0);
+  await setSessionExitMinutes(page, 0);
+  const sessionExitSelected = await page.evaluate(() =>
+    window.moneyComingTest?.selectSessionExitComparisonEntry() ?? false);
+  assert.equal(
+    sessionExitSelected,
+    true,
+    'Expected a historical entry whose lifecycle differs when session exit is enabled.',
+  );
+  await frame(page, 6);
+  const sessionExitComparisonMinutes = Number(
+    await page.locator('html').getAttribute('data-session-exit-comparison-minutes'),
+  );
+  assert.ok(
+    [5, 10, 15, 20, 25, 30].includes(sessionExitComparisonMinutes),
+    `Invalid session exit comparison minutes: ${sessionExitComparisonMinutes}`,
+  );
+  const sessionExitSelectedStart = await page.locator('html').getAttribute('data-selected-start');
+  report.sessionExitComparisonEventStart = sessionExitSelectedStart;
+  assert.ok(sessionExitSelectedStart);
+  const sessionExitRange60 = await chartRange(page, 60);
+  const sessionExitRange5 = await chartRange(page, 5);
+  const sessionExitSnapshot0 = await strategySnapshot(page);
+  const sessionExitSummary0 = await panelSummary(page);
+
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  await assertReviewMatchesPanel(page, sessionExitSummary0);
+
+  const refreshBeforeSessionExitEnabled = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setSessionExitMinutes(page, sessionExitComparisonMinutes);
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeSessionExitEnabled,
+  );
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), sessionExitSelectedStart);
+  assertRangeEqual(
+    await chartRange(page, 60),
+    sessionExitRange60,
+    `60-minute viewport after ${sessionExitComparisonMinutes}-minute session exit`,
+  );
+  assertRangeEqual(
+    await chartRange(page, 5),
+    sessionExitRange5,
+    `5-minute viewport after ${sessionExitComparisonMinutes}-minute session exit`,
+  );
+  const sessionExitSnapshotEnabled = await strategySnapshot(page);
+  const sessionExitSummaryEnabled = await panelSummary(page);
+  assert.notDeepEqual(sessionExitSnapshotEnabled, sessionExitSnapshot0);
+  await assertReviewMatchesPanel(page, sessionExitSummaryEnabled);
+
+  await setSessionExitMinutes(page, 0);
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), sessionExitSelectedStart);
+  assertRangeEqual(
+    await chartRange(page, 60),
+    sessionExitRange60,
+    '60-minute viewport after disabling session exit',
+  );
+  assertRangeEqual(
+    await chartRange(page, 5),
+    sessionExitRange5,
+    '5-minute viewport after disabling session exit',
+  );
+  assert.deepEqual(await strategySnapshot(page), sessionExitSnapshot0);
+  const restoredSessionExitSummary = await panelSummary(page);
+  assert.deepEqual(restoredSessionExitSummary.raw, sessionExitSummary0.raw);
+  await assertReviewMatchesPanel(page, restoredSessionExitSummary);
+  await page.getByTestId('review-done').click();
+
   await setOppositeCount(page, 4);
   await setPercent(page, 37);
+  await setSessionExitMinutes(page, 20);
   const instrumentBeforeReload = await page.locator('#instrument').inputValue();
-  await page.locator('#instrument').evaluate(element =>
-    element.dispatchEvent(new Event('change', { bubbles: true })));
+  const alternateInstrument = await page.locator('#instrument option').evaluateAll(
+    (options, current) => {
+      const option = options.find(candidate => candidate.value !== current);
+      return option ? { value: option.value, label: option.textContent } : undefined;
+    },
+    instrumentBeforeReload,
+  );
+  assert.ok(alternateInstrument);
+  const summaryBeforeInstrumentSwitch = await panelSummary(page);
+  await page.locator('#instrument').selectOption(alternateInstrument.value);
   await page.waitForFunction(
-    ({ instrument, percent, oppositeCount }) =>
+    ({ instrument, percent, oppositeCount, sessionExitMinutes, startDate, endDate }) =>
       document.querySelector('#instrument')?.value === instrument
+      && document.querySelector('#instrument')?.getAttribute('data-loaded') === instrument
       && document.documentElement.dataset.entryRangePercent === percent
       && document.documentElement.dataset.oppositeCandleCount === oppositeCount
+      && document.documentElement.dataset.sessionExitMinutes === sessionExitMinutes
+      && document.documentElement.dataset.reviewStartDate === startDate
+      && document.documentElement.dataset.reviewEndDate === endDate
       && document.documentElement.dataset.ready === 'true',
-    { instrument: instrumentBeforeReload, percent: '37', oppositeCount: '4' },
+    {
+      instrument: alternateInstrument.value,
+      percent: '37',
+      oppositeCount: '4',
+      sessionExitMinutes: '20',
+      startDate: expectedReviewRange.startDate,
+      endDate: expectedReviewRange.endDate,
+    },
   );
   await frame(page, 5);
+  assert.notEqual(await page.locator('#instrument').inputValue(), instrumentBeforeReload);
+  assert.equal(await page.locator('#instrument-name').innerText(), alternateInstrument.label);
+  assert.deepEqual(await reviewDateRange(page), expectedReviewRange);
   assert.equal(await restartedPercentInput.inputValue(), '37');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
-  assert.deepEqual(await storedSettings(page), {
+  assert.equal(await restartedSessionExitSelect.inputValue(), '20');
+  assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 1,
     entryRangePercent: 37,
     oppositeCandleCount: 4,
-  });
+    sessionExitMinutes: 20,
+  }, expectedReviewRange));
+  const summaryAfterInstrumentSwitch = await panelSummary(page);
+  assert.notDeepEqual(summaryAfterInstrumentSwitch.raw, summaryBeforeInstrumentSwitch.raw);
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(
+    await page.getByTestId('review-date-range').innerText(),
+    `复盘日期：${expectedReviewRange.startDate} 至 ${expectedReviewRange.endDate}`,
+  );
+  await assertReviewMatchesPanel(page, summaryAfterInstrumentSwitch);
+  await page.getByTestId('review-done').click();
 
   await page.setViewportSize({ width: 1100, height: 720 });
   await page.getByTestId('mode-dual').click();
+  await setReviewDateRange(page, expectedReviewRange.endDate, expectedReviewRange.startDate);
+  assert.equal(await page.getByTestId('review-date-error').isVisible(), true);
   await frame(page, 5);
   const layout = await page.evaluate(() => {
     const selectors = [
@@ -779,6 +1123,10 @@ try {
       '.toolbar-right',
       '#entry-settings-panel',
       '#reaction-rules-info',
+      '.entry-review-date-control',
+      '#review-start-date',
+      '#review-end-date',
+      '#review-date-error',
       '#market-update-row',
     ];
     const rectangles = Object.fromEntries(selectors.map(selector => {
@@ -793,7 +1141,12 @@ try {
         height: rect.height,
       } : undefined];
     }));
-    const groupSelectors = selectors.filter(selector => selector !== '#reaction-rules-info');
+    const groupSelectors = [
+      '.toolbar-left',
+      '.toolbar-right',
+      '#entry-settings-panel',
+      '#market-update-row',
+    ];
     const overlaps = [];
     for (let leftIndex = 0; leftIndex < groupSelectors.length; leftIndex += 1) {
       for (let rightIndex = leftIndex + 1; rightIndex < groupSelectors.length; rightIndex += 1) {
@@ -822,17 +1175,32 @@ try {
     }
     const stepperRect = document.querySelector('#reaction-ticks-input')
       ?.closest('.entry-setting-stepper')?.getBoundingClientRect();
+    const dateControl = rectangles['.entry-review-date-control'];
+    const startDate = rectangles['#review-start-date'];
+    const endDate = rectangles['#review-end-date'];
+    const dateError = rectangles['#review-date-error'];
+    const intersects = (left, right) => !!left && !!right
+      && left.left < right.right && left.right > right.left
+      && left.top < right.bottom && left.bottom > right.top;
     return {
       rectangles,
       overlaps,
       controlOverlaps,
       horizontalOverflow: document.body.scrollWidth > innerWidth,
-      inputFits: [...document.querySelectorAll('#entry-settings-panel input, #entry-settings-panel button, #entry-settings-panel dd')]
+      inputFits: [...document.querySelectorAll('#entry-settings-panel input, #entry-settings-panel select, #entry-settings-panel button, #entry-settings-panel dd')]
         .every(element => element.scrollWidth <= element.clientWidth),
       infoCompact: !!info && info.width <= 24 && info.height <= 24,
       infoStepperOverlap: !!info && !!stepperRect
         && info.left < stepperRect.right && info.right > stepperRect.left
         && info.top < stepperRect.bottom && info.bottom > stepperRect.top,
+      dateInputsOverlap: intersects(startDate, endDate),
+      dateErrorOverlapsInput: intersects(dateError, startDate) || intersects(dateError, endDate),
+      dateElementsInViewport: [dateControl, startDate, endDate, dateError].every(rect =>
+        !!rect
+        && rect.left >= 0
+        && rect.right <= innerWidth
+        && rect.top >= 0
+        && rect.bottom <= innerHeight),
     };
   });
   assert.deepEqual(layout.overlaps, [], JSON.stringify(layout));
@@ -841,7 +1209,12 @@ try {
   assert.equal(layout.inputFits, true, JSON.stringify(layout));
   assert.equal(layout.infoCompact, true, JSON.stringify(layout));
   assert.equal(layout.infoStepperOverlap, false, JSON.stringify(layout));
+  assert.equal(layout.dateInputsOverlap, false, JSON.stringify(layout));
+  assert.equal(layout.dateErrorOverlapsInput, false, JSON.stringify(layout));
+  assert.equal(layout.dateElementsInViewport, true, JSON.stringify(layout));
   await page.screenshot({ path: join(output, 'strategy-settings-1100.png') });
+  await setReviewDateRange(page, expectedReviewRange.startDate, expectedReviewRange.endDate);
+  assert.equal(await page.getByTestId('review-date-error').isHidden(), true);
 
   report.passed = true;
   await writeFile(

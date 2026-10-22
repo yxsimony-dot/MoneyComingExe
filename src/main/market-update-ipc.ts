@@ -4,9 +4,13 @@ import type {
   Instrument,
   MarketUpdateAllResult,
   MarketUpdateState,
+  OnlineMarketState,
 } from '../shared/types';
 
-type MarketUpdateIpcResult = MarketUpdateState | MarketUpdateAllResult;
+type MarketUpdateIpcResult =
+  | MarketUpdateState
+  | MarketUpdateAllResult
+  | OnlineMarketState;
 
 export interface MarketUpdateIpc {
   handle(
@@ -24,9 +28,17 @@ export interface MarketUpdateIpcCoordinator {
   updateAll(): Promise<MarketUpdateAllResult>;
 }
 
+export interface OnlineMarketIpcCoordinator {
+  getState(): OnlineMarketState;
+  setEnabled(enabled: boolean): OnlineMarketState;
+  declareCurrentInstrument(instrument: Instrument): OnlineMarketState;
+  networkRecovered(): OnlineMarketState;
+}
+
 export interface RegisterMarketUpdateIpcOptions {
   ipc: MarketUpdateIpc;
   coordinator: MarketUpdateIpcCoordinator;
+  online: OnlineMarketIpcCoordinator;
   trusted: (event: IpcMainInvokeEvent) => boolean;
 }
 
@@ -52,5 +64,26 @@ export function registerMarketUpdateIpc(options: RegisterMarketUpdateIpcOptions)
     requireTrusted(event);
     if (args.length) throw new Error('全量更新参数无效');
     return options.coordinator.updateAll();
+  });
+  options.ipc.handle('market:online-state', (event, ...args) => {
+    requireTrusted(event);
+    if (args.length) throw new Error('在线状态参数无效');
+    return options.online.getState();
+  });
+  options.ipc.handle('market:online-enabled', (event, ...args) => {
+    requireTrusted(event);
+    if (args.length !== 1 || typeof args[0] !== 'boolean') {
+      throw new Error('在线模式参数无效');
+    }
+    return options.online.setEnabled(args[0]);
+  });
+  options.ipc.handle('market:current-instrument', (event, ...args) => {
+    requireTrusted(event);
+    return options.online.declareCurrentInstrument(requireInstrument(args));
+  });
+  options.ipc.handle('market:network-recovered', (event, ...args) => {
+    requireTrusted(event);
+    if (args.length) throw new Error('网络恢复参数无效');
+    return options.online.networkRecovered();
   });
 }

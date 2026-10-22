@@ -1,43 +1,461 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "snapshotId": "builtin-methanol_main",
+  "generatedAt": "2026-10-22T11:55:13.757Z",
+  "requestStart": "2021-10-16 22:59:00",
+  "requestEnd": "2026-10-16 22:59:00",
+  "sourceLatestAt": "2026-10-16 23:00:00",
   "instrumentId": "methanol_main",
   "mainSymbol": "KQ.m@CZCE.MA",
   "parameterVersion": 1,
   "source": {
-    "provider": "EDB",
-    "endpoint": "https://edb.shinnytech.com/md/kline",
+    "provider": "MIXED",
     "symbol": "KQ.m@CZCE.MA"
   },
-  "generatedAt": "2026-10-19T02:04:38.581Z",
-  "requestStart": "2025-10-19 10:30:00",
-  "requestEnd": "2026-10-19 10:20:00",
-  "sourceLatestAt": "2026-10-16 23:00:00",
-  "files": {
-    "bars1": {
-      "name": "edb_main_continuous_1m_raw.csv",
-      "sha256": "961813887a99158e8d14c5ec881419a14ca8d9d93dc049d425505cf530221404",
-      "rows": 82305
+  "sourceSegments": [
+    {
+      "sourceId": "desktop-futures-minute-history",
+      "sourceName": "桌面期货分钟数据",
+      "kind": "desktop-main",
+      "sourceVersion": "desktop-archive-2026-10-19",
+      "acquiredAt": "2026-10-22",
+      "coverage": {
+        "first": "2021-10-18 09:00:00",
+        "last": "2026-10-14 14:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA主力连续.csv",
+          "sha256": "5ec8fccbec9fa58c19e8fc2a85309923ab42c1c578f05878f0be9227178a0b46",
+          "rows": 1032609
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2110.csv",
+          "sha256": "dcdb1ab3b1c367edbaf6d38ea06cda36d00c95fef65f66274793a5a522378576",
+          "rows": 30636
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2111.csv",
+          "sha256": "e4eda9a93195a95b64e14451d19fbab53efd3fc063039f906f4a0f50755b5b31",
+          "rows": 30068
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2112.csv",
+          "sha256": "27c485ed1ab7fd3934cb3874596ce424cf88353d022b96cbd9de3d27d3990729",
+          "rows": 25304
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2201.csv",
+          "sha256": "fa5f605546c3fc2fe8f4e2d072fb204ea1ffc632e0bac4964e7d9a08c83e4c84",
+          "rows": 68946
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2202.csv",
+          "sha256": "f23dcce112d1a7de8a9186b4c65715e382b99a3e4a0e2821b8d9af4ec39e9bd0",
+          "rows": 31740
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2203.csv",
+          "sha256": "7d377137749a43643ef63b0d3fe2d693f6a4a9c1aee446b2939ed8b503f98e3e",
+          "rows": 32789
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2204.csv",
+          "sha256": "6ec7d3e6bacc62544d8093724ee25fbf15f99b746d39a248902681358a115cd6",
+          "rows": 28649
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2205.csv",
+          "sha256": "71e2769ea7deac5d9d86a81a62125031e3bd525b5e207249bbb7c4be3bf23989",
+          "rows": 64541
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2206.csv",
+          "sha256": "a9253b234b5434c6088ff4fa3f8fcc2dc97384e35a50a92e4bfb00bf7f7f387e",
+          "rows": 31091
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2207.csv",
+          "sha256": "48ce752d05d407580b2dcfc910fd25708ab9e7654b87409d7ce6be9ba9fe2c09",
+          "rows": 30220
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2208.csv",
+          "sha256": "b6a638e3a6a4bf60bd4cbdb6a1184e42460dcb0189273058b2da5abff8b34408",
+          "rows": 30781
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2209.csv",
+          "sha256": "4e406e865f3a2f50014c17286450cde4405eda3443d7f15cd6e722033b654ac2",
+          "rows": 73542
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2210.csv",
+          "sha256": "dff900e43ad612d5ac5ef1222f05ed0f832d221c955ff8c64da210fd73f04d75",
+          "rows": 39046
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2211.csv",
+          "sha256": "7234b6e4cf688550abe7e9c7f9bd9169f03af8d52c0ab884ef3b3efd819b214d",
+          "rows": 36550
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2212.csv",
+          "sha256": "d9067dd69692f486b936f88a3384973ff9890c859d5e0b1e4d5ebb749d76ed21",
+          "rows": 35399
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2301.csv",
+          "sha256": "06c55e8a7928f38111d9578ae2fcc3163bd02b5275b4a44f7c74d51422d62f82",
+          "rows": 69031
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2302.csv",
+          "sha256": "9b7a1654793a0f74b650db4624726bd726c5d3968291ad371f94b8bbf96bd496",
+          "rows": 34700
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2303.csv",
+          "sha256": "6277cba854ed911a512c7e10046962b68a6829c093bf0f03102b850dc7329f22",
+          "rows": 34068
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2304.csv",
+          "sha256": "9a273309ceb0ea3e7fc1941673252a884abe8ea20e8950498ee77e8fd628716b",
+          "rows": 30770
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2305.csv",
+          "sha256": "295b1f08a8ba1c945f0c86412edc284ffce894545cc419d69751d867624ca05d",
+          "rows": 72174
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2306.csv",
+          "sha256": "9fae98f5958a90b481164cf78c0f99d98a7b400e87f3cdf4f7b5e218741a638d",
+          "rows": 30729
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2307.csv",
+          "sha256": "da369779ecf548f51f17946e6c08f232456ca62e2999054ae3f56f0f1402a092",
+          "rows": 31292
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2308.csv",
+          "sha256": "d06c8412d1e11769f25a2d48441ad469a536aeda33e4a7a754fd0d2641a9aa40",
+          "rows": 26302
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2309.csv",
+          "sha256": "26f9b622d762016c2d841ca34e8827e3d2257d32597903706a5e9b2b67e6dd9d",
+          "rows": 68744
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2310.csv",
+          "sha256": "587ec479350c33920a254ee02c145a236e0ed5adbc5baa5274ec5ebefd2108d0",
+          "rows": 35504
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2311.csv",
+          "sha256": "6b6d15ed4fcaa34af34ef44ea5824eb95cdf26d4e11c216041701271749e9774",
+          "rows": 38241
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2312.csv",
+          "sha256": "f47dac7529bee5b726a311ef0f8623d500d9066c950a08fe121cbb7c9c3842cf",
+          "rows": 35804
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2401.csv",
+          "sha256": "8d02eecf4c535128745936b540f157318ca9dcb2549621ef0540aca9b38a110d",
+          "rows": 70320
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2402.csv",
+          "sha256": "48010d13ce6629b586dfd42bb197eef23c36fd541d63470345961008c0032493",
+          "rows": 26849
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2403.csv",
+          "sha256": "26daed0a57e97ffbea0f6df6864650cd202cb581aeb9ef607c962f165d40f3d1",
+          "rows": 25857
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2404.csv",
+          "sha256": "e3e3d36c947fb47e92116bc9645cbc4aa197347b4af3e67939bd6f50479075c3",
+          "rows": 17331
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2405.csv",
+          "sha256": "b98efa6c47e3052c58b599d507377a1f3dc07239aa551ee376116efad9da92d5",
+          "rows": 77848
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2406.csv",
+          "sha256": "2ade9f9be830f0db545a2945c74b3cc99b62c77a26fee4e8f2dad90fbf355686",
+          "rows": 27274
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2407.csv",
+          "sha256": "8aee7724fa20ede8e92b3b9aa61c066ab0341044444ab65e0acecca52e81f373",
+          "rows": 23183
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2408.csv",
+          "sha256": "c508c1f5a5a7c45402dd0910ad63cf44b1f756463a1237cf22875814b83b7836",
+          "rows": 22153
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2409.csv",
+          "sha256": "0cdb2b1018b7eca0225999056aa80f54dfa48a26f2ac97c8a7ad7a0c0defcb25",
+          "rows": 73346
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2410.csv",
+          "sha256": "6db212fa4efe593dd19bb7ba16f996665cd5575e897f48b390c0bce0fe1989a3",
+          "rows": 28021
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2411.csv",
+          "sha256": "3668ebd9f992a6405b9bcff74cdc7eaa7d0add895a8af4925f16af9ba4ae9c0d",
+          "rows": 19900
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2412.csv",
+          "sha256": "31d70cbc0fb601c37464f52e72f277229b12f1cba67a338349c729f45fad0231",
+          "rows": 19123
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2501.csv",
+          "sha256": "6c1dd3316e020d8b7b09e073de11d2dd4e2f4b3a42eaf511a81b6f203019ee0b",
+          "rows": 70298
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2502.csv",
+          "sha256": "6ae7d2f63021f84ee2fdf2b76abe5c60a43afea8d1e47843a72a7764ed52294c",
+          "rows": 23711
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2503.csv",
+          "sha256": "c98c0f33536ee510a1bbafe40cd9822c6059a1a2bc87732cfc1c9d0ebd67a2c7",
+          "rows": 21893
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2504.csv",
+          "sha256": "afc0678f08ca4c988af23e3bfb4118d0809cd6703f252054c238e6bf3a53b72d",
+          "rows": 14668
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2505.csv",
+          "sha256": "48ecf2d4df282665b146decf21617c83bdf8edd8498cb9e67f83584a28ab6345",
+          "rows": 70202
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2506.csv",
+          "sha256": "24e0f0c39c293f4a278cdbbaa2de692ae78006ffc435a7020bcbb22bec949b88",
+          "rows": 21214
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2507.csv",
+          "sha256": "e3521206715166ef640cc0667e3ee0aacf69b1d0887638c38c9ef5c9ae448c5f",
+          "rows": 17658
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2508.csv",
+          "sha256": "aa4f24325cbf153cb844138c685fd724b34aa84503228a8095f8a8e313f5cd5c",
+          "rows": 18782
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2509.csv",
+          "sha256": "4dc5b9887e8ffc60bd2ea8d4ca795ad76cfaf96a830ce38fa6ac662ae6300a37",
+          "rows": 69773
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2510.csv",
+          "sha256": "0cfe1e19aad1f82a399356cea7d8eb2b022680ba844c6670382b563fcdd8995d",
+          "rows": 30125
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2511.csv",
+          "sha256": "ade159aa920ba97ac2342df3f15c273e61a64be9090379a0a44aadb210d719b0",
+          "rows": 35998
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2512.csv",
+          "sha256": "21c841d4f383332056b1a9034e73b727eeeba5355b12c0c8d5e522e1e46a9fc4",
+          "rows": 32538
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2601.csv",
+          "sha256": "7b2fed2b4efe168c0031cb7c5f93f4173b33e324bd0f102e575645e8369953c6",
+          "rows": 67801
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2602.csv",
+          "sha256": "ecc872385379c9922f6403982e138abe28e612988d0e1891cea7c5d812168e4a",
+          "rows": 30843
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2603.csv",
+          "sha256": "b8494cd24b99ba6ddbaf8ae9250379c24897f4b5c589e223d8982b1dc6922d25",
+          "rows": 34396
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2604.csv",
+          "sha256": "0dba172fcbd5815224530bdcad29a7f31e99ab4425b3d655e54518cca5c8bb48",
+          "rows": 29379
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2605.csv",
+          "sha256": "ab5ec9350f53a3fca893cb262ac4f4040af6165fc77a05a12637fa1bd6cef2dd",
+          "rows": 70589
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2606.csv",
+          "sha256": "0c7e8d70f5ed66dbcd2152770a2fdb7e9ecafe5e4ddccd63ab9ef50d2892902e",
+          "rows": 32428
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2607.csv",
+          "sha256": "eca68536c20752761bae5045753a469f654591e1ccb2f59e70ad3511f5092ec8",
+          "rows": 35293
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2608.csv",
+          "sha256": "6ccf45a0f46174285a4e11650d36ce3ca276f7c3f04d75532f71f5cea35de572",
+          "rows": 35646
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA_甲醇_退市.zip!/MA2609.csv",
+          "sha256": "6b4c20b325905099483e0f89a9155f5c1ba9516ab636a30e4cbcf3f3b6d1af6f",
+          "rows": 72125
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2610.csv",
+          "sha256": "e50c493ea9d04eb9612d1ac06e2927630f769beddf8c3ea8d13dbb81d1407331",
+          "rows": 51670
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2611.csv",
+          "sha256": "2904d10470162dfacac44321158d743c660df8e254451e5b8b10c7ad3780de79",
+          "rows": 52493
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2612.csv",
+          "sha256": "ce02630b7563242c1614f393c5560f6fc3536e23fe432a3bcff0aa981c592db0",
+          "rows": 48343
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2701.csv",
+          "sha256": "92c3dfdd1f9077315fac1ddf37557561deb8210f8e5ad06bb80f1b4a820c00e8",
+          "rows": 54819
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2702.csv",
+          "sha256": "49ce7968945ab350ea305e758a7d4f5e24fb24808147da06e0fb67edec315ab1",
+          "rows": 29642
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2703.csv",
+          "sha256": "83b3c8335fdcbd20c34336459bab9f2b28254e1159ea60217cad05e77dacf4c5",
+          "rows": 35675
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2704.csv",
+          "sha256": "76a6de43c22879644d9d210591583808f72ee2cbc1ce856cccb8d7ad2d38c5e3",
+          "rows": 9852
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2705.csv",
+          "sha256": "b1b5ef575b69134a1a03ee50ae7ea206e7eed9bf8342d5e84e83b2360ace4352",
+          "rows": 29484
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2706.csv",
+          "sha256": "8f3fa5a31462a07936cd79b3e9f12c45ba51914ef633a8536e2cb41cd29591be",
+          "rows": 4701
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2707.csv",
+          "sha256": "cf931d2a22ec2a3d881bad5a28c4694fa44021899cef9d0269d0822e438ef2c8",
+          "rows": 4441
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2708.csv",
+          "sha256": "ccb15da646bd93e12d5bf48c1ac26fb8d9da72d52c89c212a35a18c90cddbc02",
+          "rows": 3671
+        },
+        {
+          "name": "CZCE_郑州商品交易所/MA_甲醇/MA2709.csv",
+          "sha256": "d8dfeab487641ec9cc7e8f06e73cdb1a57e7846c07ef5a15439eb89721549bfe",
+          "rows": 3605
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "Data was provided by the user, who explicitly authorized inclusion in this project Git repository, EXE, and installer on 2026-10-22. This records project-scoped delivery authorization only and does not claim a public redistribution license from any third-party provider."
+      }
     },
+    {
+      "sourceId": "edb-builtin-tail",
+      "sourceName": "现有内置 EDB 近期尾部",
+      "kind": "edb-tail",
+      "sourceVersion": "2026-10-19T02:04:38.581Z",
+      "acquiredAt": "2026-10-19T02:04:38.581Z",
+      "coverage": {
+        "first": "2026-10-14 21:00:00",
+        "last": "2026-10-16 22:59:00"
+      },
+      "rawFiles": [
+        {
+          "name": "data/instruments/methanol_main/edb_main_continuous_1m_raw.csv",
+          "sha256": "961813887a99158e8d14c5ec881419a14ca8d9d93dc049d425505cf530221404",
+          "rows": 82305
+        }
+      ],
+      "importerVersion": "desktop-temporary-candidate-v1",
+      "license": {
+        "redistributionAllowed": true,
+        "conclusion": "沿用现有已发布 EDB 内置尾部，仅用于桌面尾部之后的接续。"
+      }
+    }
+  ],
+  "redistribution": {
+    "allowed": true,
+    "conclusion": "The user explicitly authorized inclusion of the provided data in this project Git repository, EXE, and installer on 2026-10-22; this is project-scoped delivery authorization only, not a claim of public third-party redistribution rights."
+  },
+  "periods": {
+    "bars5": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 82836
+    },
+    "bars60": {
+      "first": "2021-10-18 09:00:00",
+      "last": "2026-10-16 23:00:00",
+      "rows": 8418
+    }
+  },
+  "files": {
     "bars5": {
       "name": "edb_main_continuous_5m.csv",
-      "sha256": "b5af99b4b849b8c3008090e139ac1da7c757bad7d79bfb746da47563239e7c80",
-      "rows": 16461
+      "sha256": "7084dcfcef833f925356f5b28817d5c430d2fcecae6aa1d99537815a4a94a43f",
+      "rows": 82836
     },
     "bars60": {
       "name": "edb_main_continuous_60m.csv",
-      "sha256": "877b5045358ba56fbe2c0d28ce030672060d6269007eeb3f92c14895554cd4a0",
-      "rows": 1432
-    },
-    "rollovers": {
-      "name": "edb_main_continuous_rollovers.csv",
-      "sha256": "066c0cd15f536718821134a67e207bf3aeb86ab4616b3694e552e8f9019792fb",
-      "rows": 4
+      "sha256": "198c0629fc1df8cd232a96698ba3e312772e189f0bfef46eb61f74ffd51eef63",
+      "rows": 8418
     },
     "mainContractMappings": {
       "name": "edb_main_contract_mapping.csv",
-      "sha256": "e97879f8850bfb5a123f32c3b1d193cd931f4612ca83d4762486fcbac1872c4f",
-      "rows": 241
+      "sha256": "435dced1b9493c486ff902f51ca1800de8ce992de8b50cb1e7b1d85ee527cd5d",
+      "rows": 1213
+    },
+    "rollovers": {
+      "name": "edb_main_continuous_rollovers.csv",
+      "sha256": "8a75a6c349118d17f937241a2deda192a0553a2481e4fef573664bdae5036d68",
+      "rows": 17
     }
   }
 }

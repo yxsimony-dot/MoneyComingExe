@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "purpose": "tdx-tq-single-instrument-five-minute-history-probe",
+  "capturedAt": "2026-10-19T18:19:33+08:00",
+  "probeStatus": "credential-blocked",
+  "request": {
+    "symbol": "M2601.DCE",
+    "period": "5m",
+    "startTime": "2025-07-01 00:00:00",
+    "endTime": "2025-07-07 23:59:59",
+    "count": -1,
+    "dividendType": "none",
+    "fillData": false,
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume",
+      "VolInStock"
+    ]
+  },
+  "environment": {
+    "pythonVersion": "3.12.13",
+    "pythonImplementation": "CPython",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "tdxaidataVersion": "1.2.2",
+    "tdxaidataInstallScope": "external-python-environment"
+  },
+  "packageArtifacts": {
+    "module": {
+      "path": "tdxaidata/tdxaidata.py",
+      "bytes": 56804,
+      "sha256": "fcd6c8f81474603c971b0e365b140b01ecd2d3f08396f28394177b554731e7e9"
+    },
+    "dynamicLibrary": {
+      "path": "tdxaidata/lib/TdxAiData.dll",
+      "bytes": 296344,
+      "sha256": "d29a5c726282dbf55db521ee01b2e198a64762319ab3ee3a2dac66e978a0e8d1"
+    },
+    "documentation": {
+      "path": "tdxaidata/docs/tdxaidata使用文档.md",
+      "bytes": 194619,
+      "sha256": "ae3034c5992f11fd893a5ac5d4a3dde189c3be719fa15fba4b017cc8b26a05ab"
+    },
+    "metadata": {
+      "path": "tdxaidata-1.2.2.dist-info/METADATA",
+      "bytes": 6591,
+      "sha256": "97a36aaae5aa214aa3db259368bd50362de57cd9a02c5ce89d52f4ddb149defa"
+    },
+    "license": {
+      "path": "tdxaidata-1.2.2.dist-info/licenses/LICENSE",
+      "bytes": 1065,
+      "sha256": "98d3900b48e8e1de04915b5ffb07ee35cb63f8cbd180edad52cbceed86ec5cee"
+    },
+    "configuration": {
+      "path": "TdxAiData.ini",
+      "sensitiveValuePresence": {
+        "token": false
+      },
+      "sanitizedSha256": "c978e76398a9e7a216bae397248a14c76545c81176bbb237acf5daa3e740edd4",
+      "rawSha256Recorded": false,
+      "note": "仅对脱敏后的配置文本计算哈希；未记录任何凭据原值或原文件哈希。"
+    }
+  },
+  "credentials": {
+    "tokenConfigured": false,
+    "userConfigured": false,
+    "valuesRecorded": false,
+    "valuesHashed": false
+  },
+  "connectivity": {
+    "allConfiguredServersReachable": true,
+    "servers": [
+      {
+        "section": "TcHqHost",
+        "index": 1,
+        "host": "aihs.tdx.com.cn",
+        "port": 7709,
+        "reachable": true,
+        "latencyMilliseconds": 18.7,
+        "errorCategory": null
+      },
+      {
+        "section": "TcHqHost",
+        "index": 2,
+        "host": "aihs2.tdx.com.cn",
+        "port": 7709,
+        "reachable": true,
+        "latencyMilliseconds": 11.3,
+        "errorCategory": null
+      },
+      {
+        "section": "TcDsHost",
+        "index": 1,
+        "host": "aids.tdx.com.cn",
+        "port": 7727,
+        "reachable": true,
+        "latencyMilliseconds": 13.0,
+        "errorCategory": null
+      }
+    ]
+  },
+  "dynamicLibrary": {
+    "loaded": true,
+    "errorCategory": null
+  },
+  "apiCall": {
+    "elapsedMilliseconds": 34.9,
+    "pythonException": false,
+    "exceptionType": null,
+    "diagnosticCategories": [
+      "api-error",
+      "credential-required"
+    ],
+    "rawDiagnosticsRecorded": false,
+    "resultSummary": {
+      "shape": "field-map",
+      "returnedFields": [],
+      "fieldRowCounts": {},
+      "rowCount": 0,
+      "firstTimestamp": null,
+      "lastTimestamp": null
+    }
+  },
+  "requirements": {
+    "client": "tdxaidata 1.2.2 文档声明不依赖通达信客户端。",
+    "account": "后台数据服务需要 TdxAiData.ini 的数据服务 Key；当前未配置。",
+    "points": "官方 get_market_data 文档提示较长时间段分钟数据可能消耗较多积分；本次无凭据探测无法读取余额或确认当前短区间的实际积分消耗。",
+    "fields": {
+      "requested": [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "VolInStock"
+      ],
+      "futureAmount": "官方包文档说明期货 Amount 为 0，本探测未请求 Amount。",
+      "openInterest": "VolInStock 表示持仓量。"
+    },
+    "rateLimit": "当前官方包文档未公开每秒请求上限；不得据此猜测限流数字。"
+  },
+  "conclusion": {
+    "shortRangeRecordsConfirmed": false,
+    "fullGapConfirmed": false,
+    "releaseUseAllowed": false,
+    "reason": "网络和动态库已到达认证阶段，但缺少数据服务 Key，尚不能确认目标短区间是否返回真实记录；本报告不包含原始行情。"
+  }
+}

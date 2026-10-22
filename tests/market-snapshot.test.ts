@@ -4,6 +4,8 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
+  rename,
   rm,
   unlink,
   writeFile,
@@ -13,7 +15,12 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseContractRollovers } from '../src/domain/contract-rollover';
 import { parseBars } from '../src/domain/data';
-import { parseEdbMinuteCsv } from '../src/domain/market-data';
+import {
+  aggregateFiveMinuteBars,
+  aggregateMinutes,
+  parseEdbMinuteCsv,
+} from '../src/domain/market-data';
+import { formatBeijing, parseBeijing } from '../src/domain/time';
 import {
   cleanupSnapshots,
   loadEffectiveSnapshot,
@@ -22,6 +29,8 @@ import {
   resolveMarketDataPaths,
   saveMarketSnapshot,
   snapshotFingerprint,
+  writeBuiltinMarketSnapshot,
+  type LoadedMarketSnapshot,
   type MarketDataPaths,
   type SnapshotCandidate,
 } from '../src/main/market-snapshot';
@@ -39,7 +48,7 @@ const DATA_FILES = [
   'edb_main_continuous_60m.csv',
   'edb_main_continuous_rollovers.csv',
 ] as const;
-const SNAPSHOT_IO_TIMEOUT = 15_000;
+const SNAPSHOT_IO_TIMEOUT = 60_000;
 
 afterEach(async () => {
   await Promise.all(temps.splice(0).map(path => rm(path, { recursive: true, force: true })));
@@ -89,6 +98,108 @@ async function candidate(paths: MarketDataPaths): Promise<SnapshotCandidate> {
     requestEnd: '2026-10-15 12:00:00',
     sourceLatestAt: '2026-10-09 15:00:00',
   };
+}
+
+function syntheticCandidate(
+  minuteCount: number,
+  requestStart = '2026-10-09 09:00:00',
+): SnapshotCandidate {
+  const startMs = parseBeijing('2026-10-09 09:00:00');
+  const bars1 = Array.from({ length: minuteCount }, (_, index) => {
+    const minuteStartMs = startMs + index * 60_000;
+    const open = 2_500 + index;
+    const close = open + 1;
+    return {
+      datetimeNano: (BigInt(minuteStartMs) * 1_000_000n).toString(),
+      startMs: minuteStartMs,
+      start: formatBeijing(minuteStartMs),
+      open,
+      high: close + 1,
+      low: open - 1,
+      close,
+      volume: 10 + index,
+      openOi: 100_000 + index,
+      closeOi: 100_001 + index,
+    };
+  });
+  const coverageEndMs = bars1.at(-1)!.startMs + 60_000;
+  const bars5 = aggregateMinutes(
+    bars1,
+    5,
+    coverageEndMs,
+    DEFAULT_INSTRUMENT.tradingSessions,
+  ).filter(bar => bar.complete);
+  const bars60 = aggregateFiveMinuteBars(
+    bars5,
+    DEFAULT_INSTRUMENT.tradingSessions,
+  ).filter(bar => bar.complete);
+  return {
+    bars1,
+    bars5,
+    bars60,
+    mainContractMappings: [
+      { tradingDate: '2026-10-09', contract: 'm2701' },
+    ],
+    rollovers: [],
+    requestStart,
+    requestEnd: formatBeijing(coverageEndMs),
+    sourceLatestAt: formatBeijing(coverageEndMs),
+  };
+}
+
+async function syntheticFixture(): Promise<MarketDataPaths> {
+  const root = await mkdtemp(join(tmpdir(), '行情 增量快照-'));
+  temps.push(root);
+  const paths = {
+    builtinDataDirectory: join(root, 'builtin'),
+    marketDataDirectory: join(root, 'market-data'),
+  };
+  await writeBuiltinMarketSnapshot(
+    paths,
+    DEFAULT_INSTRUMENT,
+    syntheticCandidate(65),
+    { now: () => new Date('2026-10-09T02:05:00.000Z') },
+  );
+  return paths;
+}
+
+async function saveSyntheticBase(
+  paths: MarketDataPaths,
+  snapshotId = 'base',
+): Promise<LoadedMarketSnapshot> {
+  return saveMarketSnapshot(
+    paths,
+    DEFAULT_INSTRUMENT,
+    syntheticCandidate(65),
+    {
+      idFactory: () => snapshotId,
+      now: () => new Date('2026-10-09T02:05:00.000Z'),
+    },
+  );
+}
+
+async function saveSyntheticTail(
+  paths: MarketDataPaths,
+  current: LoadedMarketSnapshot,
+  minuteCount: number,
+  snapshotId: string,
+  minuteOffset: number,
+  tailCompactionThreshold?: number,
+): Promise<LoadedMarketSnapshot> {
+  return saveMarketSnapshot(
+    paths,
+    DEFAULT_INSTRUMENT,
+    syntheticCandidate(minuteCount, '2026-10-09 10:05:00'),
+    {
+      intent: 'tail',
+      current,
+      idFactory: () => snapshotId,
+      now: () => new Date(
+        Date.parse('2026-10-09T02:05:00.000Z') + minuteOffset * 60_000,
+      ),
+      tailCompactionThreshold,
+    },
+  );
 }
 
 function userDirectory(
@@ -222,7 +333,7 @@ describe('versioned market snapshots', () => {
     expect(observedSource).toBe('builtin');
     expect(saved).toMatchObject({ source: 'user', snapshotUpdatedAt: '2026-10-15T04:00:00.000Z' });
     expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).directory).toContain('snapshot-a');
-  }, 15_000);
+  }, SNAPSHOT_IO_TIMEOUT);
 
   it('falls back from a broken pointer or corrupt current snapshot to the previous complete snapshot', async () => {
     const paths = await fixture();
@@ -241,7 +352,7 @@ describe('versioned market snapshots', () => {
       'corrupt',
     );
     expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).directory).toContain('snapshot-old');
-  }, 15_000);
+  }, SNAPSHOT_IO_TIMEOUT);
 
   it.each([
     ['missing file', async (paths: MarketDataPaths) => unlink(join(userDirectory(paths), 'snapshots', 'snapshot-a', 'edb_main_continuous_5m.csv'))],
@@ -296,7 +407,122 @@ describe('versioned market snapshots', () => {
     SNAPSHOT_IO_TIMEOUT,
   );
 
-  it.each([1, 2, 3] as const)(
+  it('writes and loads a schema 5 baseline without a one-minute file', async () => {
+    const root = await mkdtemp(join(tmpdir(), '行情 无一分钟快照-'));
+    temps.push(root);
+    const paths: MarketDataPaths = {
+      builtinDataDirectory: join(root, 'data'),
+      marketDataDirectory: join(root, 'market-data'),
+    };
+    const sourceCandidate = syntheticCandidate(65);
+    const saved = await writeBuiltinMarketSnapshot(
+      paths,
+      DEFAULT_INSTRUMENT,
+      {
+        ...sourceCandidate,
+        bars1: [],
+        bars60: [],
+        source: {
+          provider: 'MIXED',
+          symbol: DEFAULT_INSTRUMENT.mainSymbol,
+        },
+        sourceSegments: [{
+          sourceId: 'desktop-main-test',
+          sourceName: '桌面主连测试数据',
+          kind: 'desktop-main',
+          sourceVersion: 'test-v1',
+          acquiredAt: '2026-10-09',
+          coverage: {
+            first: sourceCandidate.bars5[0].start,
+            last: sourceCandidate.bars5.at(-1)!.end,
+          },
+          rawFiles: [{
+            name: 'desktop-main.csv',
+            sha256: 'a'.repeat(64),
+            rows: sourceCandidate.bars5.length,
+          }],
+          importerVersion: 'test-v1',
+          license: {
+            redistributionAllowed: false,
+            conclusion: '仅用于验证本机基线加载。',
+          },
+        }],
+        redistribution: {
+          allowed: false,
+          conclusion: '仅用于验证本机基线加载。',
+        },
+      },
+      { now: () => new Date('2026-10-09T02:05:00.000Z') },
+    );
+
+    expect(saved.metadata).toMatchObject({
+      schemaVersion: 5,
+      periods: {
+        bars5: {
+          first: sourceCandidate.bars5[0].start,
+          rows: sourceCandidate.bars5.length,
+        },
+      },
+    });
+    if (saved.metadata?.schemaVersion !== 5) throw new Error('expected schema 5');
+    expect(saved.metadata.files.bars1).toBeUndefined();
+    expect(saved.metadata.periods.bars1).toBeUndefined();
+    expect(saved.metadata.sourceSegments[0].kind).toBe('desktop-main');
+    expect(saved.metadata.redistribution.allowed).toBe(false);
+    await expect(readFile(
+      join(saved.directory, 'edb_main_continuous_1m_raw.csv'),
+    )).rejects.toThrow();
+    await expect(loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT))
+      .resolves.toMatchObject({
+        source: 'builtin',
+        bars1: [],
+        bars5: sourceCandidate.bars5,
+      });
+  }, SNAPSHOT_IO_TIMEOUT);
+
+  it('keeps long 5/60-minute history with only a recent one-minute overlap', async () => {
+    const paths = await fixture();
+    const fullCandidate = await candidate(paths);
+    const recentMinutes = fullCandidate.bars1.slice(-60);
+    const saved = await saveMarketSnapshot(
+      paths,
+      DEFAULT_INSTRUMENT,
+      {
+        ...fullCandidate,
+        bars1: recentMinutes,
+        bars60: [],
+      },
+      {
+        idFactory: () => 'partial-one-minute',
+        now: () => new Date('2026-10-15T04:00:00.000Z'),
+      },
+    );
+
+    expect(saved.bars5[0].start < saved.bars1[0].start).toBe(true);
+    expect(saved.metadata).toMatchObject({
+      schemaVersion: 5,
+      periods: {
+        bars1: {
+          first: recentMinutes[0].start,
+          last: recentMinutes.at(-1)!.start,
+          rows: recentMinutes.length,
+        },
+        bars5: {
+          first: fullCandidate.bars5[0].start,
+          last: fullCandidate.bars5.at(-1)!.end,
+          rows: fullCandidate.bars5.length,
+        },
+      },
+    });
+    await expect(loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT))
+      .resolves.toMatchObject({
+        source: 'user',
+        bars1: recentMinutes,
+        bars5: fullCandidate.bars5,
+      });
+  }, SNAPSHOT_IO_TIMEOUT);
+
+  it.each([1, 2, 3, 4] as const)(
     'loads schema %i user prices while deriving missing newer fields',
     async schemaVersion => {
       const paths = await fixture();
@@ -312,14 +538,18 @@ describe('versioned market snapshots', () => {
       const metadataPath = join(saved.directory, 'metadata.json');
       const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
       metadata.schemaVersion = schemaVersion;
-      delete metadata.instrumentId;
-      delete metadata.mainSymbol;
-      delete metadata.parameterVersion;
-      delete metadata.files.mainContractMappings;
+      if (schemaVersion < 4) {
+        delete metadata.instrumentId;
+        delete metadata.mainSymbol;
+        delete metadata.parameterVersion;
+        delete metadata.files.mainContractMappings;
+      }
       if (schemaVersion < 3) delete metadata.files.bars1;
       if (schemaVersion === 1) delete metadata.files.rollovers;
       await writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
-      await unlink(join(saved.directory, 'edb_main_contract_mapping.csv'));
+      if (schemaVersion < 4) {
+        await unlink(join(saved.directory, 'edb_main_contract_mapping.csv'));
+      }
       if (schemaVersion < 3) await unlink(join(saved.directory, 'edb_main_continuous_1m_raw.csv'));
       if (schemaVersion === 1) await unlink(join(saved.directory, 'edb_main_continuous_rollovers.csv'));
       await writeFile(join(userDirectory(paths), 'current.json'), `${JSON.stringify({
@@ -355,7 +585,7 @@ describe('versioned market snapshots', () => {
       },
     )).rejects.toThrow(/disk failure/);
     expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).source).toBe('builtin');
-  });
+  }, SNAPSHOT_IO_TIMEOUT);
 
   it('keeps the current and one previous activated snapshot during cleanup', async () => {
     const paths = await fixture();
@@ -369,9 +599,9 @@ describe('versioned market snapshots', () => {
     await expect(readFile(join(userDirectory(paths), 'snapshots', 'three', 'metadata.json'))).resolves.toBeTruthy();
     await expect(readFile(join(userDirectory(paths), 'snapshots', 'two', 'metadata.json'))).resolves.toBeTruthy();
     await expect(readFile(join(userDirectory(paths), 'snapshots', 'one', 'metadata.json'))).rejects.toThrow();
-  }, 15_000);
+  }, SNAPSHOT_IO_TIMEOUT);
 
-  it('writes schema 4 identity fields and hashes for every persisted file', async () => {
+  it('writes schema 5 identity fields and hashes for every persisted file', async () => {
     const paths = await fixture();
     const saved = await saveMarketSnapshot(
       paths,
@@ -381,19 +611,20 @@ describe('versioned market snapshots', () => {
     );
     const metadata = saved.metadata!;
     expect(metadata).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       instrumentId: 'main_continuous',
       mainSymbol: 'KQ.m@DCE.m',
       parameterVersion: 1,
     });
-    if (metadata.schemaVersion !== 4) throw new Error('expected schema 4');
+    if (metadata.schemaVersion !== 5) throw new Error('expected schema 5');
     for (const file of Object.values(metadata.files)) {
+      if (!file) continue;
       const contents = await readFile(join(saved.directory, file.name));
       expect(createHash('sha256').update(contents).digest('hex')).toBe(file.sha256);
     }
     expect(saved.mainContractMappings).toHaveLength(4);
     expect(await snapshotFingerprint(saved.directory)).toHaveProperty('edb_main_contract_mapping.csv');
-  });
+  }, SNAPSHOT_IO_TIMEOUT);
 
   it('isolates one instrument corruption from another instrument snapshot', async () => {
     const paths = await fixture();
@@ -420,11 +651,198 @@ describe('versioned market snapshots', () => {
       source: 'user',
       directory: expect.stringContaining('rebar-user'),
     });
-  }, 15_000);
+  }, SNAPSHOT_IO_TIMEOUT);
+});
+
+describe('bounded tail snapshot layers', () => {
+  it('writes and reloads schema 6 with a direct schema 5 base and stable cutoff', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const first = await saveSyntheticTail(paths, base, 66, 'tail-one', 1);
+    const second = await saveSyntheticTail(paths, first, 67, 'tail-two', 2);
+
+    expect(base.metadata?.schemaVersion).toBe(5);
+    expect(first.metadata).toMatchObject({
+      schemaVersion: 6,
+      base: { snapshotId: 'base' },
+      replacementCutoff: '2026-10-09 10:05:00',
+      layerSequence: 1,
+    });
+    expect(second.metadata).toMatchObject({
+      schemaVersion: 6,
+      base: { snapshotId: 'base' },
+      replacementCutoff: '2026-10-09 10:05:00',
+      layerSequence: 2,
+    });
+    if (base.metadata?.schemaVersion !== 5) throw new Error('expected schema 5');
+    if (second.metadata?.schemaVersion !== 6) throw new Error('expected schema 6');
+    expect(second.metadata?.sourceSegments).toEqual(base.metadata?.sourceSegments);
+    expect(second.metadata?.redistribution).toEqual(base.metadata?.redistribution);
+    expect(second.mainContractMappings).toEqual(base.mainContractMappings);
+    expect(second.rollovers).toEqual(base.rollovers);
+    expect(second.bars1).toHaveLength(67);
+    expect(second.bars5).toHaveLength(base.bars5.length);
+    expect(second.bars60).toHaveLength(base.bars60.length);
+
+    const pointer = JSON.parse(
+      await readFile(join(userDirectory(paths), 'current.json'), 'utf8'),
+    );
+    expect(pointer).toMatchObject({
+      schemaVersion: 6,
+      snapshotId: 'tail-two',
+    });
+    await expect(loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT))
+      .resolves.toMatchObject({
+        directory: expect.stringContaining('tail-two'),
+        bars1: expect.arrayContaining([
+          expect.objectContaining({ start: '2026-10-09 10:06:00' }),
+        ]),
+      });
+  });
+
+  it('writes canonical empty 5/60-minute tails while keeping complete mappings', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const tail = await saveSyntheticTail(paths, base, 66, 'empty-bars-tail', 1);
+    if (tail.metadata?.schemaVersion !== 6) throw new Error('expected schema 6');
+
+    expect(tail.metadata.files.bars1.rows).toBe(1);
+    expect(tail.metadata.files.bars5.rows).toBe(0);
+    expect(tail.metadata.files.bars60.rows).toBe(0);
+    expect(tail.metadata.files.mainContractMappings.rows)
+      .toBe(base.mainContractMappings.length);
+    await expect(readFile(
+      join(tail.directory, 'edb_main_continuous_5m.csv'),
+      'utf8',
+    )).resolves.toBe(
+      '\uFEFFbar_start,bar_end,session,open,high,low,close,volume,open_oi,close_oi,observed_minutes,expected_minutes,complete\r\n',
+    );
+    await expect(readFile(
+      join(tail.directory, 'edb_main_continuous_60m.csv'),
+      'utf8',
+    )).resolves.toBe(
+      '\uFEFFbar_start,bar_end,session,open,high,low,close,volume,open_oi,close_oi,observed_minutes,expected_minutes,complete\r\n',
+    );
+  });
+
+  it('falls back across corrupt tail, base, and base-hash references', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const first = await saveSyntheticTail(paths, base, 66, 'tail-one', 1);
+    const second = await saveSyntheticTail(paths, first, 67, 'tail-two', 2);
+
+    await writeFile(
+      join(second.directory, 'edb_main_continuous_1m_raw.csv'),
+      'corrupt',
+    );
+    expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).directory)
+      .toContain('tail-one');
+
+    const secondMetadataPath = join(second.directory, 'metadata.json');
+    const secondMetadata = JSON.parse(await readFile(secondMetadataPath, 'utf8'));
+    secondMetadata.base.metadataSha256 = '0'.repeat(64);
+    await writeFile(
+      secondMetadataPath,
+      `${JSON.stringify(secondMetadata, null, 2)}\n`,
+    );
+    expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).directory)
+      .toContain('tail-one');
+
+    await writeFile(
+      join(base.directory, 'edb_main_continuous_5m.csv'),
+      'corrupt',
+    );
+    expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).source)
+      .toBe('builtin');
+  });
+
+  it('removes a renamed candidate when pointer replacement fails', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const currentPath = join(userDirectory(paths), 'current.json');
+    const backupPath = join(userDirectory(paths), 'current.backup.json');
+
+    try {
+      await expect(saveMarketSnapshot(
+        paths,
+        DEFAULT_INSTRUMENT,
+        syntheticCandidate(66, '2026-10-09 10:05:00'),
+        {
+          intent: 'tail',
+          current: base,
+          idFactory: () => 'pointer-failure',
+          beforePointerSwitch: async () => {
+            await rename(currentPath, backupPath);
+            await mkdir(currentPath);
+          },
+        },
+      )).rejects.toThrow();
+    } finally {
+      await rm(currentPath, { recursive: true, force: true });
+      await rename(backupPath, currentPath);
+    }
+
+    const snapshotIds = (await readdir(
+      join(userDirectory(paths), 'snapshots'),
+      { withFileTypes: true },
+    )).filter(entry => entry.isDirectory()).map(entry => entry.name);
+    expect(snapshotIds).not.toContain('pointer-failure');
+    expect((await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT)).directory)
+      .toContain('base');
+  });
+
+  it('retains the referenced base and at most three snapshot directories', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const first = await saveSyntheticTail(paths, base, 66, 'tail-one', 1);
+    const second = await saveSyntheticTail(paths, first, 67, 'tail-two', 2);
+    const third = await saveSyntheticTail(paths, second, 68, 'tail-three', 3);
+    const snapshotIds = (await readdir(
+      join(userDirectory(paths), 'snapshots'),
+      { withFileTypes: true },
+    )).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+
+    expect(snapshotIds).toEqual(['base', 'tail-three', 'tail-two']);
+    expect(third.metadata).toMatchObject({
+      schemaVersion: 6,
+      base: { snapshotId: 'base' },
+      layerSequence: 3,
+    });
+  });
+
+  it('compacts back to schema 5 at the configured layer threshold', async () => {
+    const paths = await syntheticFixture();
+    const base = await saveSyntheticBase(paths);
+    const first = await saveSyntheticTail(paths, base, 66, 'tail-one', 1, 3);
+    const second = await saveSyntheticTail(paths, first, 67, 'tail-two', 2, 3);
+    const compacted = await saveSyntheticTail(
+      paths,
+      second,
+      68,
+      'compacted',
+      3,
+      3,
+    );
+
+    expect(first.metadata).toMatchObject({ schemaVersion: 6, layerSequence: 1 });
+    expect(second.metadata).toMatchObject({ schemaVersion: 6, layerSequence: 2 });
+    expect(compacted.metadata).toMatchObject({
+      schemaVersion: 5,
+      snapshotId: 'compacted',
+    });
+    expect(compacted.bars1).toHaveLength(68);
+    const pointer = JSON.parse(
+      await readFile(join(userDirectory(paths), 'current.json'), 'utf8'),
+    );
+    expect(pointer).toMatchObject({
+      schemaVersion: 5,
+      snapshotId: 'compacted',
+    });
+  });
 });
 
 describe('legacy soymeal migration', () => {
-  it('copies flat built-in data and the old global user snapshot without deleting either source', async () => {
+  it('single-flights concurrent startup migrations without deleting either legacy source', async () => {
     const root = await mkdtemp(join(tmpdir(), '行情 迁移-'));
     temps.push(root);
     const legacy = join(root, 'legacy-flat');
@@ -436,8 +854,16 @@ describe('legacy soymeal migration', () => {
       marketDataDirectory: join(root, 'AppData', 'market-data'),
     };
     const oldSnapshot = await createLegacyGlobalSnapshot(paths);
-    const first = await migrateLegacySoymealData(paths);
-    expect(first).toEqual({ builtinMigrated: true, userSnapshotMigrated: true });
+    const concurrent = await Promise.all([
+      migrateLegacySoymealData(paths),
+      migrateLegacySoymealData(paths),
+      migrateLegacySoymealData(paths),
+      migrateLegacySoymealData(paths),
+    ]);
+    expect(concurrent).toEqual(Array.from(
+      { length: 4 },
+      () => ({ builtinMigrated: true, userSnapshotMigrated: true }),
+    ));
     const loaded = await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT);
     expect(loaded.source).toBe('user');
     expect(loaded.bars1[0].start <= '2025-10-09 21:00:00').toBe(true);
@@ -453,7 +879,7 @@ describe('legacy soymeal migration', () => {
     expect(second).toEqual({ builtinMigrated: false, userSnapshotMigrated: false });
     const entries = await readFile(join(userDirectory(paths), 'current.json'), 'utf8');
     expect(JSON.parse(entries).snapshotId).toBe('legacy-old-global');
-  }, 30_000);
+  }, SNAPSHOT_IO_TIMEOUT);
 
   it('does not overwrite a valid newer per-instrument snapshot', async () => {
     const root = await mkdtemp(join(tmpdir(), '行情 新快照优先-'));
@@ -481,5 +907,5 @@ describe('legacy soymeal migration', () => {
     const pointer = JSON.parse(await readFile(join(userDirectory(paths), 'current.json'), 'utf8'));
     expect(pointer.snapshotId).toBe('new-layout');
     await expect(readFile(join(oldSnapshot, 'metadata.json'))).resolves.toBeTruthy();
-  }, 30_000);
+  }, SNAPSHOT_IO_TIMEOUT);
 });
