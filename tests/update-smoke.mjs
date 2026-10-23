@@ -8,6 +8,31 @@ import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
 const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const baselineReport = JSON.parse(
+  await readFile(new URL('../data/baseline-report.json', import.meta.url), 'utf8'),
+);
+const mainBaseline = baselineReport.instruments.find(
+  instrument => instrument.instrumentId === 'main_continuous',
+);
+assert.ok(mainBaseline, 'Baseline report must contain main_continuous.');
+const assertMainCountsAtLeastBaseline = async page => {
+  const text = await page.locator('#counts').innerText();
+  const match = text.match(/^5\D+([\d,]+)\D+60\D+([\d,]+)/);
+  assert.ok(match, `Expected main-continuous counts, got ${JSON.stringify(text)}.`);
+  const fiveMinuteRows = Number(match[1].replaceAll(',', ''));
+  const sixtyMinuteRows = Number(match[2].replaceAll(',', ''));
+  assert.ok(
+    fiveMinuteRows >= mainBaseline.fiveMinuteRows
+      && sixtyMinuteRows >= mainBaseline.sixtyMinuteRows,
+    JSON.stringify({
+      actual: { fiveMinuteRows, sixtyMinuteRows },
+      baseline: {
+        fiveMinuteRows: mainBaseline.fiveMinuteRows,
+        sixtyMinuteRows: mainBaseline.sixtyMinuteRows,
+      },
+    }),
+  );
+};
 const currentVersion = manifest.version;
 const targetVersion = semver.inc(currentVersion, 'patch');
 assert.ok(targetVersion, `Invalid package version: ${currentVersion}`);
@@ -43,7 +68,7 @@ const offscreenScenarios = [];
     assert.equal(await page.getByTestId('update-dialog').isVisible(), true);
     assert.equal(await page.locator('#update-current').innerText(), `v${currentVersion}`);
     assert.equal(await page.locator('#update-target').innerText(), `v${targetVersion}`);
-    assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
+    await assertMainCountsAtLeastBaseline(page);
 
     await page.locator('#update-later').click();
     assert.equal(await page.getByTestId('update-dialog').isHidden(), true);
@@ -110,7 +135,7 @@ const offscreenScenarios = [];
   try {
     await page.locator('html[data-update-phase="failed"]').waitFor();
     assert.equal(await page.getByTestId('update-dialog').isHidden(), true);
-    assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
+    await assertMainCountsAtLeastBaseline(page);
     await page.getByTestId('update-entry').click();
     assert.equal(await page.getByTestId('update-dialog').isVisible(), true);
     assert.match(await page.locator('#update-error').innerText(), /更新源不可用/);

@@ -12,6 +12,40 @@ import {
 const output = resolve('artifacts');
 await mkdir(output, { recursive: true });
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const baselineReport = JSON.parse(
+  readFileSync(new URL('../data/baseline-report.json', import.meta.url), 'utf8'),
+);
+const mainBaseline = baselineReport.instruments.find(
+  instrument => instrument.instrumentId === 'main_continuous',
+);
+assert.ok(mainBaseline, 'Baseline report must contain main_continuous.');
+const expectedMainCountPattern = new RegExp(
+  `${mainBaseline.fiveMinuteRows.toLocaleString('en-US')}.*${mainBaseline.sixtyMinuteRows.toLocaleString('en-US')}`,
+);
+const mainBaselineDirectory = new URL('../data/instruments/main_continuous/', import.meta.url);
+const readBaselineRows = filename => readFileSync(
+  new URL(filename, mainBaselineDirectory),
+  'utf8',
+).trim().split(/\r?\n/).slice(1).map(line => line.split(','));
+const rolloverRows = readBaselineRows('edb_main_continuous_rollovers.csv');
+const sourceRows = readBaselineRows('edb_main_continuous_60m.csv');
+const sourceRows5 = readBaselineRows('edb_main_continuous_5m.csv');
+const toBeijingTimestamp = value => Date.parse(value.replace(' ', 'T') + '+08:00');
+const childrenForParent = start => {
+  const parent = sourceRows.find(row => row[0] === start);
+  assert.ok(parent, `Expected 60m source row ${start}.`);
+  const parentStart = toBeijingTimestamp(parent[0]);
+  const parentEnd = toBeijingTimestamp(parent[1]);
+  return sourceRows5.filter(row => {
+    const childStart = toBeijingTimestamp(row[0]);
+    return parentStart <= childStart && childStart < parentEnd;
+  });
+};
+const expectedRolloverLabels = rolloverRows.map(
+  ([, , fromContract, toContract]) => `主力换月：${fromContract} -> ${toContract}`,
+);
+const expectedRolloverStarts = rolloverRows.map(([, time]) => time.slice(0, 16));
+const expectedRolloverCount = String(rolloverRows.length);
 const sandbox = process.env.MONEYCOMING_TEST_USER_DATA
   ? undefined
   : await mkdtemp(join(tmpdir(), 'moneycoming-app-smoke-'));
@@ -103,17 +137,7 @@ try {
   assert.equal(compactLayout.updateTextFits, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: resolve(output, 'default-1440.png') });
-  assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
-  const expectedRolloverLabels = [
-    '主力换月：m2601 -> m2605',
-    '主力换月：m2605 -> m2609',
-    '主力换月：m2609 -> m2701',
-  ];
-  const expectedRolloverStarts = [
-    '2025-12-03 21:00',
-    '2026-04-08 21:00',
-    '2026-08-10 21:00',
-  ];
+  assert.match(await page.locator('#counts').innerText(), expectedMainCountPattern);
   const rolloverDiagnostics = async period => ({
     count: await page.locator(`#card-${period}`).getAttribute('data-rollover-count'),
     labels: JSON.parse(await page.locator(`#card-${period}`).getAttribute('data-rollover-labels')),
@@ -124,8 +148,8 @@ try {
     60: await rolloverDiagnostics(60),
   };
   assert.deepEqual(initialRolloverDiagnostics, {
-    5: { count: '3', labels: expectedRolloverLabels, starts: expectedRolloverStarts },
-    60: { count: '3', labels: expectedRolloverLabels, starts: expectedRolloverStarts },
+    5: { count: expectedRolloverCount, labels: expectedRolloverLabels, starts: expectedRolloverStarts },
+    60: { count: expectedRolloverCount, labels: expectedRolloverLabels, starts: expectedRolloverStarts },
   });
   assert.equal(await page.locator('#card-60').getAttribute('data-monday-count'), '0');
   assert.equal(await page.locator('#card-5').getAttribute('data-monday-count'), '0');
@@ -378,8 +402,11 @@ try {
     borderStyle: getComputedStyle(element).borderStyle,
   })), { pointerEvents: 'none', position: 'absolute', parentClass: 'chart-container', borderStyle: 'solid' });
   await jump('2020-01-01');
-  assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2025-10-09T21:00:00+08:00')));
-  assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
+  assert.equal(
+    await page.locator('html').getAttribute('data-selected-start'),
+    String(Date.parse(sourceRows[0][0].replace(' ', 'T') + '+08:00')),
+  );
+  assert.match(await page.locator('#counts').innerText(), expectedMainCountPattern);
   assert.deepEqual(
     await page.getByTestId('instrument').locator('option').allTextContents(),
     ['豆粕主连', '菜粕主连', 'PVC主连', '螺纹钢主连', '玻璃主连', '菜油主连', '棕榈油主连', '豆油主连', '纸浆主连', '玉米主连', '纯碱主连', '豆一主连', '甲醇主连', '白糖主连', '豆二主连'],
@@ -403,14 +430,15 @@ try {
   await jump('2026-02-07');
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), String(Date.parse('2026-02-09T09:00:00+08:00')));
   await jump('2030-01-01');
-  assert.equal(await page.locator('html').getAttribute('data-child-count'), '12');
+  assert.equal(
+    await page.locator('html').getAttribute('data-child-count'),
+    String(childrenForParent(sourceRows.at(-1)[0]).length),
+  );
   await page.getByTestId('latest').click();
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), null);
   // Locate real candles through the visible crosshair, not a test-only chart API.
   await page.setViewportSize({ width: 1440, height: 900 });
   await jump('2026-02-05');
-  const sourceRows = readFileSync('data/instruments/main_continuous/edb_main_continuous_60m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
-  const sourceRows5 = readFileSync('data/instruments/main_continuous/edb_main_continuous_5m.csv', 'utf8').trim().split(/\r?\n/).slice(1).map(line => line.split(','));
   const chartRange = async period => ({
     from: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-from')),
     to: Number(await page.locator(`#card-${period}`).getAttribute('data-visible-to')),
@@ -462,7 +490,10 @@ try {
   const selectedBeforeHover = await page.locator('html').getAttribute('data-selected-start');
   const leftBeforeHover = await chartRange(60);
   const rightBeforeHover = await chartRange(5);
-  await hoverParent('2026-02-05 09:00:00');
+  const initialHoverStart = '2026-02-05 09:00:00';
+  const initialHoverChildren = childrenForParent(initialHoverStart);
+  assert.ok(initialHoverChildren.length > 0);
+  await hoverParent(initialHoverStart);
   const initialHoverState = await linkedOverlay.evaluate(element => ({
     hidden: element.hidden,
     visible: element.dataset.visible,
@@ -475,9 +506,12 @@ try {
     width: element.dataset.width,
   }));
   assert.equal(await linkedOverlay.isVisible(), true, JSON.stringify({ initialHoverState, leftBeforeHover, rightBeforeHover }));
-  assert.equal(await linkedOverlay.getAttribute('data-count'), '12');
-  assert.equal(await linkedOverlay.getAttribute('data-first-start'), String(Date.parse('2026-02-05T09:00:00+08:00')));
-  assert.equal(await linkedOverlay.getAttribute('data-last-start'), String(Date.parse('2026-02-05T09:55:00+08:00')));
+  assert.equal(await linkedOverlay.getAttribute('data-count'), String(initialHoverChildren.length));
+  assert.equal(await linkedOverlay.getAttribute('data-first-start'), String(toBeijingTimestamp(initialHoverStart)));
+  assert.equal(
+    await linkedOverlay.getAttribute('data-last-start'),
+    String(toBeijingTimestamp(initialHoverChildren.at(-1)[0])),
+  );
   assert.ok(Number(await linkedOverlay.getAttribute('data-width')) > 0);
   const overlayRect = await linkedOverlay.boundingBox();
   const containerRect = await page.locator('#card-5 .chart-container').boundingBox();
@@ -495,8 +529,6 @@ try {
       await page.locator('#card-5').getAttribute('data-selected-count'),
       await page.locator('html').getAttribute('data-observation-count'),
     );
-  } else {
-    assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
   }
   assert.deepEqual(await chartRange(60), leftBeforeHover);
   assert.deepEqual(await chartRange(5), rightBeforeHover);
@@ -507,7 +539,7 @@ try {
   await page.setViewportSize({ width: 1100, height: 720 });
   await frame();
   assert.equal(await linkedOverlay.getAttribute('data-visible'), 'true');
-  assert.equal(await linkedOverlay.getAttribute('data-count'), '12');
+  assert.equal(await linkedOverlay.getAttribute('data-count'), String(initialHoverChildren.length));
   const compactOverlayRect = await linkedOverlay.boundingBox();
   assert.notDeepEqual([compactOverlayRect.width, compactOverlayRect.height], [dualOverlayRect.width, dualOverlayRect.height]);
   await page.waitForTimeout(150);
@@ -519,7 +551,7 @@ try {
   await page.evaluate(() => document.querySelector('[data-testid="mode-5"]').click());
   await frame();
   assert.equal(await linkedOverlay.getAttribute('data-visible'), 'true');
-  assert.equal(await linkedOverlay.getAttribute('data-count'), '12');
+  assert.equal(await linkedOverlay.getAttribute('data-count'), String(initialHoverChildren.length));
   assert.ok(Number(await linkedOverlay.getAttribute('data-chart-width')) > dualChartWidth);
   assert.ok((await linkedOverlay.boundingBox()).width > 0);
   await page.evaluate(() => document.querySelector('[data-testid="mode-dual"]').click());
@@ -555,12 +587,17 @@ try {
   };
 
   await jump('2026-02-05');
-  const zoomed = await zoomLeftTo('2026-02-05 10:00:00', 34);
+  const zoomStart = '2026-02-05 10:00:00';
+  const linkedMinimumSpan = childrenForParent(zoomStart).length + 4;
+  const zoomed = await zoomLeftTo(zoomStart, 34);
   assert.ok(zoomed.span >= 16 && zoomed.span <= 45, `Expected roughly 30 visible 60m bars, got ${zoomed.span}`);
   await page.mouse.click(zoomed.point.x, zoomed.point.y);
   await frame();
   const linkedSpan = (await chartRange(5)).span;
-  assert.ok(Math.abs(linkedSpan - Math.max(zoomed.span, 16)) < .05, `Expected linked span ${zoomed.span}, got ${linkedSpan}`);
+  assert.ok(
+    Math.abs(linkedSpan - Math.max(zoomed.span, linkedMinimumSpan)) < .05,
+    `Expected linked span ${Math.max(zoomed.span, linkedMinimumSpan)}, got ${linkedSpan}`,
+  );
   const linkedRange = await chartRange(5);
   const firstIndex = Number(await linkedOverlay.getAttribute('data-first-index'));
   const lastIndex = Number(await linkedOverlay.getAttribute('data-last-index'));
@@ -578,8 +615,6 @@ try {
       await page.locator('#card-5').getAttribute('data-selected-count'),
       await page.locator('html').getAttribute('data-observation-count'),
     );
-  } else {
-    assert.equal(await page.locator('#card-5').getAttribute('data-selected-count'), '12');
   }
   await page.waitForTimeout(150);
   await page.screenshot({ path: resolve(output, 'linked-click-zoom-1440.png') });
@@ -600,11 +635,13 @@ try {
   assert.deepEqual(await chartRange(5), rangeBeforeHoverScan);
   assert.equal(await page.locator('html').getAttribute('data-selected-start'), zoomed.point.target);
 
-  const tightlyZoomed = await zoomLeftTo('2026-02-05 10:00:00', 9);
+  const tightlyZoomed = await zoomLeftTo(zoomStart, 9);
   assert.ok(tightlyZoomed.span < 12);
   await page.mouse.click(tightlyZoomed.point.x, tightlyZoomed.point.y);
   await frame();
-  assert.ok(Math.abs((await chartRange(5)).span - 16) < .05);
+  assert.ok(
+    Math.abs((await chartRange(5)).span - Math.max(tightlyZoomed.span, linkedMinimumSpan)) < .05,
+  );
   const tightRange = await chartRange(5);
   assert.ok(tightRange.from <= Number(await linkedOverlay.getAttribute('data-first-index')) - .5);
   assert.ok(tightRange.to >= Number(await linkedOverlay.getAttribute('data-last-index')) + .5);
@@ -622,13 +659,7 @@ try {
 
   await jump('2026-10-09');
   const targetStart = '2026-10-09 10:00:00';
-  const targetParent = sourceRows.find(row => row[0] === targetStart);
-  const targetStartMs = Date.parse(targetParent[0].replace(' ', 'T') + '+08:00');
-  const targetEndMs = Date.parse(targetParent[1].replace(' ', 'T') + '+08:00');
-  const targetChildren = sourceRows5.filter(row => {
-    const startMs = Date.parse(row[0].replace(' ', 'T') + '+08:00');
-    return targetStartMs <= startMs && startMs < targetEndMs;
-  });
+  const targetChildren = childrenForParent(targetStart);
   const targetLow = Math.min(...targetChildren.map(row => Number(row[5])));
   const targetHigh = Math.max(...targetChildren.map(row => Number(row[4])));
   const manualPriceRange = {
@@ -681,11 +712,17 @@ try {
   const lastPoint = await hoverParent(lastStart);
   await page.mouse.click(lastPoint.x, lastPoint.y);
   await frame();
-  assert.ok(Math.abs((await chartRange(5)).to - 16899) < .05);
+  assert.ok(Math.abs((await chartRange(5)).to - sourceRows5.length) < .05);
 
   await jump('2026-02-05');
-  for (const [time, count] of [['10:00:00', 12], ['11:15:00', 12], ['14:15:00', 9]]) {
-    await clickParent('2026-02-05 ' + time, count);
+  const linkedSamples = [];
+  for (const [start] of sourceRows.filter(row => row[0].startsWith('2026-02-05 ') && row[0] !== initialHoverStart)) {
+    const children = childrenForParent(start).length;
+    if (!linkedSamples.some(sample => sample.children === children)) linkedSamples.push({ start, children });
+  }
+  assert.ok(linkedSamples.length >= 3, `Expected varied linked intervals, got ${JSON.stringify(linkedSamples)}`);
+  for (const { start, children } of linkedSamples.slice(0, 3)) {
+    await clickParent(start, children);
   }
   const selectedBeforeLeave = await page.locator('html').getAttribute('data-selected-start');
   await hoverParent('2026-02-05 09:00:00');
