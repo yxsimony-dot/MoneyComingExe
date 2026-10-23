@@ -22,6 +22,13 @@ const executable = process.env.MONEYCOMING_EXE
   : join(root, 'release', 'win-unpacked', 'MoneyComing.exe');
 const installedDataDirectory = join(dirname(executable), 'data');
 const sourceDirectory = join(installedDataDirectory, 'instruments', 'main_continuous');
+const legacyMinuteSource = join(
+  root,
+  'futures_investigation_20261009',
+  'instruments',
+  'main_continuous',
+  'edb_main_continuous_1m_raw.csv',
+);
 const sandbox = await mkdtemp(join(tmpdir(), 'moneycoming-legacy-migration-'));
 const userData = join(sandbox, 'user-data');
 const marketDataDirectory = join(userData, 'market-data');
@@ -35,6 +42,7 @@ const output = join(root, 'artifacts');
 await mkdir(output, { recursive: true });
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
+const csvRows = text => text.replace(/^\uFEFF/, '').trim().split(/\r?\n/).length - 1;
 
 async function treeFingerprint(directory) {
   const result = {};
@@ -61,16 +69,67 @@ function firstMinuteFromCsv(text) {
     .replace('T', ' ');
 }
 
+function barCoverageFromCsv(text) {
+  const rows = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const first = rows[1].split(',');
+  const last = rows.at(-1).split(',');
+  return {
+    first: first[0].slice(0, 10),
+    last: last[1].slice(0, 10),
+    rows: rows.length - 1,
+  };
+}
+
+function uiCounts(text) {
+  const match = text.match(/^5\D+([\d,]+)\D+60\D+([\d,]+)\D*$/);
+  assert.ok(match, `Unexpected market count text: ${JSON.stringify(text)}`);
+  return {
+    bars5: Number(match[1].replaceAll(',', '')),
+    bars60: Number(match[2].replaceAll(',', '')),
+  };
+}
+
 await mkdir(dirname(legacySnapshotDirectory), { recursive: true });
 await cp(sourceDirectory, legacySnapshotDirectory, { recursive: true });
 const legacyMetadataPath = join(legacySnapshotDirectory, 'metadata.json');
 const legacyMetadata = JSON.parse(await readFile(legacyMetadataPath, 'utf8'));
+const legacyMinutePath = join(
+  legacySnapshotDirectory,
+  'edb_main_continuous_1m_raw.csv',
+);
+await cp(legacyMinuteSource, legacyMinutePath);
+const legacyMinuteText = await readFile(legacyMinutePath, 'utf8');
+const barCoverage = barCoverageFromCsv(await readFile(
+  join(legacySnapshotDirectory, legacyMetadata.files.bars5.name),
+  'utf8',
+));
+assert.equal(barCoverage.rows, legacyMetadata.files.bars5.rows);
+const expectedSnapshot = {
+  coverageFirst: barCoverage.first,
+  coverageLast: barCoverage.last,
+  sourceLatestAt: legacyMetadata.sourceLatestAt.slice(0, 16),
+  bars5: legacyMetadata.files.bars5.rows,
+  bars60: legacyMetadata.files.bars60.rows,
+};
 legacyMetadata.schemaVersion = 3;
 legacyMetadata.snapshotId = 'old-global';
+legacyMetadata.source = {
+  provider: 'EDB',
+  endpoint: 'https://edb.shinnytech.com/md/kline',
+  symbol: 'KQ.m@DCE.m',
+};
+legacyMetadata.files.bars1 = {
+  name: 'edb_main_continuous_1m_raw.csv',
+  sha256: sha256(legacyMinuteText),
+  rows: csvRows(legacyMinuteText),
+};
 delete legacyMetadata.instrumentId;
 delete legacyMetadata.mainSymbol;
 delete legacyMetadata.parameterVersion;
 delete legacyMetadata.files.mainContractMappings;
+delete legacyMetadata.periods;
+delete legacyMetadata.sourceSegments;
+delete legacyMetadata.redistribution;
 await writeFile(legacyMetadataPath, `${JSON.stringify(legacyMetadata, null, 2)}\n`, 'utf8');
 await rm(join(legacySnapshotDirectory, 'edb_main_contract_mapping.csv'), { force: true });
 const updatedAt = '2026-10-18T12:00:00.000Z';
@@ -87,10 +146,7 @@ await writeFile(
 
 const originalPointer = await readFile(join(marketDataDirectory, 'current.json'), 'utf8');
 const originalSnapshot = await treeFingerprint(legacySnapshotDirectory);
-const firstMinute = firstMinuteFromCsv(await readFile(
-  join(legacySnapshotDirectory, 'edb_main_continuous_1m_raw.csv'),
-  'utf8',
-));
+const firstMinute = firstMinuteFromCsv(legacyMinuteText);
 assert.ok(
   firstMinute <= '2025-10-09 21:00:00',
   `旧豆粕首根分钟数据晚于兼容边界：${firstMinute}`,
@@ -103,6 +159,7 @@ const report = {
   migratedSnapshotId: undefined,
   oldDataPreserved: false,
   idempotent: false,
+  expectedSnapshot,
   launches: [],
 };
 let failure;
@@ -143,8 +200,17 @@ async function launchAndVerify(index) {
       `legacy-migration-${index}-after-show`,
     );
     await page.locator('html[data-ready="true"][data-instrument="main_continuous"]').waitFor();
-    assert.match(await page.locator('#coverage').innerText(), /2025-10-09.*2026-10-16/);
-    assert.match(await page.locator('#counts').innerText(), /16,899.*1,470/);
+    const coverage = await page.locator('#coverage').innerText();
+    assert.ok(coverage.includes(expectedSnapshot.coverageFirst));
+    assert.ok(coverage.includes(expectedSnapshot.coverageLast));
+    assert.ok(coverage.includes(expectedSnapshot.sourceLatestAt));
+    assert.deepEqual(
+      uiCounts(await page.locator('#counts').innerText()),
+      {
+        bars5: expectedSnapshot.bars5,
+        bars60: expectedSnapshot.bars60,
+      },
+    );
   } finally {
     launchReport.beforeClose = await assertElectronWindowOffscreen(
       app,
