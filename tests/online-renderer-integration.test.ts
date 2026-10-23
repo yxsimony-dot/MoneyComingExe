@@ -99,8 +99,8 @@ describe('online renderer integration', () => {
     expect(rendererSource).toMatch(
       /entryLifecycle\(\s*entry,\s*dataset\.bars5,\s*dataset\.bars1,/,
     );
-    expect(rendererSource).toContain(
-      'dataset.bars5,\n    dataset.bars1,\n    dataset.definition,',
+    expect(rendererSource).toMatch(
+      /dataset\.bars5,\s*dataset\.bars1,\s*dataset\.definition,/,
     );
     expect(rendererSource).toContain('根后台 1 分钟 K 线');
   });

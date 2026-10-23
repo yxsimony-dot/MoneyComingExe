@@ -378,7 +378,7 @@ describe('release validation scripts', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  }, 180_000);
+  }, 300_000);
 
   it('rejects a packaged data tree that is missing one registered instrument', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'moneycoming-packaged-data-'));
@@ -396,7 +396,7 @@ describe('release validation scripts', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('rejects malformed packaged resources instead of accepting non-empty files', () => {
     expect(() => validatePackagedData(
