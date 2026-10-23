@@ -2,17 +2,24 @@ name: Publish Windows Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: moneycoming-production-release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      AUTOMATIC_RELEASE_BASE_RUN_NUMBER: 11
     steps:
-      - name: Checkout release tag
+      - name: Checkout main commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -26,15 +33,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate tag and reject duplicate release
+      - name: Resolve automatic release version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          npm run verify:tag -- --tag $env:GITHUB_REF_NAME
-          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY *> $null
+          $latestTag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $latestTag = ""
+            $global:LASTEXITCODE = 0
+          }
+          $env:LATEST_RELEASE_TAG = $latestTag
+          npm run resolve:release-version -- `
+            --run-number $env:GITHUB_RUN_NUMBER `
+            --base-run-number $env:AUTOMATIC_RELEASE_BASE_RUN_NUMBER
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Apply and validate release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+          npm run verify:tag -- --tag "${{ steps.version.outputs.tag }}"
+          gh release view "${{ steps.version.outputs.tag }}" --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
-            throw "Release $env:GITHUB_REF_NAME already exists and will not be overwritten."
+            throw "Release ${{ steps.version.outputs.tag }} already exists and will not be overwritten."
           }
           $global:LASTEXITCODE = 0
 
@@ -86,6 +111,23 @@ jobs:
             }
           }
 
+      - name: Create release tag
+        id: tag
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          $stagedFiles = @(git diff --cached --name-only)
+          if ($stagedFiles.Count -gt 0) {
+            git commit -m "chore: prepare ${{ steps.version.outputs.tag }} release"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          git tag -a "${{ steps.version.outputs.tag }}" -m "MoneyComing ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Create complete draft release
         id: draft
         env:
@@ -101,7 +143,7 @@ jobs:
           if ($assets.Name -match '\.zip$') {
             throw "ZIP assets are forbidden."
           }
-          gh release create $env:GITHUB_REF_NAME @($assets.FullName) --repo $env:GITHUB_REPOSITORY --draft --verify-tag --title $env:GITHUB_REF_NAME --generate-notes
+          gh release create "${{ steps.version.outputs.tag }}" @($assets.FullName) --repo $env:GITHUB_REPOSITORY --draft --verify-tag --title "${{ steps.version.outputs.tag }}" --generate-notes
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "created=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "### Release assets" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
@@ -110,13 +152,20 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false --latest
+        run: gh release edit "${{ steps.version.outputs.tag }}" --repo $env:GITHUB_REPOSITORY --draft=false --latest
 
       - name: Verify anonymous public downloads
-        run: npm run verify:public-release -- --tag $env:GITHUB_REF_NAME
+        run: npm run verify:public-release -- --tag "${{ steps.version.outputs.tag }}"
 
-      - name: Remove incomplete release after failure
-        if: failure() && steps.draft.outputs.created == 'true'
+      - name: Remove incomplete release and tag after failure
+        if: failure() && steps.tag.outputs.created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release delete $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --yes
+        shell: pwsh
+        run: |
+          gh release view "${{ steps.version.outputs.tag }}" --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release delete "${{ steps.version.outputs.tag }}" --repo $env:GITHUB_REPOSITORY --yes
+          }
+          $global:LASTEXITCODE = 0
+          git push origin ":refs/tags/${{ steps.version.outputs.tag }}"

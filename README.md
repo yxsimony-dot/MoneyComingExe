@@ -45,7 +45,7 @@ node tests/performance.mjs
 
 所有自动化 Electron、EXE、安装版和快捷方式测试必须在窗口首次显示前把完整窗口放到所有显示器之外。JavaScript 测试统一使用 `tests/electron-test-launch.mjs`，直接启动 EXE 或快捷方式时传入 `--test-window-offscreen` 并校验实际窗口边界。详细约束见根目录 `AGENTS.md`。
 
-正式发布只由与 `package.json` 版本一致的 `v<version>` 标签触发。维护步骤见 [发布流程](docs/发布流程.md)。
+每次推送 `main` 后会自动构建、测试并发布更高版本的 NSIS Release。维护步骤见 [发布流程](docs/发布流程.md)。
 
 ## 结构
 

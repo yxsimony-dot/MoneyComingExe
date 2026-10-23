@@ -21,6 +21,8 @@ import { credentialMatches } from '../scripts/verify-credentials.mjs';
 // @ts-expect-error Release scripts are executable ESM JavaScript modules.
 import { validateTagVersion } from '../scripts/verify-tag-version.mjs';
 // @ts-expect-error Release scripts are executable ESM JavaScript modules.
+import { resolveAutomaticReleaseVersion } from '../scripts/resolve-automatic-release-version.mjs';
+// @ts-expect-error Release scripts are executable ESM JavaScript modules.
 import * as verifyRelease from '../scripts/verify-release.mjs';
 
 const {
@@ -210,6 +212,27 @@ async function writeSchemaFiveReleaseFixture(
 }
 
 describe('release validation scripts', () => {
+  it('derives one stable update version from every main workflow run', () => {
+    expect(resolveAutomaticReleaseVersion({
+      packageVersion: '1.0.9',
+      latestTag: 'v1.0.8',
+      runNumber: 11,
+      baseRunNumber: 11,
+    })).toEqual({ version: '1.0.9', tag: 'v1.0.9' });
+    expect(resolveAutomaticReleaseVersion({
+      packageVersion: '1.0.9',
+      latestTag: 'v1.0.9',
+      runNumber: 12,
+      baseRunNumber: 11,
+    })).toEqual({ version: '1.0.10', tag: 'v1.0.10' });
+    expect(() => resolveAutomaticReleaseVersion({
+      packageVersion: '1.0.9',
+      latestTag: 'v1.0.10',
+      runNumber: 11,
+      baseRunNumber: 11,
+    })).toThrow(/not newer/);
+  });
+
   it('accepts only a stable v<semver> tag matching package.json', () => {
     expect(validateTagVersion('v1.2.3', '1.2.3')).toBe('1.2.3');
     expect(() => validateTagVersion('v1.2.4', '1.2.3')).toThrow();
