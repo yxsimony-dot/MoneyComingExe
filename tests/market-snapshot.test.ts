@@ -522,6 +522,93 @@ describe('versioned market snapshots', () => {
       });
   }, SNAPSHOT_IO_TIMEOUT);
 
+  it('upgrades a shorter user snapshot with the built-in history while preserving its newer tail once', async () => {
+    const paths = await fixture();
+    const full = await candidate(paths);
+    const completeSixty = full.bars60.slice(-25);
+    const completeStartMs = completeSixty[0].startMs;
+    const completeEndMs = completeSixty.at(-1)!.endMs;
+    const builtinEndMs = completeSixty.at(-3)!.endMs;
+    const userStartMs = completeSixty.at(-10)!.startMs;
+    const completeBars = full.bars5.filter(bar => (
+      bar.startMs >= completeStartMs
+      && bar.endMs <= completeEndMs
+    ));
+    const builtinBars = completeBars.filter(bar => bar.endMs <= builtinEndMs);
+    const mapping = [{
+      tradingDate: builtinBars[0].start.slice(0, 10),
+      contract: 'm2701',
+    }];
+    await writeBuiltinMarketSnapshot(
+      paths,
+      DEFAULT_INSTRUMENT,
+      {
+        bars1: full.bars1.filter(record => (
+          record.startMs >= builtinBars[0].startMs
+          && record.startMs < builtinEndMs
+        )),
+        bars5: builtinBars,
+        bars60: [],
+        mainContractMappings: mapping,
+        rollovers: [],
+        requestStart: builtinBars[0].start,
+        requestEnd: builtinBars.at(-1)!.end,
+        sourceLatestAt: builtinBars.at(-1)!.end,
+      },
+      { now: () => new Date('2026-10-20T00:00:00.000Z') },
+    );
+    const userBars = completeBars
+      .filter(bar => bar.startMs >= userStartMs)
+      .map(bar => ({ ...bar }));
+    const overlappingStart = userBars[10].start;
+    userBars[10] = {
+      ...userBars[10],
+      volume: userBars[10].volume + 123,
+    };
+    const shortUser = await saveMarketSnapshot(
+      paths,
+      DEFAULT_INSTRUMENT,
+      {
+        bars1: full.bars1.filter(record => record.startMs >= builtinEndMs),
+        bars5: userBars,
+        bars60: [],
+        mainContractMappings: mapping,
+        rollovers: [],
+        requestStart: userBars[0].start,
+        requestEnd: userBars.at(-1)!.end,
+        sourceLatestAt: userBars.at(-1)!.end,
+      },
+      {
+        idFactory: () => 'short-user',
+        now: () => new Date('2026-10-22T08:00:00.000Z'),
+      },
+    );
+
+    const [first, concurrent] = await Promise.all([
+      loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT),
+      loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT),
+    ]);
+    expect(first.directory).toBe(concurrent.directory);
+    expect(first.directory).not.toBe(shortUser.directory);
+    expect(first.metadata?.schemaVersion).toBe(5);
+    expect(first.bars5[0].start).toBe(builtinBars[0].start);
+    expect(first.bars5.at(-1)!.end).toBe(completeBars.at(-1)!.end);
+    expect(first.bars5.find(bar => bar.start === overlappingStart)?.volume)
+      .toBe(completeBars.find(bar => bar.start === overlappingStart)?.volume);
+    expect(first.bars1[0].startMs).toBeGreaterThanOrEqual(builtinBars[0].startMs);
+    expect(first.bars1.at(-1)!.startMs).toBeGreaterThanOrEqual(builtinEndMs);
+
+    const pointerAfterUpgrade = JSON.parse(
+      await readFile(join(userDirectory(paths), 'current.json'), 'utf8'),
+    );
+    expect(pointerAfterUpgrade.snapshotId).not.toBe('short-user');
+    const loadedAgain = await loadEffectiveSnapshot(paths, DEFAULT_INSTRUMENT);
+    expect(loadedAgain.directory).toBe(first.directory);
+    expect(JSON.parse(
+      await readFile(join(userDirectory(paths), 'current.json'), 'utf8'),
+    )).toEqual(pointerAfterUpgrade);
+  }, SNAPSHOT_IO_TIMEOUT);
+
   it.each([1, 2, 3, 4] as const)(
     'loads schema %i user prices while deriving missing newer fields',
     async schemaVersion => {

@@ -12,6 +12,7 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import {
+  detectContractRollovers,
   parseContractRollovers,
   parseMainContractMappings,
   serializeContractRollovers,
@@ -67,6 +68,7 @@ type LegacyMigrationResult = {
   userSnapshotMigrated: boolean;
 };
 const legacyMigrationFlights = new Map<string, Promise<LegacyMigrationResult>>();
+const builtinUpgradeFlights = new Map<string, Promise<LoadedMarketSnapshot>>();
 
 export interface MarketDataPaths {
   builtinDataDirectory: string;
@@ -1718,6 +1720,161 @@ export function migrateLegacySoymealData(
   return migration;
 }
 
+function snapshotRequestBoundary(
+  snapshot: LoadedMarketSnapshot,
+  field: 'requestStart' | 'requestEnd',
+): string {
+  const metadata = snapshot.metadata;
+  if (metadata) return metadata[field];
+  return field === 'requestStart'
+    ? snapshot.bars5[0].start
+    : snapshot.bars5.at(-1)!.end;
+}
+
+function earlierBeijing(left: string, right: string): string {
+  return parseBeijing(left) <= parseBeijing(right) ? left : right;
+}
+
+function laterBeijing(left: string, right: string): string {
+  return parseBeijing(left) >= parseBeijing(right) ? left : right;
+}
+
+function mergeSnapshotSourceSegments(
+  builtin: LoadedMarketSnapshot,
+  user: LoadedMarketSnapshot,
+): MarketSnapshotSourceSegment[] | undefined {
+  const segments = [builtin, user].flatMap(snapshot => {
+    const metadata = snapshot.metadata;
+    return metadata?.schemaVersion === 5 || metadata?.schemaVersion === 6
+      ? metadata.sourceSegments
+      : [];
+  });
+  if (!segments.length) return undefined;
+  const unique = new Map<string, MarketSnapshotSourceSegment>();
+  for (const segment of segments) {
+    const rawHashes = segment.rawFiles.map(file => file.sha256).join(',');
+    const key = [
+      segment.sourceId,
+      segment.coverage.first,
+      segment.coverage.last,
+      rawHashes,
+    ].join('\0');
+    if (!unique.has(key)) unique.set(key, segment);
+  }
+  return [...unique.values()];
+}
+
+function buildBuiltinUpgradeCandidate(
+  definition: InstrumentDefinition,
+  builtin: LoadedMarketSnapshot,
+  user: LoadedMarketSnapshot,
+): SnapshotCandidate {
+  const builtinLastFive = builtin.bars5.at(-1)!;
+  const fiveCutoffMs = builtinLastFive.endMs;
+  const builtinLastMinute = builtin.bars1.at(-1);
+  const minuteCutoffMs = Math.max(
+    fiveCutoffMs,
+    builtinLastMinute ? builtinLastMinute.startMs + 60_000 : fiveCutoffMs,
+  );
+  const bars1 = [
+    ...builtin.bars1,
+    ...user.bars1.filter(record => record.startMs >= minuteCutoffMs),
+  ];
+  const bars5 = [
+    ...builtin.bars5,
+    ...user.bars5.filter(bar => bar.startMs >= fiveCutoffMs),
+  ];
+  const builtinLastMappingDate = builtin.mainContractMappings.at(-1)?.tradingDate;
+  const mainContractMappings = [
+    ...builtin.mainContractMappings,
+    ...user.mainContractMappings.filter(mapping => (
+      builtinLastMappingDate === undefined
+      || mapping.tradingDate > builtinLastMappingDate
+    )),
+  ];
+  const bars60 = aggregateFiveMinuteBars(
+    bars5,
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  const rollovers = mainContractMappings.length
+    ? detectContractRollovers(mainContractMappings, bars5, definition)
+    : [
+        ...builtin.rollovers,
+        ...user.rollovers.filter(rollover => (
+          builtin.rollovers.at(-1) === undefined
+          || rollover.tradingDate > builtin.rollovers.at(-1)!.tradingDate
+        )),
+      ];
+  validateSnapshotData(definition, bars1, bars5, bars60, 5);
+  return {
+    bars1,
+    bars5,
+    bars60,
+    mainContractMappings,
+    rollovers,
+    requestStart: earlierBeijing(
+      snapshotRequestBoundary(builtin, 'requestStart'),
+      snapshotRequestBoundary(user, 'requestStart'),
+    ),
+    requestEnd: laterBeijing(
+      snapshotRequestBoundary(builtin, 'requestEnd'),
+      snapshotRequestBoundary(user, 'requestEnd'),
+    ),
+    sourceLatestAt: laterBeijing(
+      builtin.sourceLatestAt,
+      user.sourceLatestAt,
+    ),
+    sourceSegments: mergeSnapshotSourceSegments(builtin, user),
+  };
+}
+
+async function performBuiltinUpgrade(
+  paths: MarketDataPaths,
+  definition: InstrumentDefinition,
+  builtin: LoadedMarketSnapshot,
+  user: LoadedMarketSnapshot,
+): Promise<LoadedMarketSnapshot> {
+  const candidate = buildBuiltinUpgradeCandidate(definition, builtin, user);
+  try {
+    return await saveMarketSnapshot(paths, definition, candidate);
+  } catch {
+    return {
+      source: 'user',
+      directory: user.directory,
+      bars1: candidate.bars1,
+      bars5: candidate.bars5,
+      bars60: candidate.bars60,
+      mainContractMappings: candidate.mainContractMappings,
+      rollovers: candidate.rollovers,
+      sourceLatestAt: candidate.sourceLatestAt,
+      snapshotUpdatedAt: user.snapshotUpdatedAt,
+    };
+  }
+}
+
+function upgradeUserSnapshotWithBuiltin(
+  paths: MarketDataPaths,
+  definition: InstrumentDefinition,
+  builtin: LoadedMarketSnapshot,
+  user: LoadedMarketSnapshot,
+): Promise<LoadedMarketSnapshot> {
+  if (user.bars5[0].startMs <= builtin.bars5[0].startMs) {
+    return Promise.resolve(user);
+  }
+  const key = resolve(instrumentMarketDataDirectory(paths, definition));
+  const running = builtinUpgradeFlights.get(key);
+  if (running) return running;
+  const upgrade = performBuiltinUpgrade(paths, definition, builtin, user);
+  builtinUpgradeFlights.set(key, upgrade);
+  const clear = () => {
+    if (builtinUpgradeFlights.get(key) === upgrade) {
+      builtinUpgradeFlights.delete(key);
+    }
+  };
+  void upgrade.then(clear, clear);
+  return upgrade;
+}
+
 export async function loadEffectiveSnapshot(
   paths: MarketDataPaths,
   definition: InstrumentDefinition,
@@ -1726,14 +1883,24 @@ export async function loadEffectiveSnapshot(
     await migrateLegacySoymealData(paths).catch(() => undefined);
   }
   const userDirectory = instrumentMarketDataDirectory(paths, definition);
-  const standaloneUser = await firstValidUserSnapshot(
+  let builtin: LoadedMarketSnapshot;
+  try {
+    builtin = await loadBuiltinSnapshot(paths, definition);
+  } catch (error) {
+    const standaloneUser = await firstValidUserSnapshot(
+      userDirectory,
+      definition,
+    );
+    if (standaloneUser) return standaloneUser;
+    throw error;
+  }
+  const user = await firstValidUserSnapshot(
     userDirectory,
     definition,
+    builtin,
   );
-  if (standaloneUser) return standaloneUser;
-  const builtin = await loadBuiltinSnapshot(paths, definition);
-  return await firstValidUserSnapshot(userDirectory, definition, builtin)
-    ?? builtin;
+  if (!user) return builtin;
+  return upgradeUserSnapshotWithBuiltin(paths, definition, builtin, user);
 }
 
 export function resolveMarketDataPaths(

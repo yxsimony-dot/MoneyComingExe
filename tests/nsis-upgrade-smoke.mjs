@@ -80,6 +80,23 @@ async function stopInstalledProcesses() {
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const wait = milliseconds => new Promise(resolvePromise => setTimeout(resolvePromise, milliseconds));
 
+function parseUiCounts(text) {
+  const match = /5\D+?([\d,]+)\D+?60\D+?([\d,]+)/.exec(text);
+  assert.ok(match, `无法解析周期数量：${text}`);
+  return {
+    bars5: Number(match[1].replaceAll(',', '')),
+    bars60: Number(match[2].replaceAll(',', '')),
+  };
+}
+
+function metadataPeriodRows(metadata, period) {
+  return metadata.periods?.[period]?.rows ?? metadata.files?.[period]?.rows;
+}
+
+function metadataPeriodLast(metadata, period) {
+  return metadata.periods?.[period]?.last ?? metadata.sourceLatestAt;
+}
+
 async function waitForMissing(path, timeout = 30_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -127,7 +144,14 @@ async function snapshotFingerprint() {
     'edb_main_contract_mapping.csv',
     'metadata.json',
   ]) {
-    files[name] = sha256(await readFile(join(snapshotDirectory, name)));
+    try {
+      files[name] = sha256(await readFile(join(snapshotDirectory, name)));
+    } catch (error) {
+      if (name === 'edb_main_continuous_1m_raw.csv' && error?.code === 'ENOENT') {
+        continue;
+      }
+      throw error;
+    }
   }
   return {
     snapshotId: pointer.snapshotId,
@@ -149,7 +173,7 @@ try {
     `新版本 ${newInstaller.version} 必须高于旧版本 ${oldInstaller.version}`,
   );
 
-  await run(oldInstaller.path, ['/S', `/D=${installDirectory}`]);
+  await run(oldInstaller.path, ['--force-run', '/S', `/D=${installDirectory}`]);
   assert.equal((await stat(executable)).isFile(), true);
   const baseEnvironment = {
     ...process.env,
@@ -174,8 +198,22 @@ try {
   assert.equal(beforeUpgrade.metadata.sourceLatestAt, '2026-10-12 10:00:00');
   await stopInstalledProcesses();
 
-  await run(newInstaller.path, ['/S', `/D=${installDirectory}`]);
+  await run(newInstaller.path, ['--force-run', '/S', `/D=${installDirectory}`]);
   assert.equal((await stat(executable)).isFile(), true);
+  const builtinMetadata = JSON.parse(await readFile(
+    join(
+      installDirectory,
+      'data',
+      'instruments',
+      'main_continuous',
+      'metadata.json',
+    ),
+    'utf8',
+  ));
+  const expectedSourceLatestAt = [
+    builtinMetadata.sourceLatestAt,
+    beforeUpgrade.metadata.sourceLatestAt,
+  ].sort().at(-1);
   const env = {
     ...baseEnvironment,
     MONEYCOMING_TEST_EDB_MODE: 'offline',
@@ -197,17 +235,22 @@ try {
     window.showInactive();
   });
   const offscreenAfterShow = await assertElectronWindowOffscreen(app, 'nsis-upgrade-after-show');
-  await page.locator('html[data-ready="true"]').waitFor({ timeout: 30_000 });
+  await page.locator('html[data-ready="true"]').waitFor({ timeout: 120_000 });
   await page.locator('html[data-update-phase="up-to-date"]').waitFor({ timeout: 30_000 });
   assert.equal(await page.locator('#app-version').innerText(), `v${newInstaller.version}`);
-  assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
-  assert.match(await page.locator('#coverage').innerText(), /数据源最新至 2026-10-12 10:00/);
+  const countsAfterMigration = parseUiCounts(await page.locator('#counts').innerText());
+  const coverageAfterMigration = await page.locator('#coverage').innerText();
+  assert.match(coverageAfterMigration, /2021-10-18/);
+  assert.match(coverageAfterMigration, new RegExp(expectedSourceLatestAt.slice(0, 16)));
 
   await page.getByTestId('market-update').click();
   await page.locator('html[data-market-update-phase="failed"]').waitFor({ timeout: 30_000 });
   assert.match(await page.locator('#market-update-status').innerText(), /更新失败/);
   assert.equal(await page.locator('html').getAttribute('data-update-phase'), 'up-to-date');
-  assert.match(await page.locator('#counts').innerText(), /16,542.*1,439/);
+  assert.deepEqual(
+    parseUiCounts(await page.locator('#counts').innerText()),
+    countsAfterMigration,
+  );
   const offscreenBeforeClose = await assertElectronWindowOffscreen(
     app,
     'nsis-upgrade-before-close',
@@ -217,7 +260,72 @@ try {
   await stopInstalledProcesses();
 
   const afterUpgrade = await snapshotFingerprint();
-  assert.deepEqual(afterUpgrade, beforeUpgrade);
+  assert.notEqual(afterUpgrade.snapshotId, beforeUpgrade.snapshotId);
+  assert.ok(
+    afterUpgrade.metadata.periods.bars5.first <= '2021-10-18 09:00:00',
+    `5 分钟历史未扩展到 2021-10：${afterUpgrade.metadata.periods.bars5.first}`,
+  );
+  assert.ok(
+    afterUpgrade.metadata.periods.bars60.first <= '2021-10-18 09:00:00',
+    `60 分钟历史未扩展到 2021-10：${afterUpgrade.metadata.periods.bars60.first}`,
+  );
+  assert.ok(
+    afterUpgrade.metadata.periods.bars5.last
+      >= metadataPeriodLast(beforeUpgrade.metadata, 'bars5'),
+    '升级后 5 分钟尾部不得早于旧用户快照',
+  );
+  assert.ok(
+    afterUpgrade.metadata.periods.bars60.last
+      >= metadataPeriodLast(beforeUpgrade.metadata, 'bars60'),
+    '升级后 60 分钟尾部不得早于旧用户快照',
+  );
+  assert.equal(afterUpgrade.metadata.sourceLatestAt, expectedSourceLatestAt);
+  assert.ok(
+    afterUpgrade.metadata.periods.bars5.rows
+      > metadataPeriodRows(beforeUpgrade.metadata, 'bars5'),
+    '升级后 5 分钟行数应增加',
+  );
+  assert.ok(
+    afterUpgrade.metadata.periods.bars60.rows
+      > metadataPeriodRows(beforeUpgrade.metadata, 'bars60'),
+    '升级后 60 分钟行数应增加',
+  );
+  assert.deepEqual(countsAfterMigration, {
+    bars5: afterUpgrade.metadata.periods.bars5.rows,
+    bars60: afterUpgrade.metadata.periods.bars60.rows,
+  });
+
+  app = await launchElectronTest({
+    executablePath: executable,
+    args: [],
+    cwd: sandbox,
+    env,
+    timeout: 30_000,
+  });
+  const reopenedPage = await app.firstWindow();
+  const offscreenBeforeReopen = await assertElectronWindowOffscreen(
+    app,
+    'nsis-upgrade-reopen-before-show',
+  );
+  await app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    window.webContents.setBackgroundThrottling(false);
+    window.showInactive();
+  });
+  const offscreenAfterReopen = await assertElectronWindowOffscreen(
+    app,
+    'nsis-upgrade-reopen-after-show',
+  );
+  await reopenedPage.locator('html[data-ready="true"]').waitFor({ timeout: 30_000 });
+  assert.deepEqual(
+    parseUiCounts(await reopenedPage.locator('#counts').innerText()),
+    countsAfterMigration,
+  );
+  await app.close();
+  app = undefined;
+  await stopInstalledProcesses();
+  const afterReopen = await snapshotFingerprint();
+  assert.deepEqual(afterReopen, afterUpgrade);
 
   const uninstallName = (await readdir(installDirectory)).find(name => /^Uninstall .*\.exe$/i.test(name));
   assert.ok(uninstallName, '升级后的安装目录缺少 NSIS 卸载程序');
@@ -229,13 +337,16 @@ try {
     passed: true,
     oldVersion: oldInstaller.version,
     newVersion: newInstaller.version,
-    snapshotId: beforeUpgrade.snapshotId,
-    snapshotPreserved: true,
+    snapshotId: afterUpgrade.snapshotId,
+    snapshotMigrated: true,
+    snapshotStableAfterReopen: true,
     updateStatesIndependent: true,
     offscreen: {
       beforeShow: offscreenBeforeShow,
       afterShow: offscreenAfterShow,
       beforeClose: offscreenBeforeClose,
+      beforeReopen: offscreenBeforeReopen,
+      afterReopen: offscreenAfterReopen,
     },
     uninstalled: true,
   };
