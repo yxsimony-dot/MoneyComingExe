@@ -131,6 +131,7 @@ describe('online market coordinator', () => {
     });
     fixture.coordinator.declareCurrentInstrument('main_continuous');
     expect(update).not.toHaveBeenCalled();
+    expect(fixture.loadSnapshot).not.toHaveBeenCalled();
 
     fixture.coordinator.setEnabled(true);
     expect(fixture.coordinator.getState()).toMatchObject({
@@ -139,6 +140,8 @@ describe('online market coordinator', () => {
       instrument: 'main_continuous',
     });
     expect(update).toHaveBeenCalledWith('main_continuous', 'full');
+    expect(fixture.loadSnapshot).toHaveBeenCalledTimes(1);
+    expect(fixture.loadSnapshot).toHaveBeenCalledWith('main_continuous');
     expect(fixture.clock.timerCount()).toBe(0);
 
     gate.resolve(successfulState('main_continuous', 'full'));
@@ -268,6 +271,53 @@ describe('online market coordinator', () => {
       sourceLatestAt: '2026-10-20 10:05:00',
     });
     expect(fixture.clock.timerCount()).toBe(1);
+  });
+
+  it('does not let a late old-instrument snapshot change the current online state', async () => {
+    const oldSnapshot = deferred<{
+      localMinuteLatestAt: string;
+      sourceLatestAt: string;
+      snapshotUpdatedAt: string;
+    }>();
+    const clock = new FakeClock('2026-10-20 10:04:30');
+    const coordinator = new OnlineMarketCoordinator({
+      update: () => new Promise<MarketUpdateState>(() => undefined),
+      loadSnapshot: instrument => instrument === 'main_continuous'
+        ? oldSnapshot.promise
+        : Promise.resolve({
+            localMinuteLatestAt: '2026-10-20 10:02:00',
+            sourceLatestAt: '2026-10-20 10:02:00',
+            snapshotUpdatedAt: '2026-10-20T02:02:01.000Z',
+          }),
+      publish: () => undefined,
+      now: clock.now,
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+    });
+
+    coordinator.setEnabled(true);
+    coordinator.declareCurrentInstrument('main_continuous');
+    coordinator.declareCurrentInstrument('rebar_main');
+    await flush();
+    expect(coordinator.getState()).toMatchObject({
+      instrument: 'rebar_main',
+      phase: 'catching-up',
+      sourceLatestAt: '2026-10-20 10:02:00',
+      snapshotUpdatedAt: '2026-10-20T02:02:01.000Z',
+    });
+
+    oldSnapshot.resolve({
+      localMinuteLatestAt: '2026-10-20 10:30:00',
+      sourceLatestAt: '2026-10-20 10:30:00',
+      snapshotUpdatedAt: '2026-10-20T02:30:01.000Z',
+    });
+    await flush();
+
+    expect(coordinator.getState()).toMatchObject({
+      instrument: 'rebar_main',
+      sourceLatestAt: '2026-10-20 10:02:00',
+      snapshotUpdatedAt: '2026-10-20T02:02:01.000Z',
+    });
   });
 
   it('distinguishes reliable same-session source delay from breaks and weekends', async () => {

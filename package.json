@@ -41,6 +41,8 @@
     "verify:signing-path": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-signing-path.ps1",
     "test:app": "node tests/app-smoke.mjs",
     "test:real-baseline": "node tests/real-baseline-offline-smoke.mjs",
+    "test:instrument-switch-performance": "npm run build && node tests/instrument-switch-performance.mjs",
+    "test:instrument-switch-performance:fixture": "npm run build && node tests/instrument-switch-performance.mjs --fixture",
     "test:offscreen-window": "node tests/offscreen-production-mode-smoke.mjs",
     "test:market-update": "node tests/market-update-smoke.mjs",
     "test:online-market": "node tests/online-market-smoke.mjs",
@@ -113,7 +115,10 @@
       "repo": "MoneyComingExe",
       "releaseType": "release"
     },
-    "asar": true
+    "asar": true,
+    "asarUnpack": [
+      "build/market-data-worker.cjs"
+    ]
   },
   "dependencies": {
     "electron-updater": "6.8.9",

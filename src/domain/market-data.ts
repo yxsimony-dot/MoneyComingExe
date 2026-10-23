@@ -12,6 +12,7 @@ import {
   type TradingSessionDefinition,
 } from '../shared/instruments';
 import { formatBeijing } from './time';
+import { timeIndexForRecords, type TimeSeriesIndex } from './time-index';
 
 const MINUTE_MS = 60_000;
 const CALENDAR_DAY_MS = 24 * 60 * MINUTE_MS;
@@ -530,6 +531,7 @@ export function completeMinutesForFiveMinuteBar(
   bar: Bar,
   records: readonly EdbMinuteRecord[],
   schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+  index: TimeSeriesIndex<EdbMinuteRecord> = timeIndexForRecords(records),
 ): EdbMinuteRecord[] | undefined {
   try {
     assertBarsValid([bar], 5, schedule);
@@ -547,7 +549,7 @@ export function completeMinutesForFiveMinuteBar(
     stopIndex,
     schedule,
   );
-  const candidates = records.filter(record => record.startMs >= bar.startMs && record.startMs < bar.endMs);
+  const candidates = index.recordsInRange(bar.startMs, bar.endMs);
   if (candidates.length !== expectedStarts.length) return undefined;
   for (let index = 0; index < candidates.length; index += 1) {
     if (candidates[index].startMs !== expectedStarts[index]) return undefined;
@@ -604,6 +606,45 @@ export function assertMinuteCoverageMatchesFiveMinuteBars(
   }
 }
 
+export interface TradingBarBucket {
+  startMs: number;
+  endMs: number;
+  start: string;
+  end: string;
+  session: Bar['session'];
+  expectedMinutes: number;
+}
+
+export function tradingBarBucketAt(
+  startMs: number,
+  period: Period,
+  schedule: TradingSchedule = DEFAULT_INSTRUMENT.tradingSessions,
+): TradingBarBucket {
+  const minute = tradingMinuteAt(startMs, schedule);
+  const bucket = Math.floor(minute.index / period);
+  const expectedStartIndex = bucket * period;
+  const expectedStopIndex = Math.min(expectedStartIndex + period, minute.total);
+  const dayStart = dateStartUtcMs(minute.date);
+  const expectedStartMs = dayStart
+    + wallMinute(minute.session, expectedStartIndex, schedule) * MINUTE_MS;
+  const expectedEndMs = dayStart
+    + (wallMinute(minute.session, expectedStopIndex - 1, schedule) + 1) * MINUTE_MS;
+  return {
+    startMs: expectedStartMs,
+    endMs: expectedEndMs,
+    start: formatBeijing(expectedStartMs),
+    end: formatBeijing(expectedEndMs),
+    session: minute.session,
+    expectedMinutes: expectedSessionMinuteStarts(
+      minute.date,
+      minute.session,
+      expectedStartIndex,
+      expectedStopIndex,
+      schedule,
+    ).length,
+  };
+}
+
 export function assertBarsValid(
   bars: readonly Bar[],
   period: Period,
@@ -624,24 +665,13 @@ export function assertBarsValid(
     if (bar.volume < 0 || bar.openOi < 0 || bar.closeOi < 0) {
       throw new Error(`${period} 分钟行情成交量或持仓量为负`);
     }
-    const minute = tradingMinuteAt(bar.startMs, schedule);
-    const bucket = Math.floor(minute.index / period);
-    const expectedStartIndex = bucket * period;
-    const expectedStopIndex = Math.min(expectedStartIndex + period, minute.total);
-    const dayStart = dateStartUtcMs(minute.date);
-    const expectedStartMs = dayStart + wallMinute(minute.session, expectedStartIndex, schedule) * MINUTE_MS;
-    const expectedEndMs = dayStart + (wallMinute(minute.session, expectedStopIndex - 1, schedule) + 1) * MINUTE_MS;
-    if (bar.startMs !== expectedStartMs || bar.endMs !== expectedEndMs || bar.session !== minute.session) {
+    const bucket = tradingBarBucketAt(bar.startMs, period, schedule);
+    if (bar.startMs !== bucket.startMs
+      || bar.endMs !== bucket.endMs
+      || bar.session !== bucket.session) {
       throw new Error(`${period} 分钟行情时间桶或交易时段无效：${bar.start}`);
     }
-    const expectedMinutes = expectedSessionMinuteStarts(
-      minute.date,
-      minute.session,
-      expectedStartIndex,
-      expectedStopIndex,
-      schedule,
-    ).length;
-    if (bar.expectedMinutes !== expectedMinutes
+    if (bar.expectedMinutes !== bucket.expectedMinutes
       || !Number.isInteger(bar.observedMinutes)
       || bar.observedMinutes < 0
       || bar.observedMinutes > bar.expectedMinutes

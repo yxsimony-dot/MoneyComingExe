@@ -1,17 +1,9 @@
 import {
-  aggregateFiveMinuteBars,
   aggregateMinutes,
-  assertBarsValid,
   assertMinuteRecordsValid,
-  mergeBarsPreservingHistory,
   mergeMinuteHistory,
-  reconcileBars,
-  updateCounts,
 } from '../domain/market-data';
-import {
-  detectContractRollovers,
-  mergeMainContractMappings,
-} from '../domain/contract-rollover';
+import { mergeBenchmarkProtectedMarketData } from '../domain/benchmark-protection';
 import { formatBeijing, parseBeijing } from '../domain/time';
 import {
   INSTRUMENT_IDS,
@@ -19,7 +11,6 @@ import {
   type InstrumentDefinition,
 } from '../shared/instruments';
 import type {
-  ContractRollover,
   EdbMinuteRecord,
   Instrument,
   MainContractMapping,
@@ -208,56 +199,6 @@ function assertFiveMinuteOverlap(
   }
 }
 
-function replacementCounts(
-  current: readonly LoadedMarketSnapshot['bars60'][number][],
-  candidate: readonly LoadedMarketSnapshot['bars60'][number][],
-) {
-  const currentByStart = new Map(current.map(bar => [bar.startMs, bar]));
-  const candidateByStart = new Map(candidate.map(bar => [bar.startMs, bar]));
-  return {
-    bars: [...candidate],
-    added: candidate.filter(bar => !currentByStart.has(bar.startMs)).length,
-    replaced: candidate.filter(bar => {
-      const previous = currentByStart.get(bar.startMs);
-      return previous !== undefined && !sameBar(previous, bar);
-    }).length,
-    removed: current.filter(bar => !candidateByStart.has(bar.startMs)).length,
-  };
-}
-
-function sameMappings(
-  left: readonly MainContractMapping[],
-  right: readonly MainContractMapping[],
-): boolean {
-  return left.length === right.length && left.every((mapping, index) => (
-    mapping.tradingDate === right[index]?.tradingDate
-    && mapping.contract === right[index]?.contract
-  ));
-}
-
-function sameRollover(left: ContractRollover, right: ContractRollover): boolean {
-  return left.tradingDate === right.tradingDate
-    && left.timeMs === right.timeMs
-    && left.fromContract === right.fromContract
-    && left.toContract === right.toContract;
-}
-
-function rolloverCounts(
-  current: ContractRollover[],
-  next: ContractRollover[],
-): Pick<MarketUpdateCounts, 'addedRollovers' | 'replacedRollovers' | 'removedRollovers'> {
-  const currentByDate = new Map(current.map(rollover => [rollover.tradingDate, rollover]));
-  const nextByDate = new Map(next.map(rollover => [rollover.tradingDate, rollover]));
-  return {
-    addedRollovers: next.filter(rollover => !currentByDate.has(rollover.tradingDate)).length,
-    replacedRollovers: next.filter(rollover => {
-      const previous = currentByDate.get(rollover.tradingDate);
-      return previous !== undefined && !sameRollover(previous, rollover);
-    }).length,
-    removedRollovers: current.filter(rollover => !nextByDate.has(rollover.tradingDate)).length,
-  };
-}
-
 export class MarketUpdateCoordinator {
   private readonly states = new Map<Instrument, MarketUpdateState>();
   private readonly slots = new Map<Instrument, OperationSlot>();
@@ -392,42 +333,25 @@ export class MarketUpdateCoordinator {
           throw new Error('EDB 增量区间与当前分钟快照没有可验证重叠');
         }
       }
-      const minuteMerge = mergeMinuteHistory(current.bars1, minutes);
-      const rebuildMinutes = minuteMerge.records.filter(
-        record => record.startMs >= requestStartMs,
-      );
+      const previewMinuteMerge = mergeMinuteHistory(current.bars1, minutes);
       const coverageEndMs = Math.max(
         sourceLatestMs,
         minuteLatestMs(current) ?? Number.NEGATIVE_INFINITY,
       );
-      const rebuilt5 = aggregateMinutes(
-        rebuildMinutes,
-        5,
-        coverageEndMs,
-        definition.tradingSessions,
-      ).filter(bar => bar.complete);
       if (!current.bars1.length) {
+        const rebuilt5 = aggregateMinutes(
+          previewMinuteMerge.records.filter(
+            record => record.startMs >= requestStartMs,
+          ),
+          5,
+          coverageEndMs,
+          definition.tradingSessions,
+        ).filter(bar => bar.complete);
         assertFiveMinuteOverlap(current.bars5, rebuilt5);
       }
-      const five = rebuilt5.length
-        ? mergeBarsPreservingHistory(current.bars5, rebuilt5)
-        : {
-            bars: [...current.bars5],
-            added: 0,
-            replaced: 0,
-            removed: 0,
-          };
-      assertBarsValid(five.bars, 5, definition.tradingSessions);
-      const rebuilt60 = aggregateFiveMinuteBars(
-        five.bars,
-        definition.tradingSessions,
-      ).filter(bar => bar.complete);
-      const sixty = replacementCounts(current.bars60, rebuilt60);
-      reconcileBars(five.bars, sixty.bars, definition.tradingSessions);
-      assertHistoryCoverageNotRegressed(current.bars5, five.bars, 5);
-      assertHistoryCoverageNotRegressed(current.bars60, sixty.bars, 60);
       const requestBeijingDate = formatBeijing(requestEndMs).slice(0, 10);
-      const latestTradingDate = minuteMerge.records.at(-1)?.start.slice(0, 10);
+      const latestTradingDate = previewMinuteMerge.records.at(-1)
+        ?.start.slice(0, 10);
       const mappingState = this.mappingRefresh.get(instrument);
       const needsMappingRefresh = intent === 'full'
         || !mappingState
@@ -439,33 +363,38 @@ export class MarketUpdateCoordinator {
             mapping => mapping.tradingDate === latestTradingDate,
           )
         );
-      let mappings = current.mainContractMappings;
+      let remoteMappings: MainContractMapping[] = [];
       if (needsMappingRefresh) {
         mappingRefreshAttempted = true;
         const mappingStartMs = intent === 'tail'
           ? parseBeijing(`${requestBeijingDate} 00:00:00`) - DAY_MS
           : requestStartMs;
-        const remoteMappings = await this.options.fetchContractMappings(
+        remoteMappings = await this.options.fetchContractMappings(
           definition,
           mappingStartMs,
           requestEndMs,
-        );
-        mappings = mergeMainContractMappings(
-          current.mainContractMappings,
-          remoteMappings,
-          definition,
         );
         this.mappingRefresh.set(instrument, {
           beijingDate: requestBeijingDate,
           failed: false,
         });
       }
-      const rollovers = detectContractRollovers(mappings, five.bars, definition);
-      const counts = {
-        ...updateCounts(minuteMerge, five, sixty),
-        ...rolloverCounts(current.rollovers, rollovers),
-      };
-      const mappingsChanged = !sameMappings(current.mainContractMappings, mappings);
+      const protection = current.metadata?.schemaVersion === 7
+        ? current.metadata.benchmarkProtection
+        : undefined;
+      const merged = mergeBenchmarkProtectedMarketData({
+        definition,
+        current,
+        incomingMinutes: minutes,
+        remoteMappings,
+        protection,
+        rebuildStartMs: requestStartMs,
+        coverageEndMs,
+      });
+      assertHistoryCoverageNotRegressed(current.bars5, merged.bars5, 5);
+      assertHistoryCoverageNotRegressed(current.bars60, merged.bars60, 60);
+      const counts = merged.counts;
+      const mappingsChanged = merged.mappingsChanged;
       if (!changed(counts) && !mappingsChanged) {
         this.transition(instrument, {
           phase: 'up-to-date',
@@ -482,14 +411,15 @@ export class MarketUpdateCoordinator {
       const saved = await this.options.saveSnapshot(
         definition,
         {
-          bars1: minuteMerge.records,
-          bars5: five.bars,
-          bars60: sixty.bars,
-          mainContractMappings: mappings,
-          rollovers,
+          bars1: merged.bars1,
+          bars5: merged.bars5,
+          bars60: merged.bars60,
+          mainContractMappings: merged.mainContractMappings,
+          rollovers: merged.rollovers,
           requestStart: formatBeijing(requestStartMs),
           requestEnd: formatBeijing(requestEndMs),
           sourceLatestAt,
+          benchmarkProtection: protection,
         },
         intent,
         current,

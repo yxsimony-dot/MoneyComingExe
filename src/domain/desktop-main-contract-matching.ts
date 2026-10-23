@@ -191,6 +191,12 @@ export interface DesktopMainContractFallbackEvidence {
   calibration: HistoricalMainCalibrationReport;
 }
 
+export type DesktopMainHeuristicFallbackPolicy = 'allowed' | 'disabled';
+
+export interface DesktopMainContractMatchOptions {
+  heuristicFallback?: DesktopMainHeuristicFallbackPolicy;
+}
+
 export interface DesktopMainContractAuditInput {
   tradingDate: string;
   candidates: readonly DesktopMainContractCandidateAudit[];
@@ -984,7 +990,9 @@ export function resolveDesktopMainContractAudits(
   instrumentId: Instrument,
   auditInputs: readonly DesktopMainContractAuditInput[],
   fallback?: DesktopMainContractFallbackEvidence,
+  options: DesktopMainContractMatchOptions = {},
 ): DesktopMainContractExactMatchReport {
+  const heuristicFallbackAllowed = options.heuristicFallback !== 'disabled';
   const inputs = [...auditInputs]
     .sort((left, right) => left.tradingDate.localeCompare(right.tradingDate))
     .map(input => ({
@@ -1185,6 +1193,7 @@ export function resolveDesktopMainContractAudits(
       ? candidates.find(candidate => candidate.contract === heuristic.selectedContract)
       : undefined;
     if (heuristic.status === 'selected'
+      && heuristicFallbackAllowed
       && heuristic.calibration.allowed
       && heuristic.issues.length === 0
       && fallbackCandidate) {
@@ -1223,6 +1232,11 @@ export function resolveDesktopMainContractAudits(
     if (heuristic.selectedContract && !fallbackCandidate) {
       ambiguityReasons.push(
         `启发式选择 ${heuristic.selectedContract} 缺少同源分钟候选记录`,
+      );
+    }
+    if (!heuristicFallbackAllowed) {
+      ambiguityReasons.push(
+        '当前匹配策略禁止 heuristic-fallback 作为激活依据',
       );
     }
     ambiguityReasons.push(...heuristic.issues);
@@ -1293,6 +1307,7 @@ export function matchDesktopMainContractDays(
   mainRecords: readonly DesktopMainMatchMinuteRecord[],
   contractRecords: readonly DesktopMainMatchMinuteRecord[],
   fallback?: DesktopMainContractFallbackEvidence,
+  options: DesktopMainContractMatchOptions = {},
 ): DesktopMainContractExactMatchReport {
   if (!mainRecords.length) throw new Error('桌面主连分钟记录不能为空');
   const instrumentId = mainRecords[0].instrumentId;
@@ -1305,5 +1320,10 @@ export function matchDesktopMainContractDays(
         compareDesktopMainContractCandidate(main, contract, records)
       )),
   }));
-  return resolveDesktopMainContractAudits(instrumentId, auditInputs, fallback);
+  return resolveDesktopMainContractAudits(
+    instrumentId,
+    auditInputs,
+    fallback,
+    options,
+  );
 }

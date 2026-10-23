@@ -1,0 +1,1618 @@
+{
+  "schemaVersion": 1,
+  "strategySettings": {
+    "reactionBodyTicks": 1,
+    "entryRangePercent": 25,
+    "stopLossRangePercent": 75,
+    "takeProfitRangePercent": 200,
+    "oppositeCandleCount": 6,
+    "sessionExitMinutes": 15
+  },
+  "instruments": {
+    "main_continuous": {
+      "instrument": "main_continuous",
+      "symbol": "KQ.m@DCE.m",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "8ada8d526978e93d5061442eff3ea0341fc9ddc248c5297957a8288d784ef31e"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "26429d02a63e24993e33b17ef8e8e4852843f380521393d00a1c4e5ec5d374c0"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "890ea91e49a56f1f0f303fed638699fb5f603ae1cf2e99d7df5c71cd935fea5d"
+        },
+        "rollovers": {
+          "count": 15,
+          "first": "2021-11-24 21:00:00",
+          "last": "2026-08-05 21:00:00",
+          "sha256": "c1e77a58d6643d22f5e099c9b8159e442ade2b034bfda38dfdcf546a23139200"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 210,
+          "first": 1634652000000,
+          "last": 1790127900000,
+          "sha256": "48336ac7dfaf7fec2554f7f47be1796dc8a8fd02ece4cf13ecbd44f876a73291",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 210,
+          "first": 1634652000000,
+          "last": 1790127900000,
+          "sha256": "f18ec101fc0300543f081351a01335c7c21784fd8f8a1bb1e54dbbd7455a470c",
+          "attemptCount": 249,
+          "abandonedSetupCount": 44,
+          "enteredAttemptCount": 158
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 158,
+          "first": 1636465800000,
+          "last": 1790133600000,
+          "sha256": "976c10e1609de5a6ce5747211b55c3dbe8a3bdb3e45c44ecb01be9c8e9cf5495"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 158,
+          "first": 1636469100000,
+          "last": 1790141700000,
+          "sha256": "e8010d3b90a7e2f439c8ec86619a4b8d6c6107fa36ac8087b311664ba021027d"
+        },
+        "statistics": {
+          "candidateCount": 210,
+          "ignoredNoEntryCount": 89,
+          "validEntryCount": 158,
+          "completedTradeCount": 158,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 74,
+          "losingTradeCount": 79,
+          "flatTradeCount": 5,
+          "takeProfitCount": 41,
+          "stopLossCount": 73,
+          "sessionCloseCount": 44,
+          "winRate": 0.46835443037974683,
+          "cumulativeProfit": 1105970,
+          "cumulativeLoss": -1496070,
+          "averageProfit": 14945.54054054054,
+          "averageLoss": -18937.59493670886,
+          "profitLossRatio": 0.7392501687755252,
+          "maxDrawdown": 547860,
+          "maxDrawdownRate": 0.5114069150922261,
+          "largestWin": 83600,
+          "largestLoss": -74480,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 5
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 609900,
+        "totalPnl": -390100,
+        "returnRate": -0.3901,
+        "sha256": "7a544d9126da9b8169e82d5b91e6694d328b9dfeb26c5973a47043615ba52450"
+      },
+      "sha256": "7f37d1e6a43e1d510fbd084b4b2ac185049035674c82bd211907cc935caacc47"
+    },
+    "rapeseed_meal_main": {
+      "instrument": "rapeseed_meal_main",
+      "symbol": "KQ.m@CZCE.RM",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "4e71d55868a791e45cd4ef243a13e88ded275e920be78ed9a561644f6131e0b4"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "06be2dcbbba18f878e3e3d58463de06350395fa8ea8dd28db31e626ce44ae39e"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "5ed492ea5404cc95b9bf474d39372e0814c0fbafbd852de0e84c9156e816f17e"
+        },
+        "rollovers": {
+          "count": 18,
+          "first": "2021-12-08 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "a614db40a85a8e49b0015d533ffd17475c425f4ca97ddb2e420f9779997af80f"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 244,
+          "first": 1634821200000,
+          "last": 1791988500000,
+          "sha256": "ed69a87278a722f0ed3d3dd6cd1b3ea4c162e1c1891e5e955106638642f9e2e9",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 244,
+          "first": 1634821200000,
+          "last": 1791988500000,
+          "sha256": "f9eef45ba1f0d8f5dea556eaf29a921ced426feb6690012ab531e1e29cb3ba51",
+          "attemptCount": 300,
+          "abandonedSetupCount": 45,
+          "enteredAttemptCount": 177
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 177,
+          "first": 1636008000000,
+          "last": 1790215200000,
+          "sha256": "19403869eefe0dbbc13df33341afe870ff9a67f71978224221452e0cdb050417"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 177,
+          "first": 1636008300000,
+          "last": 1790229600000,
+          "sha256": "7d3f5e4be5b9c0f3938fe0efd127ed7f39f7011a3aede7334b7231b7933129aa"
+        },
+        "statistics": {
+          "candidateCount": 244,
+          "ignoredNoEntryCount": 113,
+          "validEntryCount": 177,
+          "completedTradeCount": 177,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 84,
+          "losingTradeCount": 90,
+          "flatTradeCount": 3,
+          "takeProfitCount": 51,
+          "stopLossCount": 77,
+          "sessionCloseCount": 49,
+          "winRate": 0.4745762711864407,
+          "cumulativeProfit": 1196030,
+          "cumulativeLoss": -1620120,
+          "averageProfit": 14238.452380952382,
+          "averageLoss": -18001.333333333332,
+          "profitLossRatio": 0.7382354393501716,
+          "maxDrawdown": 615930,
+          "maxDrawdownRate": 0.61593,
+          "largestWin": 85260,
+          "largestLoss": -55440,
+          "maxConsecutiveWins": 8,
+          "maxConsecutiveLosses": 13
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 575910,
+        "totalPnl": -424090,
+        "returnRate": -0.42409,
+        "sha256": "08ec91ff19c483ecc70772784051485265959de569aa23ba66fff1e22269efc3"
+      },
+      "sha256": "fc8efebf2efb8abd08cd76e0b1bc0cd0a65811099abc351365675708414eb4b8"
+    },
+    "pvc_main": {
+      "instrument": "pvc_main",
+      "symbol": "KQ.m@DCE.v",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "63bcae9de94ce9f67ca205f69a94b802d053a2da488499a763a4adbcba5fc72f"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "568fba710b07ee2918a6caa81933f4b4f91298253167a693330f2e338e7e23cd"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "44dd5935478e433454dbe4a8530e13ff8d82f5b57017e32ad21e7b27cacdecac"
+        },
+        "rollovers": {
+          "count": 15,
+          "first": "2021-12-09 21:00:00",
+          "last": "2026-08-18 21:00:00",
+          "sha256": "272d9aaa1085074ea8f5751aea19c6393c99f3ea2a23d06c5e8d046529322f63"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 227,
+          "first": 1635400500000,
+          "last": 1792119600000,
+          "sha256": "aa99873891e7ef70c04c17df04c3ae9ee0cd54c3a9a588562aadb2dc83ae09ac",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 227,
+          "first": 1635400500000,
+          "last": 1792119600000,
+          "sha256": "24aae9c11c1d1b70f75b21fe1bb4c7121f17bef17011f64921a858389a10551a",
+          "attemptCount": 278,
+          "abandonedSetupCount": 53,
+          "enteredAttemptCount": 176
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 176,
+          "first": 1636696500000,
+          "last": 1792120500000,
+          "sha256": "faf5211f8c3de0605cd57447097653ea7755001ab271cf675b803d18ceb2580b"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 176,
+          "first": 1636697400000,
+          "last": 1792130100000,
+          "sha256": "66e201ae2991f7496556154c334912ce5e03dc13b1efa0b5239f9caca22b46a1"
+        },
+        "statistics": {
+          "candidateCount": 227,
+          "ignoredNoEntryCount": 97,
+          "validEntryCount": 176,
+          "completedTradeCount": 176,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 90,
+          "losingTradeCount": 83,
+          "flatTradeCount": 3,
+          "takeProfitCount": 65,
+          "stopLossCount": 74,
+          "sessionCloseCount": 37,
+          "winRate": 0.5113636363636364,
+          "cumulativeProfit": 1960500,
+          "cumulativeLoss": -1856160,
+          "averageProfit": 21783.333333333332,
+          "averageLoss": -22363.373493975905,
+          "profitLossRatio": 1.0562128264804758,
+          "maxDrawdown": 276760,
+          "maxDrawdownRate": 0.23202645886342582,
+          "largestWin": 79420,
+          "largestLoss": -121900,
+          "maxConsecutiveWins": 9,
+          "maxConsecutiveLosses": 7
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1104340,
+        "totalPnl": 104340,
+        "returnRate": 0.10434,
+        "sha256": "61b4e60c01464a5b2104c1e063daccaca95c2cbe0fb32813d6ea4e55f9e266fb"
+      },
+      "sha256": "9c505a894631921ee3bc3aae4ed5a74acaafc21c56879e3e6fae0e96d4e77708"
+    },
+    "rebar_main": {
+      "instrument": "rebar_main",
+      "symbol": "KQ.m@SHFE.rb",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "7854c1c4a0807073812fbe610ce26aceec7677a93d5c83919bed771ee26adc5b"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "edd71610786b0a56f3ecb749a7b09999bcaf99c794072f109665d2f206298c1b"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "fe2bc4f01698d846f765807fae458413fa8b5bd60449c20fe23eb75d8ce7f08b"
+        },
+        "rollovers": {
+          "count": 15,
+          "first": "2021-11-17 21:00:00",
+          "last": "2026-08-31 21:00:00",
+          "sha256": "8cdc3842fa83b1979613255762818ab71efd450ccce8b3d2422b66c60033aa4e"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 255,
+          "first": 1634649600000,
+          "last": 1792042800000,
+          "sha256": "71b444d8371caf57bbe9fbf9ad34ff6fd0e66b791648d29952b78820a2e573b3",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 255,
+          "first": 1634649600000,
+          "last": 1792042800000,
+          "sha256": "d2eef26ff7345b57b23471a3ec6b6a6989e5f57be39ebe3897eac32d6e9ec511",
+          "attemptCount": 304,
+          "abandonedSetupCount": 44,
+          "enteredAttemptCount": 190
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 190,
+          "first": 1634650800000,
+          "last": 1790748300000,
+          "sha256": "6e3d075c3e271075ec67100a3a14b708b2d96950959421901561d102ce968070"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 190,
+          "first": 1634654700000,
+          "last": 1790749800000,
+          "sha256": "757949fea8ae998832d67aff0c3f558141dc23b72e9bde918c540c50ea0a82fe"
+        },
+        "statistics": {
+          "candidateCount": 255,
+          "ignoredNoEntryCount": 119,
+          "validEntryCount": 190,
+          "completedTradeCount": 190,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 105,
+          "losingTradeCount": 81,
+          "flatTradeCount": 4,
+          "takeProfitCount": 72,
+          "stopLossCount": 71,
+          "sessionCloseCount": 47,
+          "winRate": 0.5526315789473685,
+          "cumulativeProfit": 3822730,
+          "cumulativeLoss": -2985670,
+          "averageProfit": 36406.95238095238,
+          "averageLoss": -36860.12345679013,
+          "profitLossRatio": 1.280359182361078,
+          "maxDrawdown": 547330,
+          "maxDrawdownRate": 0.2707409972299169,
+          "largestWin": 231200,
+          "largestLoss": -125280,
+          "maxConsecutiveWins": 12,
+          "maxConsecutiveLosses": 7
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1837060,
+        "totalPnl": 837060,
+        "returnRate": 0.83706,
+        "sha256": "2547d0f7af21a4878ef6d6bd953b501ce703b6bae9d418be5def992c92790eae"
+      },
+      "sha256": "816b596fd2d28726e5c4da374b19c55ef228246052a8da00899be943ced5f35d"
+    },
+    "glass_main": {
+      "instrument": "glass_main",
+      "symbol": "KQ.m@CZCE.FG",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "bbe50f2e4a64f656dc04c87ae94b70697706ed61e5c401842b6ba961bfb1b5a8"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "d28d56fe5891bcf7c89f73e0159d56cffc164695277147c6e4a4e5eb48b9e065"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "2687ed63956f7991301ace4fcfadd0bda0e46192a64f007706fb776c6cef9942"
+        },
+        "rollovers": {
+          "count": 16,
+          "first": "2021-12-09 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "406e26445cc8f7ec8e5cb694f57b805d9d37ecd26f46c06a62005f72f3fee442"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 222,
+          "first": 1634695200000,
+          "last": 1792027200000,
+          "sha256": "fa39084b2b3b66645dc689e879d4e944f08ad1e7a1e954975935d052df3843ee",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 222,
+          "first": 1634695200000,
+          "last": 1792027200000,
+          "sha256": "8f618fc929d286e4b9bf9ae79bc22a5e5890d501550ab4832ef3a043d5a9d3a4",
+          "attemptCount": 283,
+          "abandonedSetupCount": 40,
+          "enteredAttemptCount": 174
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 174,
+          "first": 1635921300000,
+          "last": 1792028700000,
+          "sha256": "779cd56e55d44e080e4b528df773af795f6dfd623bc209a0de0580c3b3d15c1b"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 174,
+          "first": 1635921900000,
+          "last": 1792046700000,
+          "sha256": "939fca8357bd35779e1be253c7a4e120072ae44328fbe88dd01f09abd5ccd86c"
+        },
+        "statistics": {
+          "candidateCount": 222,
+          "ignoredNoEntryCount": 92,
+          "validEntryCount": 174,
+          "completedTradeCount": 174,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 96,
+          "losingTradeCount": 76,
+          "flatTradeCount": 2,
+          "takeProfitCount": 66,
+          "stopLossCount": 64,
+          "sessionCloseCount": 44,
+          "winRate": 0.5517241379310345,
+          "cumulativeProfit": 2352540,
+          "cumulativeLoss": -2672640,
+          "averageProfit": 24505.625,
+          "averageLoss": -35166.31578947369,
+          "profitLossRatio": 0.880230783045977,
+          "maxDrawdown": 879200,
+          "maxDrawdownRate": 0.737497273810123,
+          "largestWin": 212100,
+          "largestLoss": -155520,
+          "maxConsecutiveWins": 19,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 679900,
+        "totalPnl": -320100,
+        "returnRate": -0.3201,
+        "sha256": "166a51d2960792b6a1b23f68b5745b31585a7b42b586fac14e8eca214e8dac5a"
+      },
+      "sha256": "6e9d979ff3e209c34dbb23dd58b044f601e31d72c0798c75a6435246abc6815f"
+    },
+    "rapeseed_oil_main": {
+      "instrument": "rapeseed_oil_main",
+      "symbol": "KQ.m@CZCE.OI",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "ccb55833d265a4969845dbacd781fd4f193b5f2995414db725db24cba8662cee"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "98250062373f00b292b259e24dbbf7e66605ab317eb46163402c3e9b43909464"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "dd9a13f2af8c0b1e603acc5e0e24e9b38fbf35af62bdc682073708acc391258e"
+        },
+        "rollovers": {
+          "count": 19,
+          "first": "2021-12-09 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "431f55a2a53ac28251387d007e7c435cd5bc2719a59ca87df5c8b4866eff9f23"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 254,
+          "first": 1634649600000,
+          "last": 1792042200000,
+          "sha256": "f38ffa29fbafd9ec757af1b942d054bd3463c70056fa5f7cc8f59eb493acf8b6",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 254,
+          "first": 1634649600000,
+          "last": 1792042200000,
+          "sha256": "e2b9d1ef8378e6cf43aaaa43d43f1ccfcadb66db7a5f636fba93daadf9a20443",
+          "attemptCount": 308,
+          "abandonedSetupCount": 55,
+          "enteredAttemptCount": 186
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 186,
+          "first": 1634822700000,
+          "last": 1792042500000,
+          "sha256": "4e9c9d39e3d881182b110e5bc9b19aa82dd6ffa568024c2068c55dbfc68757ff"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 186,
+          "first": 1634823900000,
+          "last": 1792043100000,
+          "sha256": "ded5cc8619a00573943d9cbe3bd61a7e135304c561f84f6b7ae54241516647c4"
+        },
+        "statistics": {
+          "candidateCount": 254,
+          "ignoredNoEntryCount": 108,
+          "validEntryCount": 186,
+          "completedTradeCount": 186,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 90,
+          "losingTradeCount": 96,
+          "flatTradeCount": 0,
+          "takeProfitCount": 62,
+          "stopLossCount": 81,
+          "sessionCloseCount": 43,
+          "winRate": 0.4838709677419355,
+          "cumulativeProfit": 2688300,
+          "cumulativeLoss": -2605140,
+          "averageProfit": 29870,
+          "averageLoss": -27136.875,
+          "profitLossRatio": 1.03192150901679,
+          "maxDrawdown": 296020,
+          "maxDrawdownRate": 0.21463478298699226,
+          "largestWin": 175330,
+          "largestLoss": -80750,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 5
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1083160,
+        "totalPnl": 83160,
+        "returnRate": 0.08316,
+        "sha256": "de22b109c3fc1c2e5e042e4682d55a54b0e34cd0c0e848302a26f2ec8aa4d14e"
+      },
+      "sha256": "2bac710f30fb1beab288416c8be1b245918edfac4a23199131b6756cf4cfd90d"
+    },
+    "palm_oil_main": {
+      "instrument": "palm_oil_main",
+      "symbol": "KQ.m@DCE.p",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "2213d33710aa47c1f922e29cbab3ea2621d32e16b79e7a567c0c1e59434c11d0"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "bb7936266568d5fcd7882bf582891e1ea80c7863e0b7d7c1a3f18fd928deb0a4"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "5d0dec59d4fed8b8aaa0702b081e87fa081a26b49f699d3d4e80eaee6dd14f79"
+        },
+        "rollovers": {
+          "count": 15,
+          "first": "2021-12-08 21:00:00",
+          "last": "2026-08-10 21:00:00",
+          "sha256": "cc2cfe60d6b0ab0d08597d005ff340477a53919ea6d25f33d91494192a8ff830"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 219,
+          "first": 1634649900000,
+          "last": 1791982800000,
+          "sha256": "4474ea2fc1e6b4ca120ede6acb37567b148b9c56a701819f06dc0f4892e1c372",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 219,
+          "first": 1634649900000,
+          "last": 1791982800000,
+          "sha256": "5a727c76e4e8582ffad508eed5d3d6ac4714ed2b679ed77995981026435a1da2",
+          "attemptCount": 286,
+          "abandonedSetupCount": 47,
+          "enteredAttemptCount": 198
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 198,
+          "first": 1634651100000,
+          "last": 1791985800000,
+          "sha256": "371b0bfd5d7e60bcd1fdab794cf02275d845d5b6c76267030ef8571b530c5e92"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 198,
+          "first": 1634654700000,
+          "last": 1791986100000,
+          "sha256": "c35011fb82d80173af065c3822fb21efcdf5f16842af6c4edb4a6c3f3f70ef14"
+        },
+        "statistics": {
+          "candidateCount": 219,
+          "ignoredNoEntryCount": 80,
+          "validEntryCount": 198,
+          "completedTradeCount": 198,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 88,
+          "losingTradeCount": 109,
+          "flatTradeCount": 1,
+          "takeProfitCount": 61,
+          "stopLossCount": 101,
+          "sessionCloseCount": 36,
+          "winRate": 0.4444444444444444,
+          "cumulativeProfit": 2027570,
+          "cumulativeLoss": -2478550,
+          "averageProfit": 23040.56818181818,
+          "averageLoss": -22738.990825688074,
+          "profitLossRatio": 0.8180468419035323,
+          "maxDrawdown": 662040,
+          "maxDrawdownRate": 0.5713940481944348,
+          "largestWin": 239400,
+          "largestLoss": -88500,
+          "maxConsecutiveWins": 5,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 549020,
+        "totalPnl": -450980,
+        "returnRate": -0.45098,
+        "sha256": "0a9ba77c3e21c0c05d8f21d9a8f2aa992d2f52d6375ec977c036a65726d34a95"
+      },
+      "sha256": "8844c5854c229cf713a499d710c16cfc873de59d9bc27fcfb9df89d9e8a695b3"
+    },
+    "soybean_oil_main": {
+      "instrument": "soybean_oil_main",
+      "symbol": "KQ.m@DCE.y",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "62a4a12a747d50eb0598e17d099c293eb20d325b30b194bc1c37b24f14ae1ea5"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "91fee7eabe38b22dab775b1047f93fc006ef2c3c2b99ebbdcd5c4347c01a2f14"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "f063331322a3ef359a31a0f26f54959da604154c47dc3058bf1ce6a3f0f5adde"
+        },
+        "rollovers": {
+          "count": 15,
+          "first": "2021-12-03 21:00:00",
+          "last": "2026-08-03 21:00:00",
+          "sha256": "8b76ecc4a120a98f4aa1337eade562ded0a70bf3f748be08d043cfa723cf53fb"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 246,
+          "first": 1634649900000,
+          "last": 1791985800000,
+          "sha256": "d24de9a6ed4bdc4cf5292909f3f29c8ea51902957f6991bc1956a347d3ba678c",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 246,
+          "first": 1634649900000,
+          "last": 1791985800000,
+          "sha256": "4ba9ca29e80975c34f7c1db7cfe39ca933f8b468891e5f0c0c4014f15a0530dd",
+          "attemptCount": 304,
+          "abandonedSetupCount": 43,
+          "enteredAttemptCount": 197
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 197,
+          "first": 1634651100000,
+          "last": 1790172600000,
+          "sha256": "c0af95a47fbd16d0686453e3a7313bb929b9b7115b29b47172e94cc979a62f1a"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 197,
+          "first": 1634654700000,
+          "last": 1790174100000,
+          "sha256": "74aab324be028e4882c504e9afbda03d3eb1d9e7e87026586ec3757db0258fd0"
+        },
+        "statistics": {
+          "candidateCount": 246,
+          "ignoredNoEntryCount": 100,
+          "validEntryCount": 197,
+          "completedTradeCount": 197,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 100,
+          "losingTradeCount": 96,
+          "flatTradeCount": 1,
+          "takeProfitCount": 74,
+          "stopLossCount": 81,
+          "sessionCloseCount": 42,
+          "winRate": 0.5076142131979695,
+          "cumulativeProfit": 1199500,
+          "cumulativeLoss": -1554240,
+          "averageProfit": 11995,
+          "averageLoss": -16190,
+          "profitLossRatio": 0.771759831171505,
+          "maxDrawdown": 597260,
+          "maxDrawdownRate": 0.5554873511904762,
+          "largestWin": 52520,
+          "largestLoss": -81360,
+          "maxConsecutiveWins": 9,
+          "maxConsecutiveLosses": 8
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 645260,
+        "totalPnl": -354740,
+        "returnRate": -0.35474,
+        "sha256": "e918a38bfabef1ce12038aaa7348b94d16e2cc0d289f21a08be872993189cc1a"
+      },
+      "sha256": "9b9afca90348d25ab89bb25c9733b5f76ebada222018de20378cffeb4ba4c608"
+    },
+    "pulp_main": {
+      "instrument": "pulp_main",
+      "symbol": "KQ.m@SHFE.sp",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "2f58ff5f9ff6b76cfefeb25936ecbb4b9e945df1211b7507e6140383bc845f90"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "938b7c81ab979e01b2567e54bf7798c1b7738c6137a67e8287760a235fdf4c0f"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "4300f37f5397bb846d6605ea6fa26dd4dd8caa7fdf1086778782b48b11d901cb"
+        },
+        "rollovers": {
+          "count": 21,
+          "first": "2021-10-19 21:00:00",
+          "last": "2026-10-09 21:00:00",
+          "sha256": "298b438bb80b0850e2614197275ae5ca4e56a1936d2a13d896ae791eee7e2bbf"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 238,
+          "first": 1634707800000,
+          "last": 1791983400000,
+          "sha256": "f71eb5053c3633e4ae50cf36c1c4a9816f8ea77f8d6f8f9824df7587e4793496",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 238,
+          "first": 1634707800000,
+          "last": 1791983400000,
+          "sha256": "8de371927f748829f404f0b0081d7e087634dbc61dd4e93df2761cc9510d12c3",
+          "attemptCount": 274,
+          "abandonedSetupCount": 37,
+          "enteredAttemptCount": 158
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 158,
+          "first": 1634708100000,
+          "last": 1788921600000,
+          "sha256": "7130d22128c60c8a47aa6d4bda78614213daadbbba4d4f36197a864a74e7258e"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 158,
+          "first": 1634709000000,
+          "last": 1788932100000,
+          "sha256": "551d41ce002a890a30ce333f0bc02975777f299a379a14d0a577bb040996361c"
+        },
+        "statistics": {
+          "candidateCount": 238,
+          "ignoredNoEntryCount": 118,
+          "validEntryCount": 158,
+          "completedTradeCount": 158,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 77,
+          "losingTradeCount": 76,
+          "flatTradeCount": 5,
+          "takeProfitCount": 48,
+          "stopLossCount": 62,
+          "sessionCloseCount": 48,
+          "winRate": 0.4873417721518987,
+          "cumulativeProfit": 1570380,
+          "cumulativeLoss": -1690560,
+          "averageProfit": 20394.545454545456,
+          "averageLoss": -22244.21052631579,
+          "profitLossRatio": 0.9289111300397501,
+          "maxDrawdown": 270020,
+          "maxDrawdownRate": 0.2630235729592831,
+          "largestWin": 84000,
+          "largestLoss": -82200,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 879820,
+        "totalPnl": -120180,
+        "returnRate": -0.12018,
+        "sha256": "b91a0eef3f5251b37714b21179ad32a5a987864e3b8d69077c9b7a395cd4a84a"
+      },
+      "sha256": "861e74b6216b57df32f70ea6bc6b4a392efd615ddb2260185fda46d32529cf50"
+    },
+    "corn_main": {
+      "instrument": "corn_main",
+      "symbol": "KQ.m@DCE.c",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "b63073de6aa8684f87c00249917a28979398447d94f55c4d19836170d7f47509"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "1848dbe9e3a2a51360853ceb05d599dbed9a437771e208a8d3a03f35394923e2"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "a7c0cd3777acfa83eaf0cced4cabb5d0a570b36b75480f6d8e992ebb6c204b28"
+        },
+        "rollovers": {
+          "count": 25,
+          "first": "2021-12-02 21:00:00",
+          "last": "2026-10-15 21:00:00",
+          "sha256": "7dbe1a338dd37994de120cd714e18ce818dbed612668ff91c8d796b98bfa46cf"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 188,
+          "first": 1634649600000,
+          "last": 1792159800000,
+          "sha256": "620165fe1689c7ae621574f2a696a36123cad1ecd3395a1909d3ff0bd6ef332b",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 188,
+          "first": 1634649600000,
+          "last": 1792159800000,
+          "sha256": "3fcf30aa9e9d07edde1d6d76bead3024fac711723f8064fa29a65d9cd253bbf3",
+          "attemptCount": 235,
+          "abandonedSetupCount": 20,
+          "enteredAttemptCount": 138
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 138,
+          "first": 1634650500000,
+          "last": 1792161600000,
+          "sha256": "dae8d942892eeaa58d5e00edb266adf4f2041d01af8b646af6b17cdfa769be9a"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 138,
+          "first": 1634652000000,
+          "last": 1792161900000,
+          "sha256": "5f0c22b13ff6a71af1ec8950a0a57cee99dfd5bbe7bfe368f930833f3fcdcb11"
+        },
+        "statistics": {
+          "candidateCount": 188,
+          "ignoredNoEntryCount": 75,
+          "validEntryCount": 138,
+          "completedTradeCount": 138,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 83,
+          "losingTradeCount": 43,
+          "flatTradeCount": 12,
+          "takeProfitCount": 62,
+          "stopLossCount": 34,
+          "sessionCloseCount": 42,
+          "winRate": 0.6014492753623188,
+          "cumulativeProfit": 1217940,
+          "cumulativeLoss": -769970,
+          "averageProfit": 14673.975903614459,
+          "averageLoss": -17906.279069767443,
+          "profitLossRatio": 1.5818018883852618,
+          "maxDrawdown": 107370,
+          "maxDrawdownRate": 0.10369604898447987,
+          "largestWin": 50490,
+          "largestLoss": -39490,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 3
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1447970,
+        "totalPnl": 447970,
+        "returnRate": 0.44797,
+        "sha256": "3c897ba554a1ddc5c89da0985fcbe34d45b71bba1664aeba704f0ee71a53982a"
+      },
+      "sha256": "cc603c19e4f9af4ebcc46373e38d562463a3bd70725c9abb5a06ff7f5542fec7"
+    },
+    "soda_ash_main": {
+      "instrument": "soda_ash_main",
+      "symbol": "KQ.m@CZCE.SA",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "82ecfca6822d7d8c489872738d733ae4192379596049494805eab662c4960dcc"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "59543c24cd4af30310a5c5d80628c49d269d27d5a94c29c104af11a1fcb389a3"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "39f3123fcf21d2ea84156a94a2a5ba71406e2e8c0723d90bc168972967d6538a"
+        },
+        "rollovers": {
+          "count": 16,
+          "first": "2021-12-02 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "45aa28ab230f2633b5a73577239a488cd56fe342b3b670d83e0be67e1691336b"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 231,
+          "first": 1635489900000,
+          "last": 1790686800000,
+          "sha256": "f469d97a0f5f3a1cc27997352a16179568595a2d7349e912a32a63a9085844f9",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 231,
+          "first": 1635489900000,
+          "last": 1790686800000,
+          "sha256": "718ce086835e9cabbc8932ab19355889e9e2fa371f5a4f7441d0fae0c87cb0bc",
+          "attemptCount": 277,
+          "abandonedSetupCount": 33,
+          "enteredAttemptCount": 168
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 168,
+          "first": 1635920100000,
+          "last": 1790687400000,
+          "sha256": "43df28b49daa998b3fce2f016d8ef26ff69436b74c67a37abde048e3feb48ad5"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 168,
+          "first": 1635920700000,
+          "last": 1790688600000,
+          "sha256": "c2fc41e5388547a25fe2a6f09ea4ff38f02efb2eac072439893772a1cc140aa2"
+        },
+        "statistics": {
+          "candidateCount": 231,
+          "ignoredNoEntryCount": 102,
+          "validEntryCount": 168,
+          "completedTradeCount": 168,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 95,
+          "losingTradeCount": 68,
+          "flatTradeCount": 5,
+          "takeProfitCount": 68,
+          "stopLossCount": 56,
+          "sessionCloseCount": 44,
+          "winRate": 0.5654761904761905,
+          "cumulativeProfit": 5048400,
+          "cumulativeLoss": -4315520,
+          "averageProfit": 53141.05263157895,
+          "averageLoss": -63463.529411764706,
+          "profitLossRatio": 1.1698242621978348,
+          "maxDrawdown": 768640,
+          "maxDrawdownRate": 0.4215329267757645,
+          "largestWin": 252720,
+          "largestLoss": -205960,
+          "maxConsecutiveWins": 9,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1732880,
+        "totalPnl": 732880,
+        "returnRate": 0.73288,
+        "sha256": "be69eacda26f1dc58fa15c01191b460be35653d524365726f78aaf248006228a"
+      },
+      "sha256": "a3d62fd247fb1346f6f3cfc36d1aa7cabae903c9b92153b92b728ce23b2e36a2"
+    },
+    "soybean_1_main": {
+      "instrument": "soybean_1_main",
+      "symbol": "KQ.m@DCE.a",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "13c3c3fae9d1f608f8e2111ba2b19287f18f3d901f10097c414307d7f73f2757"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "f72d78b26ad546a57f559fcab5fc3c405ced6964d9d318d6aa56c563481c0186"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "e82be32e5483e5da8ae957da8ed8745bf9f88837658d2bb0a3902f022b614cf3"
+        },
+        "rollovers": {
+          "count": 26,
+          "first": "2021-12-01 21:00:00",
+          "last": "2026-10-12 21:00:00",
+          "sha256": "6f91ffd3d09376d433750ff50a1f560c2d9de1e01436d9c26aa0921dd446786b"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 199,
+          "first": 1634735400000,
+          "last": 1791941700000,
+          "sha256": "8ccaa0068af46f00f3dfa0ca51471f5b37da6dbc837fc4b764b936cfb9f79bc2",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 199,
+          "first": 1634735400000,
+          "last": 1791941700000,
+          "sha256": "58ea38d8ac48c48ae7f3a94997826c06ba57709d67080f828d3b76aeba052dc9",
+          "attemptCount": 226,
+          "abandonedSetupCount": 37,
+          "enteredAttemptCount": 125
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 125,
+          "first": 1634736900000,
+          "last": 1789523400000,
+          "sha256": "425e982463c60affdc1dc090344e597882956ccfa74d5520acee62a87c4f8bc6"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 125,
+          "first": 1634741100000,
+          "last": 1789538700000,
+          "sha256": "74a56bfb55a3f4a30fbf1f48726febf5c31837116a4e5a36fc2f88fd1cd803e3"
+        },
+        "statistics": {
+          "candidateCount": 199,
+          "ignoredNoEntryCount": 105,
+          "validEntryCount": 125,
+          "completedTradeCount": 125,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 57,
+          "losingTradeCount": 67,
+          "flatTradeCount": 1,
+          "takeProfitCount": 33,
+          "stopLossCount": 57,
+          "sessionCloseCount": 35,
+          "winRate": 0.456,
+          "cumulativeProfit": 498570,
+          "cumulativeLoss": -989730,
+          "averageProfit": 8746.842105263158,
+          "averageLoss": -14772.089552238805,
+          "profitLossRatio": 0.5037434451820193,
+          "maxDrawdown": 500960,
+          "maxDrawdownRate": 0.50096,
+          "largestWin": 32890,
+          "largestLoss": -69920,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 508840,
+        "totalPnl": -491160,
+        "returnRate": -0.49116,
+        "sha256": "0cb5c293bc47c1a32da6de9adae408576863ca1c8b33ed1a1c75fe6e1f52f099"
+      },
+      "sha256": "73b8b538b82f610ebb1ab0072bb8933d40a36c933d2c80fb20dba949dde8036c"
+    },
+    "methanol_main": {
+      "instrument": "methanol_main",
+      "symbol": "KQ.m@CZCE.MA",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "45cacb100e064fe609b46a2d8e473762e22c0f765ac5982e6122e7d8e781423e"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "3aee23c3eeeb1a4a6cae5c77d616b0c878022afeb675d71377759331fe61be8f"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "8c929a93f4a67f262530a5a24252aaf84de3592eeaaa312bd6e3fa18201e7d48"
+        },
+        "rollovers": {
+          "count": 17,
+          "first": "2021-12-14 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "fef6f647eba27b5bd85ccf7c28b407adcbac2108559fcb376fbf15a67f1b1e46"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 229,
+          "first": 1635858000000,
+          "last": 1789606800000,
+          "sha256": "91afea4bd4b148595c4fdf6a0b2adbbde9938f24ca05c5e8dfa32f063811e3dc",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 229,
+          "first": 1635858000000,
+          "last": 1789606800000,
+          "sha256": "9c8c5b8d38d2c2ead4119231149b340fec8b5fa741d6d5b3d4b71961c6d520c1",
+          "attemptCount": 282,
+          "abandonedSetupCount": 31,
+          "enteredAttemptCount": 179
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 179,
+          "first": 1636610700000,
+          "last": 1789612800000,
+          "sha256": "4e085b10a150cbed1431b74f2bc6fbb3c5bf1eb4c0081e66835812c3ea736579"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 179,
+          "first": 1636611600000,
+          "last": 1789613400000,
+          "sha256": "45cb7adb13399ea48a7d568770b9e394cdb97cbd8ba7bfbce9575332d220a95d"
+        },
+        "statistics": {
+          "candidateCount": 229,
+          "ignoredNoEntryCount": 100,
+          "validEntryCount": 179,
+          "completedTradeCount": 179,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 92,
+          "losingTradeCount": 82,
+          "flatTradeCount": 5,
+          "takeProfitCount": 69,
+          "stopLossCount": 73,
+          "sessionCloseCount": 37,
+          "winRate": 0.5139664804469274,
+          "cumulativeProfit": 3313380,
+          "cumulativeLoss": -2753510,
+          "averageProfit": 36015,
+          "averageLoss": -33579.39024390244,
+          "profitLossRatio": 1.2033295684417344,
+          "maxDrawdown": 437790,
+          "maxDrawdownRate": 0.33537360768511854,
+          "largestWin": 274130,
+          "largestLoss": -84280,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 5
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1559870,
+        "totalPnl": 559870,
+        "returnRate": 0.55987,
+        "sha256": "8f545a773f749c83b83059aac2a6cfa533dd363eedfffb5837ba8fb650ad7d28"
+      },
+      "sha256": "8c4559d97ca393ee259f7f34d16b0a1e0d965c516626fa135cf40eb6a58eb0b3"
+    },
+    "sugar_main": {
+      "instrument": "sugar_main",
+      "symbol": "KQ.m@CZCE.SR",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "974e45b76752d55a274ab041d3f402a23aa017fe286362adb2dbfd8a74f34a16"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "eba533342d5d9f94e1035fa056e4b1004f60182768c6b3b0cc0fa1a011c1d378"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "a660248a2c13ca9288c1eb8400aeae7b2a00e0fa0a32993af5c49ac8676d38b0"
+        },
+        "rollovers": {
+          "count": 18,
+          "first": "2021-12-03 21:00:00",
+          "last": "2026-10-14 21:00:00",
+          "sha256": "093126f8d3a2a95ef90c95e9199641213fa50c8a738559acd4e1b9797aa94013"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 215,
+          "first": 1634655000000,
+          "last": 1791939600000,
+          "sha256": "2b8c7782302d2c90bf5baf4188ec295dc3ac749caeb53bf34a7740f27c96633a",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 215,
+          "first": 1634655000000,
+          "last": 1791939600000,
+          "sha256": "09811825d53f42c24e8523894dab1b995aca8cfc58401aa5d383d398639c3960",
+          "attemptCount": 248,
+          "abandonedSetupCount": 36,
+          "enteredAttemptCount": 144
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 144,
+          "first": 1634824200000,
+          "last": 1788931800000,
+          "sha256": "9b5f1d5887bf0bece56db750248309c17910c292dcf5b3065a0a8571fa6fe91e"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 144,
+          "first": 1634827500000,
+          "last": 1788936300000,
+          "sha256": "4e1a09e431202766b634da05b70c5bc6d01581c448493d8442cb9f3199fed6c9"
+        },
+        "statistics": {
+          "candidateCount": 215,
+          "ignoredNoEntryCount": 106,
+          "validEntryCount": 144,
+          "completedTradeCount": 144,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 79,
+          "losingTradeCount": 61,
+          "flatTradeCount": 4,
+          "takeProfitCount": 49,
+          "stopLossCount": 43,
+          "sessionCloseCount": 52,
+          "winRate": 0.5486111111111112,
+          "cumulativeProfit": 1223050,
+          "cumulativeLoss": -881160,
+          "averageProfit": 15481.645569620254,
+          "averageLoss": -14445.245901639344,
+          "profitLossRatio": 1.3879999092105861,
+          "maxDrawdown": 152670,
+          "maxDrawdownRate": 0.14454785597288367,
+          "largestWin": 65100,
+          "largestLoss": -33200,
+          "maxConsecutiveWins": 10,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 1341890,
+        "totalPnl": 341890,
+        "returnRate": 0.34189,
+        "sha256": "70e26c1acf18d386cee34aa0f7cd2927fbac52cdfd10073f41d871054c4d47da"
+      },
+      "sha256": "d29549664b9afca3dc31fa0c4b69f73206f11043b720680d40759176f4b60c36"
+    },
+    "soybean_2_main": {
+      "instrument": "soybean_2_main",
+      "symbol": "KQ.m@DCE.b",
+      "snapshotSource": "builtin",
+      "sourceLatestAt": "2026-10-16 23:00:00",
+      "market": {
+        "bars1": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bars5": {
+          "count": 82836,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:55:00",
+          "sha256": "00df41669a0ed6e4fd23d06773091b8bdf279b6155cc805275ee0272bf01a04b"
+        },
+        "bars60": {
+          "count": 8418,
+          "first": "2021-10-18 09:00:00",
+          "last": "2026-10-16 22:00:00",
+          "sha256": "1bd22dea5636ab59317cf34c01b2c628627730ae19b33d9d478843c96c36b499"
+        },
+        "mainContractMappings": {
+          "count": 1213,
+          "first": "2021-10-18",
+          "last": "2026-10-19",
+          "sha256": "f0e498184845cf88a205170c8dfce7dff70cc546be1821e2ae32aba8e0e145f4"
+        },
+        "rollovers": {
+          "count": 39,
+          "first": "2021-10-29 21:00:00",
+          "last": "2026-08-13 21:00:00",
+          "sha256": "0d384a03f99bbeb76d80c0898276bbbe8c488c841777baddbbe7382bc86be808"
+        },
+        "anomalies": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "strategy": {
+        "entries": {
+          "count": 216,
+          "first": 1634648400000,
+          "last": 1791896400000,
+          "sha256": "0e25d8f9b57559dd06bfc8a35b6cc7ac453e24dd707873211389c7ef9cd28901",
+          "incompleteHours": 0
+        },
+        "lifecycles": {
+          "count": 216,
+          "first": 1634648400000,
+          "last": 1791896400000,
+          "sha256": "f9ed55464fee77206937b05422178bb00cc61364f61161d2922ceaf86a6e196a",
+          "attemptCount": 263,
+          "abandonedSetupCount": 46,
+          "enteredAttemptCount": 151
+        }
+      },
+      "profitLoss": {
+        "completedTrades": {
+          "count": 151,
+          "first": 1637328000000,
+          "last": 1791901500000,
+          "sha256": "c8f1a6d31ec5bc5fdc58cd2688ee1c81fb212d972c000ef624bfc325dca2799c"
+        },
+        "incompleteTrades": {
+          "count": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "equityCurve": {
+          "count": 151,
+          "first": 1637333100000,
+          "last": 1791902700000,
+          "sha256": "28da85874d771fec05136fa5ca27df2e3e5c35322e7e5ce5f5b6b2794854121c"
+        },
+        "statistics": {
+          "candidateCount": 216,
+          "ignoredNoEntryCount": 99,
+          "validEntryCount": 151,
+          "completedTradeCount": 151,
+          "incompleteTradeCount": 0,
+          "winningTradeCount": 69,
+          "losingTradeCount": 80,
+          "flatTradeCount": 2,
+          "takeProfitCount": 46,
+          "stopLossCount": 66,
+          "sessionCloseCount": 39,
+          "winRate": 0.45695364238410596,
+          "cumulativeProfit": 1177210,
+          "cumulativeLoss": -1532510,
+          "averageProfit": 17061.014492753624,
+          "averageLoss": -19156.375,
+          "profitLossRatio": 0.7681581196860053,
+          "maxDrawdown": 570360,
+          "maxDrawdownRate": 0.5000569880500443,
+          "largestWin": 82320,
+          "largestLoss": -110760,
+          "maxConsecutiveWins": 6,
+          "maxConsecutiveLosses": 6
+        },
+        "initialCapital": 1000000,
+        "finalCapital": 644700,
+        "totalPnl": -355300,
+        "returnRate": -0.3553,
+        "sha256": "526d08ca8e7b818ba0505e0cdd5f7a633f6b56650eff04de98ad2cfd29a0bb67"
+      },
+      "sha256": "b67d12574da5f31396ea19335e2548df7de21db5bdd1a4cc77635eb84115912d"
+    }
+  }
+}

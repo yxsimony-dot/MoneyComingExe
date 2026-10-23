@@ -11,6 +11,11 @@ import type {
   OnlineMarketState,
   Period,
   ReactionTestScenario,
+  RendererFullSetDataDiagnostic,
+  RendererPerformanceDiagnostics,
+  RendererStrategyDerivationDiagnostic,
+  RendererSwitchDiagnosticEvent,
+  RendererSwitchDiagnosticEventType,
   UpdateState,
 } from '../shared/types';
 import { DEFAULT_ENTRY_RULES } from '../shared/entry-rules';
@@ -40,13 +45,21 @@ import {
   DEFAULT_ENTRY_STRATEGY_SETTINGS,
   DEFAULT_OPPOSITE_CANDLE_COUNT,
   DEFAULT_SESSION_EXIT_MINUTES,
+  DEFAULT_STOP_LOSS_RANGE_PERCENT,
+  DEFAULT_TAKE_PROFIT_RANGE_PERCENT,
   MAX_ENTRY_RANGE_PERCENT,
   MAX_OPPOSITE_CANDLE_COUNT,
   MAX_REACTION_BODY_TICKS,
+  MAX_STOP_LOSS_RANGE_PERCENT,
+  MAX_TAKE_PROFIT_RANGE_PERCENT,
   MIN_ENTRY_RANGE_PERCENT,
   MIN_OPPOSITE_CANDLE_COUNT,
   MIN_REACTION_BODY_TICKS,
+  MIN_STOP_LOSS_RANGE_PERCENT,
+  MIN_TAKE_PROFIT_RANGE_PERCENT,
   SESSION_EXIT_MINUTE_OPTIONS,
+  STOP_LOSS_RANGE_PERCENT_STEP,
+  TAKE_PROFIT_RANGE_PERCENT_STEP,
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryLifecycle,
@@ -58,6 +71,7 @@ import {
   entryTakeProfitSignal,
   filterEntryLifecycleByDateRange,
   selectWeeklyEntry,
+  theoreticalDefaultRewardRiskRatio,
   weeklyEntryMarkerId,
   type EntryAbandonedSetup,
   type EntryExitAnalysis,
@@ -132,6 +146,22 @@ app.innerHTML = `
             </div>
           </div>
           <div class="entry-setting-control">
+            <span class="entry-setting-label">止损距离</span>
+            <div class="entry-setting-stepper">
+              <button type="button" id="stop-loss-percent-decrease" data-testid="stop-loss-percent-decrease" aria-label="减少止损距离百分比" title="减少 5%">−</button>
+              <label><input id="stop-loss-percent-input" data-testid="stop-loss-percent-input" type="number" min="0" max="300" step="5" inputmode="numeric" aria-label="止损距离百分比" /><span>%</span></label>
+              <button type="button" id="stop-loss-percent-increase" data-testid="stop-loss-percent-increase" aria-label="增加止损距离百分比" title="增加 5%">+</button>
+            </div>
+          </div>
+          <div class="entry-setting-control">
+            <span class="entry-setting-label">默认止盈距离</span>
+            <div class="entry-setting-stepper">
+              <button type="button" id="take-profit-percent-decrease" data-testid="take-profit-percent-decrease" aria-label="减少默认止盈距离百分比" title="减少 5%">−</button>
+              <label><input id="take-profit-percent-input" data-testid="take-profit-percent-input" type="number" min="0" max="500" step="5" inputmode="numeric" aria-label="默认止盈距离百分比" /><span>%</span></label>
+              <button type="button" id="take-profit-percent-increase" data-testid="take-profit-percent-increase" aria-label="增加默认止盈距离百分比" title="增加 5%">+</button>
+            </div>
+          </div>
+          <div class="entry-setting-control">
             <span class="entry-setting-label" data-testid="opposite-count-label">连续反向K线数量</span>
             <div class="entry-setting-stepper">
               <button type="button" id="opposite-count-decrease" data-testid="opposite-count-decrease" aria-label="减少连续反向K线数量" title="减少 1 根">−</button>
@@ -161,6 +191,7 @@ app.innerHTML = `
           <div><dt>最终资金</dt><dd id="settings-final-capital" data-testid="settings-final-capital">—</dd></div>
           <div><dt>总收益率</dt><dd id="settings-return-rate" data-testid="settings-return-rate">—</dd></div>
           <div><dt>已完成交易</dt><dd id="settings-completed-trades" data-testid="settings-completed-trades">—</dd></div>
+          <div><dt>理论默认盈亏比</dt><dd id="settings-theoretical-reward-risk" data-testid="settings-theoretical-reward-risk">—</dd></div>
         </dl>
       </section>
       <div class="market-update-row" id="market-update-row" data-tone="neutral">
@@ -290,8 +321,68 @@ const handledSnapshotActivations = new Set<string>();
 let retryInstrument: Instrument | undefined;
 let latestProfitLossReview: ProfitLossReviewResult | undefined;
 let strategyRefreshCount = 0;
+let profitLossTradeJumpRequestCount = 0;
+let rendererDiagnosticSequence = 0;
+let activeRendererDiagnosticRequest: {
+  requestId: number;
+  instrument: Instrument;
+} | undefined;
+const rendererSwitchDiagnosticEvents: RendererSwitchDiagnosticEvent[] = [];
+const rendererFullSetDataDiagnostics: RendererFullSetDataDiagnostic[] = [];
+const rendererStrategyDerivationDiagnostics: RendererStrategyDerivationDiagnostic[] = [];
 
 const ENTRY_STRATEGY_SETTINGS_STORAGE_KEY = 'moneycoming.entry-strategy-settings.v1';
+
+function recordRendererSwitchEvent(
+  type: RendererSwitchDiagnosticEventType,
+  request: { requestId: number; instrument: Instrument },
+): void {
+  if (!window.market.testMode) return;
+  rendererSwitchDiagnosticEvents.push({
+    sequence: ++rendererDiagnosticSequence,
+    type,
+    ...request,
+    timestampMs: performance.now(),
+  });
+}
+
+function recordRendererFullSetData(period: Period): void {
+  if (!window.market.testMode || !activeRendererDiagnosticRequest) return;
+  rendererFullSetDataDiagnostics.push({
+    ...activeRendererDiagnosticRequest,
+    period,
+    timestampMs: performance.now(),
+  });
+}
+
+function recordRendererStrategyDerivation(source: 'chart' | 'profit-loss'): void {
+  if (!window.market.testMode || !activeRendererDiagnosticRequest) return;
+  rendererStrategyDerivationDiagnostics.push({
+    ...activeRendererDiagnosticRequest,
+    source,
+    timestampMs: performance.now(),
+  });
+}
+
+function rendererPerformanceDiagnostics(): RendererPerformanceDiagnostics {
+  return {
+    events: rendererSwitchDiagnosticEvents.map(event => ({ ...event })),
+    fullSetDataCalls: rendererFullSetDataDiagnostics.map(call => ({ ...call })),
+    strategyDerivations: rendererStrategyDerivationDiagnostics.map(call => ({ ...call })),
+    fullSetDataCountByPeriod: {
+      5: rendererFullSetDataDiagnostics.filter(call => call.period === 5).length,
+      60: rendererFullSetDataDiagnostics.filter(call => call.period === 60).length,
+    },
+    strategyDerivationCount: rendererStrategyDerivationDiagnostics.length,
+  };
+}
+
+function resetRendererPerformanceDiagnostics(): void {
+  rendererDiagnosticSequence = 0;
+  rendererSwitchDiagnosticEvents.length = 0;
+  rendererFullSetDataDiagnostics.length = 0;
+  rendererStrategyDerivationDiagnostics.length = 0;
+}
 
 function isSessionExitMinutes(value: unknown): value is SessionExitMinutes {
   return typeof value === 'number'
@@ -343,6 +434,18 @@ function loadEntryStrategySettings(): EntryStrategySettings {
       && parsed.entryRangePercent! <= MAX_ENTRY_RANGE_PERCENT
       ? parsed.entryRangePercent!
       : DEFAULT_ENTRY_RANGE_PERCENT,
+    stopLossRangePercent: Number.isInteger(parsed.stopLossRangePercent)
+      && parsed.stopLossRangePercent! >= MIN_STOP_LOSS_RANGE_PERCENT
+      && parsed.stopLossRangePercent! <= MAX_STOP_LOSS_RANGE_PERCENT
+      && parsed.stopLossRangePercent! % STOP_LOSS_RANGE_PERCENT_STEP === 0
+      ? parsed.stopLossRangePercent!
+      : DEFAULT_STOP_LOSS_RANGE_PERCENT,
+    takeProfitRangePercent: Number.isInteger(parsed.takeProfitRangePercent)
+      && parsed.takeProfitRangePercent! >= MIN_TAKE_PROFIT_RANGE_PERCENT
+      && parsed.takeProfitRangePercent! <= MAX_TAKE_PROFIT_RANGE_PERCENT
+      && parsed.takeProfitRangePercent! % TAKE_PROFIT_RANGE_PERCENT_STEP === 0
+      ? parsed.takeProfitRangePercent!
+      : DEFAULT_TAKE_PROFIT_RANGE_PERCENT,
     oppositeCandleCount: Number.isInteger(parsed.oppositeCandleCount)
       && parsed.oppositeCandleCount! >= MIN_OPPOSITE_CANDLE_COUNT
       && parsed.oppositeCandleCount! <= MAX_OPPOSITE_CANDLE_COUNT
@@ -358,8 +461,13 @@ function loadEntryStrategySettings(): EntryStrategySettings {
 let entryStrategySettings = loadEntryStrategySettings();
 document.documentElement.dataset.reactionBodyTicks = String(entryStrategySettings.reactionBodyTicks);
 document.documentElement.dataset.entryRangePercent = String(entryStrategySettings.entryRangePercent);
+document.documentElement.dataset.stopLossRangePercent = String(entryStrategySettings.stopLossRangePercent);
+document.documentElement.dataset.takeProfitRangePercent = String(entryStrategySettings.takeProfitRangePercent);
 document.documentElement.dataset.oppositeCandleCount = String(entryStrategySettings.oppositeCandleCount);
 document.documentElement.dataset.sessionExitMinutes = String(entryStrategySettings.sessionExitMinutes);
+document.documentElement.dataset.theoreticalDefaultRewardRisk = String(
+  theoreticalDefaultRewardRiskRatio(entryStrategySettings) ?? 'unavailable',
+);
 document.documentElement.dataset.strategyRefreshCount = String(strategyRefreshCount);
 
 function initializeReviewDateRange(bars5: readonly Bar[]): void {
@@ -961,6 +1069,43 @@ class MarketChart {
     return this.entryLifecycles.get(weeklyEntryMarkerId(entry));
   }
 
+  visibleEntryCountForBar(bar: Bar): number {
+    return this.entriesByStart.get(bar.startMs)?.length ?? 0;
+  }
+
+  addTestEntryMarkerDecoy(sourceIndex: number): {
+    sourceMarkerId: string;
+    decoyMarkerId: string;
+    barStartMs: number;
+  } | undefined {
+    if (!window.market.testMode || this.period !== 60 || !Number.isInteger(sourceIndex)) {
+      return undefined;
+    }
+    const source = this.allWeeklyEntries[sourceIndex];
+    if (!source) return undefined;
+    const lifecycle = this.visibleEntryLifecycle(source);
+    if (!lifecycle) return undefined;
+    const sourceMarkerId = weeklyEntryMarkerId(source);
+    const decoy: WeeklyEntry = {
+      ...source,
+      direction: source.direction === 'long' ? 'short' : 'long',
+    };
+    const decoyMarkerId = weeklyEntryMarkerId(decoy);
+    if (this.weeklyEntries.some(entry => weeklyEntryMarkerId(entry) === decoyMarkerId)) {
+      return undefined;
+    }
+    this.weeklyEntries = [decoy, ...this.weeklyEntries];
+    this.entryLifecycles.set(decoyMarkerId, lifecycle);
+    const sameBarEntries = this.entriesByStart.get(source.bar.startMs) ?? [];
+    this.entriesByStart.set(source.bar.startMs, [decoy, ...sameBarEntries]);
+    this.updateMondayVisibility();
+    return {
+      sourceMarkerId,
+      decoyMarkerId,
+      barStartMs: source.bar.startMs,
+    };
+  }
+
   refreshEntryStrategy(
     bars5: readonly Bar[],
     bars1: readonly EdbMinuteRecord[],
@@ -968,6 +1113,7 @@ class MarketChart {
     settings: EntryStrategySettings,
   ): void {
     if (this.period !== 60) return;
+    recordRendererStrategyDerivation('chart');
     const range = entryStrategyDateRange(settings);
     const visibleEntries: WeeklyEntry[] = [];
     const entryLifecycles = new Map<string, EntryLifecycle>();
@@ -999,6 +1145,7 @@ class MarketChart {
     const manualPriceRange = priceScale.options().autoScale ? null : priceScale.getVisibleRange();
     this.element.dataset.mondayCount = String(mondayVisible ? this.mondayHighlights.size : 0);
     this.element.querySelector<HTMLElement>('.monday-legend')!.hidden = !mondayVisible || this.period !== 60;
+    recordRendererFullSetData(this.period);
     this.candle.setData(this.bars.map(bar => {
       const monday = mondayVisible && this.mondayHighlights.has(bar.startMs);
       return {
@@ -1138,6 +1285,18 @@ class MarketChart {
   }
   focus(bar: Bar) {
     this.focusBars([bar]);
+  }
+  focusCentered(bar: Bar, targetSpan = this.visibleLogicalSpan() ?? 120) {
+    const index = this.indexByStart.get(bar.startMs);
+    if (index === undefined || !Number.isFinite(targetSpan) || targetSpan <= 0) return;
+    const range = {
+      from: index - targetSpan / 2,
+      to: index + targetSpan / 2,
+    };
+    this.focusedLogicalRange = range;
+    this.chart.timeScale().setVisibleLogicalRange(range);
+    this.scheduleReactionRangeRender();
+    this.refreshReactionRangeForFrames();
   }
   focusBars(bars: Bar[], targetSpan = 120, ensurePriceVisible = false) {
     const firstIndex = this.bars.indexOf(bars[0]);
@@ -1497,9 +1656,21 @@ class MarketChart {
                 entryStrategySettings,
               )
             : undefined;
-          const stopLossSignal = reactionRange ? entryStopLossSignal(reactionRange, this.definition.priceTick) : undefined;
+          const stopLossSignal = reactionRange
+            ? entryStopLossSignal(
+                reactionRange,
+                this.definition.priceTick,
+                entryStrategySettings,
+              )
+            : undefined;
           const takeProfitSignal = reactionRange && quarterSignal
-            ? entryTakeProfitSignal(reactionRange, bars, quarterSignal, this.definition.priceTick)
+            ? entryTakeProfitSignal(
+                reactionRange,
+                bars,
+                quarterSignal,
+                this.definition.priceTick,
+                entryStrategySettings,
+              )
             : undefined;
           const exitAnalysis = reactionRange && quarterSignal && stopLossSignal && takeProfitSignal
             ? analyzeEntryExit(reactionRange, bars, minutes, quarterSignal, stopLossSignal, takeProfitSignal)
@@ -1578,8 +1749,10 @@ class MarketChart {
       'EntryPrice',
       'EntryStart',
       'EntryIndex',
+      'StopLossRangePercent',
       'StopLossSignalPresent',
       'StopLossPrice',
+      'TakeProfitRangePercent',
       'TakeProfitSignalPresent',
       'TakeProfitDefaultPrice',
       'TakeProfitAdjustedPrice',
@@ -1623,7 +1796,9 @@ class MarketChart {
       this.element.dataset[`${prefix}EndReason`] = attempt.endReason;
       this.element.dataset[`${prefix}ReactionRangePresent`] = String(!!range);
       this.element.dataset[`${prefix}QuarterSignalPresent`] = String(!!entrySignal);
+      this.element.dataset[`${prefix}StopLossRangePercent`] = String(entryStrategySettings.stopLossRangePercent);
       this.element.dataset[`${prefix}StopLossSignalPresent`] = String(!!attempt.stopLossSignal);
+      this.element.dataset[`${prefix}TakeProfitRangePercent`] = String(entryStrategySettings.takeProfitRangePercent);
       this.element.dataset[`${prefix}TakeProfitSignalPresent`] = String(!!attempt.takeProfitSignal);
       this.element.dataset[`${prefix}RiskTouchSignalPresent`] = String(!!riskTouch);
       this.element.dataset[`${prefix}ExitSignalPresent`] = String(!!exit);
@@ -2682,6 +2857,55 @@ if (window.market.testMode) {
         }),
       };
     },
+    rendererPerformanceDiagnostics,
+    resetRendererPerformanceDiagnostics,
+    profitLossTradeJumpDiagnostics: () => {
+      const result = latestProfitLossReview ?? calculateProfitLossReview();
+      const tradeDiagnostic = (
+        trade: NonNullable<typeof result>['completedTrades'][number]
+          | NonNullable<typeof result>['incompleteTrades'][number],
+        kind: 'completed' | 'incomplete',
+      ) => {
+        const source = resolveProfitLossTradeSource(trade.sourceIndex);
+        const lifecycle = source
+          ? charts[60].visibleEntryLifecycle(source.entry)
+          : undefined;
+        return {
+          kind,
+          tradeId: trade.id,
+          sourceIndex: trade.sourceIndex,
+          entryTimeMs: trade.entryTimeMs,
+          markerId: source?.markerId,
+          barStartMs: source?.entry.bar.startMs,
+          triggerStartMs: source?.entry.triggerBar.startMs,
+          sameBarOpportunityCount: source
+            ? charts[60].visibleEntryCountForBar(source.entry.bar)
+            : 0,
+          lifecycleFocusCount: lifecycle?.focusBars.length,
+          lifecycleFocusFirstStartMs: lifecycle?.focusBars[0]?.startMs,
+          lifecycleFocusLastStartMs: lifecycle?.focusBars.at(-1)?.startMs,
+        };
+      };
+      return {
+        mode,
+        completed: result?.completedTrades.map(trade =>
+          tradeDiagnostic(trade, 'completed')) ?? [],
+        incomplete: result?.incompleteTrades.map(trade =>
+          tradeDiagnostic(trade, 'incomplete')) ?? [],
+        backgroundMinuteCount: dataset?.bars1.length ?? 0,
+        chartPeriods: [60, 5],
+        center60StartMs: charts[60].centerTime(),
+        jumpRequestCount: profitLossTradeJumpRequestCount,
+        selection: selected ? {
+          period: selected.period,
+          startMs: selected.bar.startMs,
+          markerId: selected.entryMarkerId,
+          source: selected.entrySelectionSource,
+        } : undefined,
+      };
+    },
+    addProfitLossTradeMarkerDecoy: sourceIndex =>
+      charts[60].addTestEntryMarkerDecoy(sourceIndex),
     selectVisibleEntry: markerId => {
       const entry = charts[60].getWeeklyEntries().find(candidate =>
         weeklyEntryMarkerId(candidate) === markerId
@@ -2700,6 +2924,7 @@ if (window.market.testMode) {
       if (!dataset) return false;
       const currentDataset = dataset;
       const entry = charts[60].getWeeklyEntries().find(candidate => {
+        if (!charts[60].hasVisibleEntryMarker(weeklyEntryMarkerId(candidate))) return false;
         const minimum = entryLifecycle(
           candidate,
           currentDataset.bars5,
@@ -2730,6 +2955,7 @@ if (window.market.testMode) {
       if (!dataset) return false;
       const currentDataset = dataset;
       const entry = charts[60].getWeeklyEntries().find(candidate => {
+        if (!charts[60].hasVisibleEntryMarker(weeklyEntryMarkerId(candidate))) return false;
         const minimum = entryLifecycle(
           candidate,
           currentDataset.bars5,
@@ -2760,6 +2986,7 @@ if (window.market.testMode) {
       if (!dataset) return false;
       const currentDataset = dataset;
       const comparison = charts[60].getWeeklyEntries().flatMap(candidate => {
+        if (!charts[60].hasVisibleEntryMarker(weeklyEntryMarkerId(candidate))) return [];
         const disabled = entryLifecycle(
           candidate,
           currentDataset.bars5,
@@ -2810,6 +3037,7 @@ if (window.market.testMode) {
         priority: number;
       } | undefined;
       for (const candidate of charts[60].getWeeklyEntries()) {
+        if (!charts[60].hasVisibleEntryMarker(weeklyEntryMarkerId(candidate))) continue;
         const disabled = entryLifecycle(
           candidate,
           currentDataset.bars5,
@@ -2966,6 +3194,7 @@ function selectBar(
   document.documentElement.dataset.childCount = String(entry ? lifecycle?.analysisBars.length ?? 0 : children.length);
   document.documentElement.dataset.selectionKind = entry ? 'entry' : 'linked';
   if (entry && lifecycle) {
+    document.documentElement.dataset.entryMarkerId = weeklyEntryMarkerId(entry);
     document.documentElement.dataset.entryDirection = entry.direction;
     document.documentElement.dataset.entryTriggerStart = String(entry.triggerBar.startMs);
     document.documentElement.dataset.entryPullbackLine = String(entry.pullbackLine);
@@ -2991,6 +3220,7 @@ function selectBar(
       ? String(lifecycle.focusBars.at(-1)!.startMs)
       : '';
   } else {
+    delete document.documentElement.dataset.entryMarkerId;
     delete document.documentElement.dataset.entryDirection;
     delete document.documentElement.dataset.entryTriggerStart;
     delete document.documentElement.dataset.entryPullbackLine;
@@ -3032,6 +3262,7 @@ function clearInstrumentTransientState(): void {
     'selectedEnd',
     'childCount',
     'selectionKind',
+    'entryMarkerId',
     'entryDirection',
     'entryTriggerStart',
     'entryPullbackLine',
@@ -3078,6 +3309,7 @@ function resetSelectionView(): void {
     'selectedEnd',
     'childCount',
     'selectionKind',
+    'entryMarkerId',
     'entryDirection',
     'entryTriggerStart',
     'entryPullbackLine',
@@ -3087,7 +3319,14 @@ function resetSelectionView(): void {
   clearRootLifecycleDiagnostics();
 }
 
-function renderDataset(next: Dataset, context?: MarketRefreshContext) {
+function renderDataset(
+  next: Dataset,
+  context?: MarketRefreshContext,
+  diagnosticRequest?: { requestId: number; instrument: Instrument },
+) {
+  const previousDiagnosticRequest = activeRendererDiagnosticRequest;
+  activeRendererDiagnosticRequest = diagnosticRequest;
+  try {
   clearCrosshairs();
   dataset = next; selected = undefined;
   latestProfitLossReview = undefined;
@@ -3118,6 +3357,7 @@ function renderDataset(next: Dataset, context?: MarketRefreshContext) {
   charts[5].setSubchartsVisible(subchartsVisible);
   charts[60].setData(next.bars60, next.anomalies, next.bars5, next.rollovers, !context);
   charts[5].setData(next.bars5, next.anomalies, [], next.rollovers, !context);
+  if (diagnosticRequest) recordRendererSwitchEvent('chart-commit', diagnosticRequest);
   setMode(mode);
   $('#toggle-subcharts').textContent = subchartsVisible ? '只看K线' : '显示副图';
   $('#toggle-subcharts').setAttribute('aria-pressed', String(!subchartsVisible));
@@ -3166,6 +3406,9 @@ function renderDataset(next: Dataset, context?: MarketRefreshContext) {
     instrument: next.instrument,
     phase: 'idle',
   });
+  } finally {
+    activeRendererDiagnosticRequest = previousDiagnosticRequest;
+  }
 }
 
 async function loadInstrument(
@@ -3174,12 +3417,15 @@ async function loadInstrument(
   declareCurrent = true,
 ) {
   const currentRequest = ++requestId;
+  const diagnosticRequest = { requestId: currentRequest, instrument };
+  recordRendererSwitchEvent('switch-requested', diagnosticRequest);
   requestedInstrument = instrument;
   const previousInstrument = dataset?.instrument;
   const sameInstrument = previousInstrument === instrument;
   const refreshContext = sameInstrument ? captureMarketRefreshContext() : undefined;
   if (!sameInstrument) clearInstrumentTransientState();
   $('#loading').hidden = sameInstrument;
+  if (!sameInstrument) recordRendererSwitchEvent('loading-visible', diagnosticRequest);
   $('#error').hidden = true;
   try {
     const result = await loadDeclaredMarketSnapshot(
@@ -3193,8 +3439,9 @@ async function loadInstrument(
     if (result.data.instrument !== instrument || result.data.definition.id !== instrument) {
       throw new Error(`行情响应品种不匹配：请求 ${instrument}，收到 ${result.data.instrument}`);
     }
+    recordRendererSwitchEvent('dataset-ready', diagnosticRequest);
     retryInstrument = undefined;
-    renderDataset(result.data, refreshContext);
+    renderDataset(result.data, refreshContext, diagnosticRequest);
     if (!sameInstrument) {
       charts[60].resetPriceScale();
       charts[5].resetPriceScale();
@@ -3330,6 +3577,12 @@ function renderEntryStrategyControls(): void {
   const percentInput = $('#entry-percent-input') as HTMLInputElement;
   const percentDecrease = $('#entry-percent-decrease') as HTMLButtonElement;
   const percentIncrease = $('#entry-percent-increase') as HTMLButtonElement;
+  const stopLossInput = $('#stop-loss-percent-input') as HTMLInputElement;
+  const stopLossDecrease = $('#stop-loss-percent-decrease') as HTMLButtonElement;
+  const stopLossIncrease = $('#stop-loss-percent-increase') as HTMLButtonElement;
+  const takeProfitInput = $('#take-profit-percent-input') as HTMLInputElement;
+  const takeProfitDecrease = $('#take-profit-percent-decrease') as HTMLButtonElement;
+  const takeProfitIncrease = $('#take-profit-percent-increase') as HTMLButtonElement;
   const oppositeInput = $('#opposite-count-input') as HTMLInputElement;
   const oppositeDecrease = $('#opposite-count-decrease') as HTMLButtonElement;
   const oppositeIncrease = $('#opposite-count-increase') as HTMLButtonElement;
@@ -3339,6 +3592,8 @@ function renderEntryStrategyControls(): void {
   const reviewDateError = $('#review-date-error');
   const ticks = entryStrategySettings.reactionBodyTicks;
   const percent = entryStrategySettings.entryRangePercent;
+  const stopLossPercent = entryStrategySettings.stopLossRangePercent;
+  const takeProfitPercent = entryStrategySettings.takeProfitRangePercent;
   const oppositeCount = entryStrategySettings.oppositeCandleCount;
   const sessionExitMinutes = entryStrategySettings.sessionExitMinutes;
   const reviewRange = entryStrategyDateRange(entryStrategySettings);
@@ -3352,6 +3607,14 @@ function renderEntryStrategyControls(): void {
   percentInput.removeAttribute('aria-invalid');
   percentDecrease.disabled = percent <= MIN_ENTRY_RANGE_PERCENT;
   percentIncrease.disabled = percent >= MAX_ENTRY_RANGE_PERCENT;
+  stopLossInput.value = String(stopLossPercent);
+  stopLossInput.removeAttribute('aria-invalid');
+  stopLossDecrease.disabled = stopLossPercent <= MIN_STOP_LOSS_RANGE_PERCENT;
+  stopLossIncrease.disabled = stopLossPercent >= MAX_STOP_LOSS_RANGE_PERCENT;
+  takeProfitInput.value = String(takeProfitPercent);
+  takeProfitInput.removeAttribute('aria-invalid');
+  takeProfitDecrease.disabled = takeProfitPercent <= MIN_TAKE_PROFIT_RANGE_PERCENT;
+  takeProfitIncrease.disabled = takeProfitPercent >= MAX_TAKE_PROFIT_RANGE_PERCENT;
   oppositeInput.value = String(oppositeCount);
   oppositeInput.removeAttribute('aria-invalid');
   oppositeDecrease.disabled = oppositeCount <= MIN_OPPOSITE_CANDLE_COUNT;
@@ -3368,10 +3631,19 @@ function renderEntryStrategyControls(): void {
     : '—';
   $('#settings-review-range').textContent = reviewRange ? `复盘日期：${reviewRangeText}` : reviewRangeText;
   $('#review-date-range').textContent = reviewRange ? `复盘日期：${reviewRangeText}` : reviewRangeText;
+  const theoreticalRewardRisk = theoreticalDefaultRewardRiskRatio(entryStrategySettings);
+  $('#settings-theoretical-reward-risk').textContent = theoreticalRewardRisk === null
+    ? '不可计算'
+    : `${theoreticalRewardRisk.toFixed(2)}:1`;
   document.documentElement.dataset.reactionBodyTicks = String(ticks);
   document.documentElement.dataset.entryRangePercent = String(percent);
+  document.documentElement.dataset.stopLossRangePercent = String(stopLossPercent);
+  document.documentElement.dataset.takeProfitRangePercent = String(takeProfitPercent);
   document.documentElement.dataset.oppositeCandleCount = String(oppositeCount);
   document.documentElement.dataset.sessionExitMinutes = String(sessionExitMinutes);
+  document.documentElement.dataset.theoreticalDefaultRewardRisk = theoreticalRewardRisk === null
+    ? 'unavailable'
+    : String(theoreticalRewardRisk);
   if (reviewRange) {
     document.documentElement.dataset.reviewStartDate = reviewRange.startDate;
     document.documentElement.dataset.reviewEndDate = reviewRange.endDate;
@@ -3386,6 +3658,7 @@ function calculateProfitLossReview(): ProfitLossReviewResult | undefined {
     latestProfitLossReview = undefined;
     return undefined;
   }
+  recordRendererStrategyDerivation('profit-loss');
   latestProfitLossReview = reviewProfitLoss(
     charts[60].getWeeklyEntries(),
     dataset.bars5,
@@ -3394,6 +3667,45 @@ function calculateProfitLossReview(): ProfitLossReviewResult | undefined {
     entryStrategySettings,
   );
   return latestProfitLossReview;
+}
+
+interface ProfitLossTradeSource {
+  entry: WeeklyEntry;
+  markerId: string;
+}
+
+function resolveProfitLossTradeSource(sourceIndex: number): ProfitLossTradeSource | undefined {
+  if (!Number.isInteger(sourceIndex)) return undefined;
+  const entries = charts[60].getWeeklyEntries();
+  if (sourceIndex < 0 || sourceIndex >= entries.length) return undefined;
+  const entry = entries[sourceIndex];
+  if (!charts[60].bars.includes(entry.bar)) return undefined;
+  const markerId = weeklyEntryMarkerId(entry);
+  if (!charts[60].hasVisibleEntryMarker(markerId)) return undefined;
+  return { entry, markerId };
+}
+
+function showProfitLossTradeJumpError(message: string): void {
+  const error = document.querySelector<HTMLElement>('[data-testid="review-trade-jump-error"]');
+  if (!error) return;
+  error.textContent = message;
+  error.hidden = false;
+}
+
+function jumpToProfitLossTrade(sourceIndex: number): boolean {
+  profitLossTradeJumpRequestCount += 1;
+  const source = resolveProfitLossTradeSource(sourceIndex);
+  if (!source) {
+    showProfitLossTradeJumpError('无法定位这笔交易的准确来源机会，请刷新行情或重新打开盈亏情况后再试。');
+    return false;
+  }
+  reviewDialog.close();
+  setMode('dual');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    selectBar(60, source.entry.bar, true, source.markerId);
+    charts[60].focusCentered(source.entry.bar);
+  }));
+  return true;
 }
 
 function renderStrategySummary(result: ProfitLossReviewResult | undefined = latestProfitLossReview): void {
@@ -3449,6 +3761,9 @@ function refreshStrategyResults(): void {
   }
   const result = calculateProfitLossReview();
   renderStrategySummary(result);
+  if (activeRendererDiagnosticRequest) {
+    recordRendererSwitchEvent('strategy-summary-ready', activeRendererDiagnosticRequest);
+  }
   if (reviewDialog.open) renderProfitLossReview(result);
   if (reactionRulesDialog.open) renderReactionRules();
 }
@@ -3522,6 +3837,88 @@ function commitEntryRangePercentInput(restoreInvalid: boolean): void {
   }
   input.removeAttribute('aria-invalid');
   setEntryRangePercent(percent);
+}
+
+function validSteppedIntegerSetting(
+  value: string,
+  minimum: number,
+  maximum: number,
+  step: number,
+): number | undefined {
+  const parsed = validIntegerSetting(value, minimum, maximum);
+  return parsed !== undefined && parsed % step === 0 ? parsed : undefined;
+}
+
+function setStopLossRangePercent(percent: number): boolean {
+  if (!Number.isInteger(percent)
+    || percent < MIN_STOP_LOSS_RANGE_PERCENT
+    || percent > MAX_STOP_LOSS_RANGE_PERCENT
+    || percent % STOP_LOSS_RANGE_PERCENT_STEP !== 0) return false;
+  if (percent === entryStrategySettings.stopLossRangePercent) {
+    renderEntryStrategyControls();
+    return false;
+  }
+  entryStrategySettings = {
+    ...entryStrategySettings,
+    stopLossRangePercent: percent,
+  };
+  persistEntryStrategySettings(entryStrategySettings);
+  renderEntryStrategyControls();
+  refreshStrategyResults();
+  return true;
+}
+
+function commitStopLossRangePercentInput(restoreInvalid: boolean): void {
+  const input = $('#stop-loss-percent-input') as HTMLInputElement;
+  const percent = validSteppedIntegerSetting(
+    input.value,
+    MIN_STOP_LOSS_RANGE_PERCENT,
+    MAX_STOP_LOSS_RANGE_PERCENT,
+    STOP_LOSS_RANGE_PERCENT_STEP,
+  );
+  if (percent === undefined) {
+    input.setAttribute('aria-invalid', 'true');
+    if (restoreInvalid) renderEntryStrategyControls();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  setStopLossRangePercent(percent);
+}
+
+function setTakeProfitRangePercent(percent: number): boolean {
+  if (!Number.isInteger(percent)
+    || percent < MIN_TAKE_PROFIT_RANGE_PERCENT
+    || percent > MAX_TAKE_PROFIT_RANGE_PERCENT
+    || percent % TAKE_PROFIT_RANGE_PERCENT_STEP !== 0) return false;
+  if (percent === entryStrategySettings.takeProfitRangePercent) {
+    renderEntryStrategyControls();
+    return false;
+  }
+  entryStrategySettings = {
+    ...entryStrategySettings,
+    takeProfitRangePercent: percent,
+  };
+  persistEntryStrategySettings(entryStrategySettings);
+  renderEntryStrategyControls();
+  refreshStrategyResults();
+  return true;
+}
+
+function commitTakeProfitRangePercentInput(restoreInvalid: boolean): void {
+  const input = $('#take-profit-percent-input') as HTMLInputElement;
+  const percent = validSteppedIntegerSetting(
+    input.value,
+    MIN_TAKE_PROFIT_RANGE_PERCENT,
+    MAX_TAKE_PROFIT_RANGE_PERCENT,
+    TAKE_PROFIT_RANGE_PERCENT_STEP,
+  );
+  if (percent === undefined) {
+    input.setAttribute('aria-invalid', 'true');
+    if (restoreInvalid) renderEntryStrategyControls();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  setTakeProfitRangePercent(percent);
 }
 
 function setOppositeCandleCount(count: number): boolean {
@@ -3618,7 +4015,7 @@ function renderProfitLossReview(result: ProfitLossReviewResult | undefined = lat
     : '—';
   const content = $('#review-content');
   if (!dataset) {
-    content.innerHTML = '<div class="review-empty" data-testid="review-empty"><strong>行情数据尚未加载</strong><p>请先等待行情加载完成，或点击“重试”后再打开盈亏情况。</p></div>';
+    content.innerHTML = '<div class="review-jump-error" data-testid="review-trade-jump-error" role="alert" aria-live="assertive" hidden></div><div class="review-empty" data-testid="review-empty"><strong>行情数据尚未加载</strong><p>请先等待行情加载完成，或点击“重试”后再打开盈亏情况。</p></div>';
     return;
   }
 
@@ -3627,8 +4024,9 @@ function renderProfitLossReview(result: ProfitLossReviewResult | undefined = lat
   const stats = result.statistics;
   const tradeRows = result.completedTrades.map((trade, index) => {
     const resultClass = trade.cashPnl > 0 ? 'win' : trade.cashPnl < 0 ? 'loss' : 'flat';
+    const tradeId = escapeHtml(trade.id);
     return `<li class="review-trade review-${resultClass}" data-testid="review-trade" data-exit-type="${trade.exitType}">
-      <div class="review-trade-heading"><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-${resultClass}">${reviewExitLabel(trade.exitType)}</span></div>
+      <div class="review-trade-heading"><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><div class="review-trade-actions"><span class="review-status review-status-${resultClass}">${reviewExitLabel(trade.exitType)}</span><button type="button" class="review-trade-locate" data-testid="review-trade-locate" data-trade-kind="completed" data-trade-id="${tradeId}" data-source-index="${trade.sourceIndex}" aria-label="定位第 ${index + 1} 笔已完成交易的60分钟K线">定位</button></div></div>
       <div class="review-trade-grid">
         <span>入场时间 <b>${shortTime(trade.entryTimeMs)}</b></span><span>入场价 <b>${number(trade.entryPrice)}</b></span>
         <span>入场前资金 <b>${reviewMoney(trade.capitalBefore)}</b></span><span>整数手数 <b>${number(trade.lots)} 手</b></span>
@@ -3639,15 +4037,16 @@ function renderProfitLossReview(result: ProfitLossReviewResult | undefined = lat
     </li>`;
   }).join('');
   const incompleteRows = result.incompleteTrades.map((trade, index) => {
+    const tradeId = escapeHtml(trade.id);
     const reason = trade.lifecycleEndReason === 'data-end'
       ? '数据到达末尾，尚未出现出场信号'
       : trade.lifecycleEndReason === 'open-position-session-end'
         ? '持仓到自然休市仍未平仓，未计入已实现盈亏'
         : '生命周期尚未完成';
-    return `<li class="review-incomplete" data-testid="review-incomplete-trade"><div><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><span class="review-status review-status-incomplete">未完成</span></div><p>入场 ${shortTime(trade.entryTimeMs)} · 价格 ${number(trade.entryPrice)} · 入场前资金 ${reviewMoney(trade.capitalBefore)} · 整数手数 ${number(trade.lots)} 手 · ${reason}</p></li>`;
+    return `<li class="review-incomplete" data-testid="review-incomplete-trade"><div class="review-trade-heading"><strong>#${index + 1} ${reviewDirection(trade.direction)}</strong><div class="review-trade-actions"><span class="review-status review-status-incomplete">未完成</span><button type="button" class="review-trade-locate" data-testid="review-trade-locate" data-trade-kind="incomplete" data-trade-id="${tradeId}" data-source-index="${trade.sourceIndex}" aria-label="定位第 ${index + 1} 笔未完成交易的60分钟K线">定位</button></div></div><p>入场 ${shortTime(trade.entryTimeMs)} · 价格 ${number(trade.entryPrice)} · 入场前资金 ${reviewMoney(trade.capitalBefore)} · 整数手数 ${number(trade.lots)} 手 · ${reason}</p></li>`;
   }).join('');
 
-  content.innerHTML = `<div class="review-summary">
+  content.innerHTML = `<div class="review-jump-error" data-testid="review-trade-jump-error" role="alert" aria-live="assertive" hidden></div><div class="review-summary">
     <div class="review-summary-heading"><div><span class="eyebrow">CURRENT DATASET</span><h3>${result.instrumentName}复盘结果</h3><p>基于 ${number(stats.candidateCount)} 个历史入场候选，${number(dataset.bars5.length)} 根 5 分钟 K 线和 ${number(dataset.bars1.length)} 根后台 1 分钟 K 线。</p></div><span class="review-capital-result" data-testid="review-final-capital"><small>最终资金</small><strong>${reviewMoney(result.finalCapital)}</strong><em>${reviewSignedMoney(result.totalPnl)} · ${reviewPercent(result.returnRate)}</em></span></div>
     <div class="review-metrics review-capital-metrics">
       ${reviewMetric('初始资金', reviewMoney(result.initialCapital), 'review-initial-capital')}
@@ -3785,6 +4184,50 @@ $('#entry-percent-input').addEventListener('keydown', event => {
   event.preventDefault();
   commitEntryRangePercentInput(true);
   ($('#entry-percent-input') as HTMLInputElement).blur();
+});
+$('#stop-loss-percent-decrease').addEventListener('click', () => {
+  setStopLossRangePercent(
+    entryStrategySettings.stopLossRangePercent - STOP_LOSS_RANGE_PERCENT_STEP,
+  );
+});
+$('#stop-loss-percent-increase').addEventListener('click', () => {
+  setStopLossRangePercent(
+    entryStrategySettings.stopLossRangePercent + STOP_LOSS_RANGE_PERCENT_STEP,
+  );
+});
+$('#stop-loss-percent-input').addEventListener('input', () => {
+  commitStopLossRangePercentInput(false);
+});
+$('#stop-loss-percent-input').addEventListener('blur', () => {
+  commitStopLossRangePercentInput(true);
+});
+$('#stop-loss-percent-input').addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  commitStopLossRangePercentInput(true);
+  ($('#stop-loss-percent-input') as HTMLInputElement).blur();
+});
+$('#take-profit-percent-decrease').addEventListener('click', () => {
+  setTakeProfitRangePercent(
+    entryStrategySettings.takeProfitRangePercent - TAKE_PROFIT_RANGE_PERCENT_STEP,
+  );
+});
+$('#take-profit-percent-increase').addEventListener('click', () => {
+  setTakeProfitRangePercent(
+    entryStrategySettings.takeProfitRangePercent + TAKE_PROFIT_RANGE_PERCENT_STEP,
+  );
+});
+$('#take-profit-percent-input').addEventListener('input', () => {
+  commitTakeProfitRangePercentInput(false);
+});
+$('#take-profit-percent-input').addEventListener('blur', () => {
+  commitTakeProfitRangePercentInput(true);
+});
+$('#take-profit-percent-input').addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  commitTakeProfitRangePercentInput(true);
+  ($('#take-profit-percent-input') as HTMLInputElement).blur();
 });
 $('#opposite-count-decrease').addEventListener('click', () => {
   setOppositeCandleCount(entryStrategySettings.oppositeCandleCount - 1);
@@ -3928,6 +4371,13 @@ for (const selector of ['#close-rules', '#rules-done']) $(selector).addEventList
 $('#rules-dialog').addEventListener('click', event => { if (event.target === $('#rules-dialog')) ($('#rules-dialog') as HTMLDialogElement).close(); });
 for (const selector of ['#close-review', '#review-done']) $(selector).addEventListener('click', () => reviewDialog.close());
 reviewDialog.addEventListener('click', event => { if (event.target === reviewDialog) reviewDialog.close(); });
+$('#review-content').addEventListener('click', event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const button = target.closest<HTMLButtonElement>('[data-testid="review-trade-locate"]');
+  if (!button || !$('#review-content').contains(button)) return;
+  jumpToProfitLossTrade(Number(button.dataset.sourceIndex));
+});
 for (const selector of ['#close-reaction-rules', '#reaction-rules-done']) $(selector).addEventListener('click', () => reactionRulesDialog.close());
 reactionRulesDialog.addEventListener('click', event => { if (event.target === reactionRulesDialog) reactionRulesDialog.close(); });
 $('#close-market-update-all').addEventListener('click', () => marketUpdateAllDialog.close());

@@ -1,6 +1,7 @@
 import type { Bar, EdbMinuteRecord, MinuteDecisionGranularity } from '../shared/types';
 import type { EmaPoint } from './ema';
 import { completeMinutesForFiveMinuteBar, tradingMinuteAt } from './market-data';
+import { timeIndexForRecords } from './time-index';
 import {
   isBeijingDateInRange,
   validateBeijingDateRange,
@@ -27,6 +28,14 @@ export const MAX_REACTION_BODY_TICKS = 20;
 export const MIN_ENTRY_RANGE_PERCENT = 0;
 export const MAX_ENTRY_RANGE_PERCENT = 100;
 export const DEFAULT_ENTRY_RANGE_PERCENT = 25;
+export const MIN_STOP_LOSS_RANGE_PERCENT = 0;
+export const MAX_STOP_LOSS_RANGE_PERCENT = 300;
+export const DEFAULT_STOP_LOSS_RANGE_PERCENT = 75;
+export const STOP_LOSS_RANGE_PERCENT_STEP = 5;
+export const MIN_TAKE_PROFIT_RANGE_PERCENT = 0;
+export const MAX_TAKE_PROFIT_RANGE_PERCENT = 500;
+export const DEFAULT_TAKE_PROFIT_RANGE_PERCENT = 200;
+export const TAKE_PROFIT_RANGE_PERCENT_STEP = 5;
 export const MIN_OPPOSITE_CANDLE_COUNT = 0;
 export const MAX_OPPOSITE_CANDLE_COUNT = 10;
 export const DEFAULT_OPPOSITE_CANDLE_COUNT = 6;
@@ -37,6 +46,8 @@ export const DEFAULT_SESSION_EXIT_MINUTES: SessionExitMinutes = 15;
 export interface EntryStrategySettings {
   reactionBodyTicks: number;
   entryRangePercent: number;
+  stopLossRangePercent: number;
+  takeProfitRangePercent: number;
   oppositeCandleCount: number;
   sessionExitMinutes: SessionExitMinutes;
   reviewStartDate?: string;
@@ -46,6 +57,8 @@ export interface EntryStrategySettings {
 export const DEFAULT_ENTRY_STRATEGY_SETTINGS: Readonly<EntryStrategySettings> = Object.freeze({
   reactionBodyTicks: MIN_REACTION_BODY_TICKS,
   entryRangePercent: DEFAULT_ENTRY_RANGE_PERCENT,
+  stopLossRangePercent: DEFAULT_STOP_LOSS_RANGE_PERCENT,
+  takeProfitRangePercent: DEFAULT_TAKE_PROFIT_RANGE_PERCENT,
   oppositeCandleCount: DEFAULT_OPPOSITE_CANDLE_COUNT,
   sessionExitMinutes: DEFAULT_SESSION_EXIT_MINUTES,
 });
@@ -69,6 +82,26 @@ export function validateEntryStrategySettings(
     || entryRangePercent > MAX_ENTRY_RANGE_PERCENT) {
     throw new RangeError(
       `Entry range percent must be an integer from ${MIN_ENTRY_RANGE_PERCENT} to ${MAX_ENTRY_RANGE_PERCENT}.`,
+    );
+  }
+  const stopLossRangePercent = settings?.stopLossRangePercent;
+  if (!Number.isFinite(stopLossRangePercent)
+    || !Number.isInteger(stopLossRangePercent)
+    || stopLossRangePercent < MIN_STOP_LOSS_RANGE_PERCENT
+    || stopLossRangePercent > MAX_STOP_LOSS_RANGE_PERCENT
+    || stopLossRangePercent % STOP_LOSS_RANGE_PERCENT_STEP !== 0) {
+    throw new RangeError(
+      `Stop-loss range percent must be an integer from ${MIN_STOP_LOSS_RANGE_PERCENT} to ${MAX_STOP_LOSS_RANGE_PERCENT} in ${STOP_LOSS_RANGE_PERCENT_STEP}% steps.`,
+    );
+  }
+  const takeProfitRangePercent = settings?.takeProfitRangePercent;
+  if (!Number.isFinite(takeProfitRangePercent)
+    || !Number.isInteger(takeProfitRangePercent)
+    || takeProfitRangePercent < MIN_TAKE_PROFIT_RANGE_PERCENT
+    || takeProfitRangePercent > MAX_TAKE_PROFIT_RANGE_PERCENT
+    || takeProfitRangePercent % TAKE_PROFIT_RANGE_PERCENT_STEP !== 0) {
+    throw new RangeError(
+      `Take-profit range percent must be an integer from ${MIN_TAKE_PROFIT_RANGE_PERCENT} to ${MAX_TAKE_PROFIT_RANGE_PERCENT} in ${TAKE_PROFIT_RANGE_PERCENT_STEP}% steps.`,
     );
   }
   const oppositeCandleCount = settings?.oppositeCandleCount;
@@ -98,6 +131,19 @@ export function validateEntryStrategySettings(
     });
   }
   return settings;
+}
+
+export function theoreticalDefaultRewardRiskRatio(
+  settings: EntryStrategySettings,
+): number | null {
+  const {
+    entryRangePercent,
+    stopLossRangePercent,
+    takeProfitRangePercent,
+  } = validateEntryStrategySettings(settings);
+  const riskPercent = entryRangePercent + stopLossRangePercent;
+  if (riskPercent === 0) return null;
+  return (100 + takeProfitRangePercent - entryRangePercent) / riskPercent;
 }
 
 export function entryStrategyDateRange(
@@ -494,18 +540,20 @@ export function entryQuarterSignal(
   };
 }
 
-/** Planned stop-loss price at 75% of the reaction range beyond its risk-side edge. */
+/** Planned stop-loss price beyond the reaction range's risk-side edge. */
 export function entryStopLossSignal(
   range: EntryReactionRange,
   tick: number,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): EntryStopLossSignal {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Stop-loss price tick must be positive.');
   if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
     throw new RangeError('Entry reaction range must have finite prices with high >= low.');
   }
+  const { stopLossRangePercent } = validateEntryStrategySettings(settings);
 
   const rangeTicks = Math.round((range.high - range.low) / tick);
-  const stopTicks = Math.ceil(rangeTicks * 0.75);
+  const stopTicks = Math.ceil(rangeTicks * stopLossRangePercent / 100);
   const distance = stopTicks * tick;
   const rawPrice = range.direction === 'long' ? range.low - distance : range.high + distance;
   const price = Math.round(rawPrice / tick) * tick;
@@ -526,6 +574,7 @@ export function entryTakeProfitSignal(
   bars: readonly Bar[],
   quarterSignal: EntryQuarterSignal,
   tick: number,
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): EntryTakeProfitSignal {
   if (!Number.isFinite(tick) || tick <= 0) throw new RangeError('Take-profit price tick must be positive.');
   if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || range.high < range.low) {
@@ -534,9 +583,10 @@ export function entryTakeProfitSignal(
   if (quarterSignal.direction !== range.direction) {
     throw new RangeError('Take-profit range and true-entry signal directions must match.');
   }
+  const { takeProfitRangePercent } = validateEntryStrategySettings(settings);
 
   const rangeTicks = Math.round((range.high - range.low) / tick);
-  const targetTicks = rangeTicks * 2;
+  const targetTicks = Math.ceil(rangeTicks * takeProfitRangePercent / 100);
   const distance = targetTicks * tick;
   const rawDefaultPrice = range.direction === 'long' ? range.high + distance : range.low - distance;
   const rawAdjustedPrice = range.direction === 'long' ? range.high : range.low;
@@ -571,8 +621,9 @@ export function entryExitDecisionUnits(
   bars: readonly Bar[],
   minutes: readonly EdbMinuteRecord[],
 ): EntryExitDecisionUnit[] {
+  const minuteIndex = timeIndexForRecords(minutes);
   return bars.flatMap<EntryExitDecisionUnit>((bar): EntryExitDecisionUnit[] => {
-    const completeMinutes = completeMinutesForFiveMinuteBar(bar, minutes);
+    const completeMinutes = completeMinutesForFiveMinuteBar(bar, minutes, undefined, minuteIndex);
     if (completeMinutes) {
       return completeMinutes.map(minute => ({
         bar,
@@ -782,14 +833,20 @@ function buildEntryLifecycleAttempt(
 ): EntryLifecycleAttempt {
   const analysisBars = fullHistory.slice(attemptStartIndex, searchEndIndex);
   const quarterSignal = entryQuarterSignal(reactionRange, analysisBars, tick, entryCutoff, settings);
-  const stopLossSignal = entryStopLossSignal(reactionRange, tick);
+  const stopLossSignal = entryStopLossSignal(reactionRange, tick, settings);
   const forcedExitIndex = forcedExitBar
     ? analysisBars.findIndex(bar => bar.startMs === forcedExitBar.startMs)
     : -1;
   const holdingBars = forcedExitIndex < 0
     ? analysisBars
     : analysisBars.slice(0, forcedExitIndex + 1);
-  const takeProfitSignal = entryTakeProfitSignal(reactionRange, holdingBars, quarterSignal, tick);
+  const takeProfitSignal = entryTakeProfitSignal(
+    reactionRange,
+    holdingBars,
+    quarterSignal,
+    tick,
+    settings,
+  );
 
   const exitAnalysis = analyzeEntryExit(
     reactionRange,

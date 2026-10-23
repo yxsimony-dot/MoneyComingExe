@@ -83,8 +83,8 @@
   .market-update-manual{gap:8px}
 }
 
-.entry-settings-panel{flex:1 0 100%;min-width:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:10px 2px 1px;border-top:1px solid #283443}
-.entry-setting-controls{min-width:0;display:flex;flex:1 1 470px;align-items:center;gap:14px 22px;flex-wrap:wrap}
+.entry-settings-panel{flex:1 0 100%;min-width:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:7px 24px;padding:7px 2px 0;border-top:1px solid #283443}
+.entry-setting-controls{min-width:0;display:flex;flex:2 1 780px;align-items:center;gap:7px 14px;flex-wrap:wrap}
 .entry-setting-control{display:flex;align-items:center;gap:13px;flex:none}
 .entry-setting-label-row{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .entry-setting-label{color:#aebdcd;font-size:11px;white-space:nowrap}
@@ -111,7 +111,7 @@
 .entry-review-date-fields input[aria-invalid="true"]{color:#ef929c}
 .entry-review-date-fields>i{color:#667990;font-size:9px;font-style:normal}
 .entry-review-date-error{position:absolute;top:37px;left:69px;color:#ef929c;font-size:9px;white-space:nowrap}
-.entry-settings-summary{min-width:360px;display:grid;grid-template-columns:repeat(3,minmax(105px,1fr));align-items:center;gap:0;margin:0;flex:1 1 390px}
+.entry-settings-summary{min-width:440px;display:grid;grid-template-columns:repeat(4,minmax(96px,1fr));align-items:center;gap:0;margin:0;flex:1 1 440px}
 .entry-settings-summary>div{min-width:0;padding:0 15px;border-left:1px solid #2f3b4b}
 .entry-settings-summary dt{color:#71849a;font-size:9px;white-space:nowrap}
 .entry-settings-summary dd{margin:5px 0 0;overflow:hidden;color:#dce5ef;font:12px Consolas,"Microsoft YaHei UI",sans-serif;text-overflow:ellipsis;white-space:nowrap}
@@ -120,11 +120,14 @@
 .entry-settings-summary>.entry-settings-range dd{margin-top:3px;color:#9fb0c3;font-size:10px}
 @media(max-width:1200px){
   .entry-settings-panel{gap:14px}
-  .entry-setting-controls{gap:10px 16px}
+  .entry-setting-controls{gap:7px 16px}
   .entry-setting-control{gap:9px}
-  .entry-settings-summary{grid-template-columns:repeat(3,minmax(105px,1fr))}
+  .entry-settings-summary{min-width:0;grid-template-columns:repeat(2,minmax(120px,1fr))}
   .entry-settings-summary>div{padding:0 10px}
+  .entry-settings-summary>div:nth-child(n+4){margin-top:9px}
 }
+.toolbar:has(#entry-settings-panel:not([hidden])){padding-top:7px;padding-bottom:7px}
+.toolbar:has(#entry-settings-panel:not([hidden])) .market-update-row{padding-top:6px}
 
 #reaction-rules-dialog{width:min(660px,calc(100vw - 48px));max-height:88vh;padding:0;overflow:hidden}
 .reaction-rules-content{max-height:calc(88vh - 154px);padding:20px 25px 24px;overflow:auto}
@@ -177,8 +180,12 @@
 .review-section-heading>span{color:#7f93aa;font:10px Consolas,monospace}
 .review-trades,.review-incomplete-list{display:grid;gap:8px;margin:11px 0 0;padding:0;list-style:none}
 .review-trade,.review-incomplete{border:1px solid #344253;border-radius:7px;background:#151f2b;padding:13px 14px}
-.review-trade-heading,.review-incomplete>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.review-trade-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .review-trade-heading strong,.review-incomplete strong{color:#dce5ef;font-size:11px;font-weight:550}
+.review-trade-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:none}
+.review-trade-locate{width:48px;height:27px;padding:0;border:1px solid #5f563f;border-radius:4px;background:#292920;color:#e1c58f;font-size:10px;line-height:1;white-space:nowrap}
+.review-trade-locate:hover{border-color:#90764d;background:#353327;color:#f0d7a8}
+.review-jump-error{margin:0 0 13px;padding:10px 12px;border:1px solid #743d45;border-radius:6px;background:#352127;color:#efb1b7;font-size:11px;line-height:1.6}
 .review-status{display:inline-flex;align-items:center;justify-content:center;border:1px solid #536275;border-radius:4px;padding:3px 7px;font-size:9px;white-space:nowrap}
 .review-status-win{border-color:#397860;color:#83d9b1;background:#1a332d}
 .review-status-loss{border-color:#805342;color:#f0a17e;background:#36251f}
@@ -208,6 +215,9 @@
   .review-content{padding:15px 16px 20px}
   .review-summary-heading{grid-template-columns:1fr}
   .review-capital-result{min-width:0;padding:12px 0 0;border-top:1px solid #354457;border-left:0;text-align:left}
+  .review-trade-heading{align-items:flex-start;flex-wrap:wrap}
+  .review-trade-heading>strong{min-width:0;overflow-wrap:anywhere}
+  .review-trade-actions{margin-left:auto}
   .review-trade-grid{grid-template-columns:1fr}
   .review-trade-pnl{flex-wrap:wrap}
   .review-trade-pnl small{width:100%;margin-left:0}

@@ -6,14 +6,22 @@ import {
   DEFAULT_ENTRY_RANGE_PERCENT,
   DEFAULT_OPPOSITE_CANDLE_COUNT,
   DEFAULT_SESSION_EXIT_MINUTES,
+  DEFAULT_STOP_LOSS_RANGE_PERCENT,
+  DEFAULT_TAKE_PROFIT_RANGE_PERCENT,
   ENTRY_SESSION_POLICIES,
   MAX_ENTRY_RANGE_PERCENT,
   MAX_OPPOSITE_CANDLE_COUNT,
   MAX_REACTION_BODY_TICKS,
+  MAX_STOP_LOSS_RANGE_PERCENT,
+  MAX_TAKE_PROFIT_RANGE_PERCENT,
   MIN_ENTRY_RANGE_PERCENT,
   MIN_OPPOSITE_CANDLE_COUNT,
   MIN_REACTION_BODY_TICKS,
+  MIN_STOP_LOSS_RANGE_PERCENT,
+  MIN_TAKE_PROFIT_RANGE_PERCENT,
   SESSION_EXIT_MINUTE_OPTIONS,
+  STOP_LOSS_RANGE_PERCENT_STEP,
+  TAKE_PROFIT_RANGE_PERCENT_STEP,
   analyzeEntryExit,
   analyzeWeeklyEntries,
   entryExitDecisionUnits,
@@ -27,6 +35,7 @@ import {
   entryStopLossSignal as entryStopLossSignalWithTick,
   entryTakeProfitSignal as entryTakeProfitSignalWithTick,
   selectWeeklyEntry,
+  theoreticalDefaultRewardRiskRatio,
   validateEntryStrategySettings,
   weeklyEntryMarkerId,
   type EntryStrategySettings,
@@ -65,14 +74,16 @@ const entryQuarterSignal = (
 const entryStopLossSignal = (
   range: EntryReactionRange,
   tick = TEST_PRICE_TICK,
-) => entryStopLossSignalWithTick(range, tick);
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+) => entryStopLossSignalWithTick(range, tick, settings);
 
 const entryTakeProfitSignal = (
   range: EntryReactionRange,
   bars: readonly Bar[],
   quarterSignal: EntryQuarterSignal,
   tick = TEST_PRICE_TICK,
-) => entryTakeProfitSignalWithTick(range, bars, quarterSignal, tick);
+  settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
+) => entryTakeProfitSignalWithTick(range, bars, quarterSignal, tick, settings);
 
 const entryLifecycle = (
   entry: WeeklyEntry,
@@ -1027,6 +1038,33 @@ describe('second entry attempt trigger', () => {
     expect(candidate).toEqual(candidateSnapshot);
   });
 
+  it('shares stop and default target percentages while pricing each attempt from its own range', () => {
+    const bars = [
+      sessionCandle('13:30', 100, 104, 100, 103),
+      sessionCandle('13:35', 103, 103, 101, 102),
+      sessionCandle('13:40', 102, 112, 102, 111),
+      sessionCandle('13:45', 100, 105, 100, 104),
+      sessionCandle('13:50', 104, 104, 102, 103),
+      sessionCandle('13:55', 103, 115, 103, 114),
+    ];
+    const result = entryLifecycle(lifecycleEntry(bars[0], 'long'), bars, [], 1, {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 50,
+      takeProfitRangePercent: 100,
+    });
+
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts.map(attempt => ({
+      range: [attempt.reactionRange?.low, attempt.reactionRange?.high],
+      stop: attempt.stopLossSignal?.price,
+      target: attempt.takeProfitSignal?.defaultPrice,
+      exitType: attempt.exitAnalysis?.exitSignal?.type,
+    }))).toEqual([
+      { range: [100, 104], stop: 98, target: 108, exitType: 'take-profit' },
+      { range: [100, 105], stop: 97, target: 110, exitType: 'take-profit' },
+    ]);
+  });
+
   it('keeps a second plan formed at the cutoff but forbids its true entry', () => {
     const bars = [
       sessionCandle('14:20', 100, 104, 100, 103),
@@ -1161,10 +1199,12 @@ describe('entry lifecycle review date range', () => {
 });
 
 describe('entry strategy settings', () => {
-  it('defaults to one tick, 25 percent, six opposite candles, and 15-minute session exit', () => {
+  it('provides the complete default strategy settings and parameter boundaries', () => {
     expect(DEFAULT_ENTRY_STRATEGY_SETTINGS).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 25,
+      stopLossRangePercent: 75,
+      takeProfitRangePercent: 200,
       oppositeCandleCount: 6,
       sessionExitMinutes: 15,
     });
@@ -1173,6 +1213,14 @@ describe('entry strategy settings', () => {
     expect(MIN_ENTRY_RANGE_PERCENT).toBe(0);
     expect(MAX_ENTRY_RANGE_PERCENT).toBe(100);
     expect(DEFAULT_ENTRY_RANGE_PERCENT).toBe(25);
+    expect(MIN_STOP_LOSS_RANGE_PERCENT).toBe(0);
+    expect(MAX_STOP_LOSS_RANGE_PERCENT).toBe(300);
+    expect(DEFAULT_STOP_LOSS_RANGE_PERCENT).toBe(75);
+    expect(STOP_LOSS_RANGE_PERCENT_STEP).toBe(5);
+    expect(MIN_TAKE_PROFIT_RANGE_PERCENT).toBe(0);
+    expect(MAX_TAKE_PROFIT_RANGE_PERCENT).toBe(500);
+    expect(DEFAULT_TAKE_PROFIT_RANGE_PERCENT).toBe(200);
+    expect(TAKE_PROFIT_RANGE_PERCENT_STEP).toBe(5);
     expect(MIN_OPPOSITE_CANDLE_COUNT).toBe(0);
     expect(MAX_OPPOSITE_CANDLE_COUNT).toBe(10);
     expect(DEFAULT_OPPOSITE_CANDLE_COUNT).toBe(6);
@@ -1181,22 +1229,30 @@ describe('entry strategy settings', () => {
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
+      stopLossRangePercent: 0,
+      takeProfitRangePercent: 0,
       oppositeCandleCount: 0,
       sessionExitMinutes: 0,
     })).toEqual({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
+      stopLossRangePercent: 0,
+      takeProfitRangePercent: 0,
       oppositeCandleCount: 0,
       sessionExitMinutes: 0,
     });
     expect(validateEntryStrategySettings({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
+      stopLossRangePercent: 300,
+      takeProfitRangePercent: 500,
       oppositeCandleCount: 10,
       sessionExitMinutes: 30,
     })).toEqual({
       reactionBodyTicks: 20,
       entryRangePercent: 100,
+      stopLossRangePercent: 300,
+      takeProfitRangePercent: 500,
       oppositeCandleCount: 10,
       sessionExitMinutes: 30,
     });
@@ -1229,6 +1285,26 @@ describe('entry strategy settings', () => {
     },
   );
 
+  it.each([-5, 1, 74, 301, 75.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
+    'rejects a missing or invalid stop-loss range percent: %s',
+    (stopLossRangePercent) => {
+      expect(() => validateEntryStrategySettings({
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        stopLossRangePercent,
+      } as EntryStrategySettings)).toThrow(RangeError);
+    },
+  );
+
+  it.each([-5, 1, 199, 501, 200.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
+    'rejects a missing or invalid take-profit range percent: %s',
+    (takeProfitRangePercent) => {
+      expect(() => validateEntryStrategySettings({
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        takeProfitRangePercent,
+      } as EntryStrategySettings)).toThrow(RangeError);
+    },
+  );
+
   it.each([-1, 11, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
     'rejects a missing or invalid opposite candle count: %s',
     (oppositeCandleCount) => {
@@ -1258,6 +1334,21 @@ describe('entry strategy settings', () => {
       1,
       { ...DEFAULT_ENTRY_STRATEGY_SETTINGS, reactionBodyTicks: 0 },
     )).toThrow(RangeError);
+  });
+
+  it('calculates the theoretical default reward-risk ratio from entry, stop, and target percentages', () => {
+    expect(theoreticalDefaultRewardRiskRatio(DEFAULT_ENTRY_STRATEGY_SETTINGS)).toBe(2.75);
+    expect(theoreticalDefaultRewardRiskRatio({
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      entryRangePercent: 20,
+      stopLossRangePercent: 50,
+      takeProfitRangePercent: 150,
+    })).toBeCloseTo(230 / 70);
+    expect(theoreticalDefaultRewardRiskRatio({
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      entryRangePercent: 0,
+      stopLossRangePercent: 0,
+    })).toBeNull();
   });
 });
 
@@ -2213,6 +2304,68 @@ describe('5-minute reaction-range stop loss', () => {
     });
   });
 
+  it('uses custom percentages, outward rounding, and zero-distance boundaries symmetrically', () => {
+    const bars = [candle(0, 3022, 3024, 3020, 3021), candle(1, 3021, 3031, 3021, 3030)];
+    const halfRangeSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 50,
+    };
+    expect(entryStopLossSignal(
+      range('long', bars, 3020, 3031),
+      1,
+      halfRangeSettings,
+    )).toMatchObject({ stopTicks: 6, price: 3014 });
+    expect(entryStopLossSignal(
+      range('short', bars, 3020, 3031),
+      1,
+      halfRangeSettings,
+    )).toMatchObject({ stopTicks: 6, price: 3037 });
+
+    const zeroSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 0,
+    };
+    expect(entryStopLossSignal(
+      range('long', bars, 3020, 3031),
+      1,
+      zeroSettings,
+    )).toMatchObject({ stopTicks: 0, price: 3020 });
+    expect(entryStopLossSignal(
+      range('short', bars, 3020, 3031),
+      1,
+      zeroSettings,
+    )).toMatchObject({ stopTicks: 0, price: 3031 });
+
+    const maximumSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 300,
+    };
+    expect(entryStopLossSignal(
+      range('long', bars, 3020, 3031),
+      1,
+      maximumSettings,
+    )).toMatchObject({ stopTicks: 33, price: 2987 });
+    expect(entryStopLossSignal(
+      range('short', bars, 3020, 3031),
+      1,
+      maximumSettings,
+    )).toMatchObject({ stopTicks: 33, price: 3064 });
+  });
+
+  it('does not add a tick when a custom percentage distance divides evenly', () => {
+    const bars = [candle(0, 90, 100, 80, 90), candle(1, 90, 100, 80, 99)];
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 50,
+    };
+    expect(entryStopLossSignal(range('long', bars, 80, 100), 1, settings)).toMatchObject({
+      rangeTicks: 20, stopTicks: 10, price: 70,
+    });
+    expect(entryStopLossSignal(range('short', bars, 80, 100), 1, settings)).toMatchObject({
+      rangeTicks: 20, stopTicks: 10, price: 110,
+    });
+  });
+
   it('uses exactly nine stop ticks when 75% is already integral', () => {
     const bars = [candle(0, 90, 100, 88, 90), candle(1, 90, 100, 88, 99)];
     expect(entryStopLossSignal(range('long', bars, 88, 100))).toMatchObject({
@@ -2347,6 +2500,116 @@ describe('5-minute reaction-range take profit', () => {
       entryBar: undefined,
       riskTouchBar: undefined,
     });
+  });
+
+  it('uses custom percentages, outward rounding, and zero-distance boundaries symmetrically', () => {
+    const bars = [
+      candle(0, 3022, 3024, 3020, 3021),
+      candle(1, 3021, 3031, 3021, 3030),
+      candle(2, 3030, 3030, 3024, 3028),
+    ];
+    const customSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      takeProfitRangePercent: 150,
+    };
+    expect(entryTakeProfitSignal(
+      range('long', bars, 3020, 3031),
+      bars,
+      quarter('long', bars),
+      1,
+      customSettings,
+    )).toMatchObject({ targetTicks: 17, defaultPrice: 3048, adjustedPrice: 3031 });
+    expect(entryTakeProfitSignal(
+      range('short', bars, 3020, 3031),
+      bars,
+      quarter('short', bars),
+      1,
+      customSettings,
+    )).toMatchObject({ targetTicks: 17, defaultPrice: 3003, adjustedPrice: 3020 });
+
+    const zeroSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      takeProfitRangePercent: 0,
+    };
+    expect(entryTakeProfitSignal(
+      range('long', bars, 3020, 3031),
+      bars,
+      quarter('long', bars),
+      1,
+      zeroSettings,
+    )).toMatchObject({ targetTicks: 0, defaultPrice: 3031, adjustedPrice: 3031 });
+    expect(entryTakeProfitSignal(
+      range('short', bars, 3020, 3031),
+      bars,
+      quarter('short', bars),
+      1,
+      zeroSettings,
+    )).toMatchObject({ targetTicks: 0, defaultPrice: 3020, adjustedPrice: 3020 });
+
+    const maximumSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      takeProfitRangePercent: 500,
+    };
+    expect(entryTakeProfitSignal(
+      range('long', bars, 3020, 3031),
+      bars,
+      quarter('long', bars),
+      1,
+      maximumSettings,
+    )).toMatchObject({ targetTicks: 55, defaultPrice: 3086, adjustedPrice: 3031 });
+    expect(entryTakeProfitSignal(
+      range('short', bars, 3020, 3031),
+      bars,
+      quarter('short', bars),
+      1,
+      maximumSettings,
+    )).toMatchObject({ targetTicks: 55, defaultPrice: 2965, adjustedPrice: 3020 });
+  });
+
+  it('keeps the risk-side adjusted target fixed when the default target parameter changes', () => {
+    const bars = [
+      candle(0, 3022, 3024, 3020, 3021),
+      candle(1, 3021, 3031, 3021, 3030),
+      candle(2, 3030, 3030, 3023, 3028),
+      candle(3, 3028, 3029, 3020, 3024),
+    ];
+    const signal = entryTakeProfitSignal(
+      range('long', bars, 3020, 3031),
+      bars,
+      quarter('long', bars, 2),
+      1,
+      {
+        ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+        takeProfitRangePercent: 500,
+      },
+    );
+    expect(signal).toMatchObject({
+      defaultPrice: 3086,
+      adjustedPrice: 3031,
+      riskTouchBar: bars[3],
+    });
+  });
+
+  it('does not add a tick when a custom target percentage distance divides evenly', () => {
+    const bars = [candle(0, 90, 100, 80, 90), candle(1, 90, 100, 80, 99)];
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      takeProfitRangePercent: 150,
+    };
+    expect(entryTakeProfitSignal(
+      range('long', bars, 80, 100),
+      bars,
+      quarter('long', bars),
+      1,
+      settings,
+    )).toMatchObject({ rangeTicks: 20, targetTicks: 30, defaultPrice: 130 });
+    expect(entryTakeProfitSignal(
+      range('short', bars, 80, 100),
+      bars,
+      quarter('short', bars),
+      1,
+      settings,
+    )).toMatchObject({ rangeTicks: 20, targetTicks: 30, defaultPrice: 50 });
   });
 
   it('supports a non-unit tick and keeps every target on the tick grid', () => {
@@ -2603,6 +2866,55 @@ describe('minute-backed actual exit state', () => {
       'one-minute',
     ]);
     expect(units.slice(1).map(unit => unit.minute?.startMs)).toEqual(second.minutes.map(minute => minute.startMs));
+  });
+
+  it('preserves minute order and five-minute fallback for complete, missing, and inconsistent evidence', () => {
+    const complete = minuteBackedCandle(0, [
+      [101, 102, 101, 102],
+      [102, 103, 102, 103],
+      [103, 104, 103, 104],
+      [104, 105, 104, 105],
+      [105, 106, 105, 106],
+    ]);
+    const missing = minuteBackedCandle(1, [
+      [106, 107, 106, 107],
+      [107, 108, 107, 108],
+      [108, 109, 108, 109],
+      [109, 110, 109, 110],
+      [110, 111, 110, 111],
+    ]);
+    const inconsistent = minuteBackedCandle(2, [
+      [111, 112, 111, 112],
+      [112, 113, 112, 113],
+      [113, 114, 113, 114],
+      [114, 115, 114, 115],
+      [115, 116, 115, 116],
+    ]);
+    const inconsistentMinutes = inconsistent.minutes.map((minute, index) => (
+      index === 2 ? { ...minute, high: minute.high + 10 } : minute
+    ));
+    const units = entryExitDecisionUnits(
+      [complete.bar, missing.bar, inconsistent.bar],
+      [
+        ...complete.minutes,
+        ...missing.minutes.slice(0, 4),
+        ...inconsistentMinutes,
+      ],
+    );
+
+    expect(units.map(unit => unit.granularity)).toEqual([
+      'one-minute',
+      'one-minute',
+      'one-minute',
+      'one-minute',
+      'one-minute',
+      'five-minute-fallback',
+      'five-minute-fallback',
+    ]);
+    expect(units.slice(0, 5).map(unit => unit.minute?.startMs))
+      .toEqual(complete.minutes.map(minute => minute.startMs));
+    expect(units[5].bar).toBe(missing.bar);
+    expect(units[6].bar).toBe(inconsistent.bar);
   });
 
   it('starts at the first entry-touching minute and ignores all earlier risk, stop, and target touches', () => {

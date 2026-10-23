@@ -175,7 +175,7 @@ export function normalizeHistoricalContractCode(
   };
 }
 
-function normalizedTradingDates(values: readonly string[]): string[] {
+export function normalizeHistoricalTradingDates(values: readonly string[]): string[] {
   if (!values.length) throw new Error('交易日历不能为空');
   const unique = new Set<string>();
   for (const date of values) {
@@ -200,6 +200,38 @@ function nextTradingDate(tradingDates: readonly string[], naturalDate: string): 
   const date = tradingDates[left];
   if (!date) throw new Error(`${naturalDate} 夜盘之后缺少下一交易日`);
   return date;
+}
+
+export function tradingDateForHistoricalTimestamp(
+  definition: InstrumentDefinition,
+  startMs: number,
+  tradingDates: readonly string[],
+  tradingDateSet: ReadonlySet<string> = new Set(tradingDates),
+): string {
+  const minute = tradingMinuteAt(startMs, definition.tradingSessions);
+  const tradingDate = minute.session === 'night'
+    ? nextTradingDate(tradingDates, minute.date)
+    : minute.date;
+  if (minute.session === 'day' && !tradingDateSet.has(tradingDate)) {
+    throw new Error(`日盘自然日不在交易日历中：${tradingDate}`);
+  }
+  return tradingDate;
+}
+
+export function normalizeHistoricalContractCodeForTradingDate(
+  definition: InstrumentDefinition,
+  sourceContract: string,
+  tradingDate: string,
+): ReturnType<typeof normalizeHistoricalContractCode> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(tradingDate)) {
+    throw new Error(`交易日必须为 YYYY-MM-DD：${tradingDate}`);
+  }
+  parseBeijing(`${tradingDate} 00:00:00`);
+  return normalizeHistoricalContractCode(
+    definition,
+    sourceContract,
+    Number(tradingDate.slice(0, 4)),
+  );
 }
 
 function assertFiniteValues(record: ContractFiveMinuteImportRecord): void {
@@ -244,12 +276,6 @@ function normalizeRecord(
     assertFiniteValues(record);
     const startMs = parseBeijing(record.timestamp);
     const start = formatBeijing(startMs);
-    const referenceYear = Number(start.slice(0, 4));
-    const contract = normalizeHistoricalContractCode(
-      definition,
-      record.sourceContract,
-      referenceYear,
-    );
     const minute = tradingMinuteAt(startMs, definition.tradingSessions);
     if (minute.index % 5 !== 0 || startMs % FIVE_MINUTE_MS !== 0) {
       throw new Error(`未对齐 5 分钟边界：${start}`);
@@ -263,12 +289,17 @@ function normalizeRecord(
       || finalMinute.index !== minute.index + 4) {
       throw new Error(`5 分钟 K 线跨越休市边界：${start}`);
     }
-    const tradingDate = minute.session === 'night'
-      ? nextTradingDate(tradingDates, minute.date)
-      : minute.date;
-    if (minute.session === 'day' && !tradingDateSet.has(tradingDate)) {
-      throw new Error(`日盘自然日不在交易日历中：${tradingDate}`);
-    }
+    const tradingDate = tradingDateForHistoricalTimestamp(
+      definition,
+      startMs,
+      tradingDates,
+      tradingDateSet,
+    );
+    const contract = normalizeHistoricalContractCodeForTradingDate(
+      definition,
+      record.sourceContract,
+      tradingDate,
+    );
     const endMs = startMs + FIVE_MINUTE_MS;
     return {
       instrumentId: definition.id,
@@ -323,7 +354,7 @@ export function normalizeContractFiveMinuteRecords(
 ): NormalizationResult {
   if (!records.length) throw new Error('来源文件没有数据记录');
   const definition = instrumentDefinition(instrument);
-  const tradingDates = normalizedTradingDates(tradingDateValues);
+  const tradingDates = normalizeHistoricalTradingDates(tradingDateValues);
   const tradingDateSet = new Set(tradingDates);
   const sourceTimes = records.map(record => {
     try {

@@ -150,6 +150,43 @@ try {
   assert.equal(await page.locator('[data-mode="1"], [data-testid="mode-1"]').count(), 0);
   report.scenarios.push('15-item-selector-and-visible-periods');
 
+  await page.evaluate(() => window.moneyComingTest?.resetRendererPerformanceDiagnostics());
+  await switchInstrument(page, 'soybean_1_main');
+  const rendererDiagnostics = await page.evaluate(
+    () => window.moneyComingTest?.rendererPerformanceDiagnostics(),
+  );
+  assert.ok(rendererDiagnostics);
+  const switchRequest = rendererDiagnostics.events.find(
+    event => event.type === 'switch-requested' && event.instrument === 'soybean_1_main',
+  );
+  assert.ok(switchRequest);
+  assert.deepEqual(
+    rendererDiagnostics.events
+      .filter(event => event.requestId === switchRequest.requestId)
+      .map(event => event.type),
+    [
+      'switch-requested',
+      'loading-visible',
+      'dataset-ready',
+      'chart-commit',
+      'strategy-summary-ready',
+    ],
+  );
+  assert.ok(rendererDiagnostics.fullSetDataCalls.some(
+    call => call.requestId === switchRequest.requestId && call.period === 5,
+  ));
+  assert.ok(rendererDiagnostics.fullSetDataCalls.some(
+    call => call.requestId === switchRequest.requestId && call.period === 60,
+  ));
+  assert.deepEqual(
+    rendererDiagnostics.strategyDerivations
+      .filter(call => call.requestId === switchRequest.requestId)
+      .map(call => call.source),
+    ['chart', 'profit-loss'],
+  );
+  report.rendererDiagnostics = rendererDiagnostics;
+  report.scenarios.push('renderer-switch-diagnostic-order');
+
   const initialSummary = {
     name: await page.locator('#instrument-name').innerText(),
     symbol: await page.locator('#instrument-symbol').innerText(),

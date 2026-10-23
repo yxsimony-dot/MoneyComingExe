@@ -109,6 +109,7 @@ export type MarketSnapshotSourceKind =
   | 'public-history'
   | 'gap-fill'
   | 'edb-tail'
+  | 'benchmark-main'
   | 'legacy-migration'
   | 'test-fixture';
 export interface MarketSnapshotRawSourceFile {
@@ -186,13 +187,79 @@ export interface MarketSnapshotMetadataV6 extends MarketSnapshotMetadataCommon {
     mainContractMappings: SnapshotFileMetadata;
   };
 }
+export type BenchmarkProtectedBarField =
+  | 'open'
+  | 'high'
+  | 'low'
+  | 'close'
+  | 'volume';
+export interface MarketSnapshotBenchmarkProtection {
+  provider: 'THS';
+  sourceSegmentId: string;
+  bars5: {
+    firstStart: string;
+    lastEnd: string;
+    protectedFields: BenchmarkProtectedBarField[];
+  };
+  bars60: {
+    firstStart: string;
+    lastEnd: string;
+    derivedFrom: 'bars5';
+  };
+  mappings: {
+    firstTradingDate: string;
+    lastTradingDate: string;
+  };
+  rollovers: {
+    firstTradingDate: string;
+    lastTradingDate: string;
+  };
+  minutePolicy: 'preserved-audit-only';
+  reportSha256: string;
+  redistribution: MarketSnapshotRedistribution;
+}
+interface MarketSnapshotMetadataV7Base extends MarketSnapshotMetadataCommon {
+  schemaVersion: 7;
+  instrumentId: Instrument;
+  mainSymbol: InstrumentDefinition['mainSymbol'];
+  parameterVersion: number;
+  source: MarketSnapshotMetadataV5['source'];
+  sourceSegments: MarketSnapshotSourceSegment[];
+  redistribution: MarketSnapshotRedistribution;
+  periods: MarketSnapshotMetadataV5['periods'];
+  benchmarkProtection: MarketSnapshotBenchmarkProtection;
+}
+export interface MarketSnapshotMetadataV7Full
+  extends MarketSnapshotMetadataV7Base {
+  storage: {
+    kind: 'full';
+  };
+  files: MarketSnapshotMetadataV5['files'];
+}
+export interface MarketSnapshotMetadataV7Tail
+  extends MarketSnapshotMetadataV7Base {
+  storage: {
+    kind: 'tail';
+    base: {
+      snapshotId: string;
+      metadataSha256: string;
+    };
+    replacementCutoff: string;
+    layerSequence: number;
+  };
+  files: MarketSnapshotMetadataV6['files'];
+}
+export type MarketSnapshotMetadataV7 =
+  | MarketSnapshotMetadataV7Full
+  | MarketSnapshotMetadataV7Tail;
 export type MarketSnapshotMetadata =
   | MarketSnapshotMetadataV1
   | MarketSnapshotMetadataV2
   | MarketSnapshotMetadataV3
   | MarketSnapshotMetadataV4
   | MarketSnapshotMetadataV5
-  | MarketSnapshotMetadataV6;
+  | MarketSnapshotMetadataV6
+  | MarketSnapshotMetadataV7;
 export type SnapshotSource = 'builtin' | 'user';
 export interface Anomaly {
   timeMs: number; title: string; detail: string;
@@ -396,11 +463,79 @@ export interface StrategyDateRangeDiagnostics {
   visibleMarkerIds: string[];
   attempts: StrategyDateRangeAttemptDiagnostics[];
 }
+export interface ProfitLossTradeJumpDiagnostic {
+  kind: 'completed' | 'incomplete';
+  tradeId: string;
+  sourceIndex: number;
+  entryTimeMs: number;
+  markerId?: string;
+  barStartMs?: number;
+  triggerStartMs?: number;
+  sameBarOpportunityCount: number;
+  lifecycleFocusCount?: number;
+  lifecycleFocusFirstStartMs?: number;
+  lifecycleFocusLastStartMs?: number;
+}
+export interface ProfitLossTradeJumpDiagnostics {
+  mode: 'dual' | '5' | '60';
+  completed: ProfitLossTradeJumpDiagnostic[];
+  incomplete: ProfitLossTradeJumpDiagnostic[];
+  backgroundMinuteCount: number;
+  chartPeriods: Period[];
+  center60StartMs?: number;
+  jumpRequestCount: number;
+  selection?: {
+    period: Period;
+    startMs: number;
+    markerId?: string;
+    source?: 'marker' | 'default';
+  };
+}
+export type RendererSwitchDiagnosticEventType =
+  | 'switch-requested'
+  | 'loading-visible'
+  | 'dataset-ready'
+  | 'chart-commit'
+  | 'strategy-summary-ready';
+export interface RendererSwitchDiagnosticEvent {
+  sequence: number;
+  type: RendererSwitchDiagnosticEventType;
+  requestId: number;
+  instrument: Instrument;
+  timestampMs: number;
+}
+export interface RendererFullSetDataDiagnostic {
+  requestId: number;
+  instrument: Instrument;
+  period: Period;
+  timestampMs: number;
+}
+export interface RendererStrategyDerivationDiagnostic {
+  requestId: number;
+  instrument: Instrument;
+  source: 'chart' | 'profit-loss';
+  timestampMs: number;
+}
+export interface RendererPerformanceDiagnostics {
+  events: RendererSwitchDiagnosticEvent[];
+  fullSetDataCalls: RendererFullSetDataDiagnostic[];
+  strategyDerivations: RendererStrategyDerivationDiagnostic[];
+  fullSetDataCountByPeriod: Record<Period, number>;
+  strategyDerivationCount: number;
+}
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;
   getFiveMinuteBarsFromEnd: (count: number) => { startIndex: number; bars: Bar[] };
   entryLifecycleAttemptCount: (triggerStartMs: number) => number;
   strategyDateRangeDiagnostics: () => StrategyDateRangeDiagnostics;
+  rendererPerformanceDiagnostics: () => RendererPerformanceDiagnostics;
+  resetRendererPerformanceDiagnostics: () => void;
+  profitLossTradeJumpDiagnostics: () => ProfitLossTradeJumpDiagnostics;
+  addProfitLossTradeMarkerDecoy: (sourceIndex: number) => {
+    sourceMarkerId: string;
+    decoyMarkerId: string;
+    barStartMs: number;
+  } | undefined;
   selectVisibleEntry: (markerId: string) => boolean;
   clearReactionScenario: () => void;
   showEmptyProfitLossReview: () => void;

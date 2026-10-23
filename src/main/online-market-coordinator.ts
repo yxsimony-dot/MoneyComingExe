@@ -154,6 +154,8 @@ export class OnlineMarketCoordinator {
       nextCheckAt: undefined,
       error: undefined,
     });
+    const instrument = this.state.instrument;
+    if (instrument) void this.loadSnapshot(instrument, this.generation);
     this.startGate(this.generation);
     return this.getState();
   }
@@ -174,8 +176,10 @@ export class OnlineMarketCoordinator {
       nextCheckAt: undefined,
       error: undefined,
     });
-    void this.loadSnapshot(instrument, generation);
-    if (this.state.enabled) this.startGate(generation);
+    if (this.state.enabled) {
+      void this.loadSnapshot(instrument, generation);
+      this.startGate(generation);
+    }
     return this.getState();
   }
 

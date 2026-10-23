@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
+import { isDeepStrictEqual } from 'node:util';
 import {
   cp,
   mkdir,
@@ -23,13 +24,16 @@ import {
   assertBarsValid,
   assertMinuteCoverageMatchesFiveMinuteBars,
   assertMinuteRecordsValid,
+  assertSegmentedSixtyMinuteBarsValid,
   parseEdbMinuteCsv,
   reconcileBars,
   reconcileCompatibleBars,
   serializeBars,
   serializeMinuteRecords,
 } from '../domain/market-data';
+import { assertBenchmarkProtectionUnchanged } from '../domain/benchmark-protection';
 import { parseBars } from '../domain/data';
+import { auditThsGlassMainMinuteProtection } from '../domain/ths-benchmark';
 import { formatBeijing, parseBeijing } from '../domain/time';
 import {
   DEFAULT_INSTRUMENT,
@@ -40,10 +44,14 @@ import type {
   ContractRollover,
   EdbMinuteRecord,
   MainContractMapping,
+  MarketSnapshotBenchmarkProtection,
   MarketSnapshotMetadata,
   MarketSnapshotMetadataV4,
   MarketSnapshotMetadataV5,
   MarketSnapshotMetadataV6,
+  MarketSnapshotMetadataV7,
+  MarketSnapshotMetadataV7Full,
+  MarketSnapshotMetadataV7Tail,
   MarketSnapshotRedistribution,
   MarketSnapshotSourceSegment,
   MarketUpdateIntent,
@@ -51,7 +59,7 @@ import type {
   SnapshotSource,
 } from '../shared/types';
 
-export const SNAPSHOT_SCHEMA_VERSION = 6 as const;
+export const SNAPSHOT_SCHEMA_VERSION = 7 as const;
 const ONE_MINUTE_FILE = 'edb_main_continuous_1m_raw.csv';
 const FIVE_MINUTE_FILE = 'edb_main_continuous_5m.csv';
 const SIXTY_MINUTE_FILE = 'edb_main_continuous_60m.csv';
@@ -61,12 +69,33 @@ const METADATA_FILE = 'metadata.json';
 const ACTIVATED_FILE = 'activated.json';
 const POINTER_FILE = 'current.json';
 const SNAPSHOT_ID = /^[A-Za-z0-9._-]{1,100}$/;
-const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4, 5, 6]);
+const SHA256 = /^[a-f0-9]{64}$/;
+const TRADING_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const BENCHMARK_PROTECTED_FIELDS = [
+  'open',
+  'high',
+  'low',
+  'close',
+  'volume',
+] as const;
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4, 5, 6, 7]);
 const DEFAULT_TAIL_COMPACTION_THRESHOLD = 64;
 type LegacyMigrationResult = {
   builtinMigrated: boolean;
   userSnapshotMigrated: boolean;
 };
+
+function isV7Full(
+  metadata: MarketSnapshotMetadata,
+): metadata is MarketSnapshotMetadataV7Full {
+  return metadata.schemaVersion === 7 && metadata.storage.kind === 'full';
+}
+
+function isV7Tail(
+  metadata: MarketSnapshotMetadata,
+): metadata is MarketSnapshotMetadataV7Tail {
+  return metadata.schemaVersion === 7 && metadata.storage.kind === 'tail';
+}
 const legacyMigrationFlights = new Map<string, Promise<LegacyMigrationResult>>();
 const builtinUpgradeFlights = new Map<string, Promise<LoadedMarketSnapshot>>();
 
@@ -89,6 +118,25 @@ export interface LoadedMarketSnapshot {
   metadata?: MarketSnapshotMetadata;
 }
 
+export type SnapshotDirectoryLoadRequest =
+  | {
+      kind: 'metadata';
+      directory: string;
+      expectedId?: string;
+      definition: InstrumentDefinition;
+      source: SnapshotSource;
+      fallback?: LoadedMarketSnapshot;
+    }
+  | {
+      kind: 'legacy-builtin';
+      directory: string;
+      definition: InstrumentDefinition;
+    };
+
+export type SnapshotDirectoryLoader = (
+  request: SnapshotDirectoryLoadRequest,
+) => Promise<LoadedMarketSnapshot>;
+
 export interface SnapshotCandidate {
   bars1: EdbMinuteRecord[];
   bars5: Bar[];
@@ -101,6 +149,7 @@ export interface SnapshotCandidate {
   source?: MarketSnapshotMetadataV5['source'];
   sourceSegments?: MarketSnapshotSourceSegment[];
   redistribution?: MarketSnapshotRedistribution;
+  benchmarkProtection?: MarketSnapshotBenchmarkProtection;
 }
 
 export interface SaveSnapshotOptions {
@@ -126,9 +175,14 @@ export interface WriteBuiltinSnapshotOptions {
 }
 
 interface CurrentPointer {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   snapshotId: string;
   updatedAt: string;
+}
+
+interface ActivatedSnapshot {
+  id: string;
+  time: number;
 }
 
 interface SerializedSnapshot {
@@ -144,16 +198,28 @@ interface PreparedSnapshot {
   serialized: SerializedSnapshot;
 }
 
-interface TailLayerPlan {
+interface TailLayerPlanV6 {
+  schemaVersion: 6;
   base: MarketSnapshotMetadataV6['base'];
   replacementCutoff: string;
   layerSequence: number;
 }
 
+interface TailLayerPlanV7 {
+  schemaVersion: 7;
+  base: MarketSnapshotMetadataV7Tail['storage']['base'];
+  replacementCutoff: string;
+  layerSequence: number;
+}
+
+type TailLayerPlan = TailLayerPlanV6 | TailLayerPlanV7;
+
 type PersistedSnapshotMetadata =
   | MarketSnapshotMetadataV4
   | MarketSnapshotMetadataV5
-  | MarketSnapshotMetadataV6;
+  | MarketSnapshotMetadataV6
+  | MarketSnapshotMetadataV7Full
+  | MarketSnapshotMetadataV7Tail;
 
 interface CachedBaseSnapshot {
   signatures: string[];
@@ -185,6 +251,42 @@ function parseObject(value: string, label: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function objectValue(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label}结构无效`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function assertExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  label: string,
+): void {
+  const actual = Object.keys(value).sort();
+  const required = [...expected].sort();
+  if (actual.length !== required.length
+    || actual.some((key, index) => key !== required[index])) {
+    throw new Error(`${label}结构无效`);
+  }
+}
+
+function assertSha256(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || !SHA256.test(value)) {
+    throw new Error(`${label}无效`);
+  }
+}
+
+function assertTradingDate(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || !TRADING_DATE.test(value)) {
+    throw new Error(`${label}无效`);
+  }
+  const parsed = parseBeijing(`${value} 00:00:00`);
+  if (formatBeijing(parsed).slice(0, 10) !== value) {
+    throw new Error(`${label}无效`);
+  }
+}
+
 function fileMetadata(
   files: Record<string, unknown>,
   key: string,
@@ -196,7 +298,7 @@ function fileMetadata(
   const record = file as Record<string, unknown>;
   if (typeof record.name !== 'string'
     || typeof record.sha256 !== 'string'
-    || !/^[a-f0-9]{64}$/.test(record.sha256)
+    || !SHA256.test(record.sha256)
     || typeof record.rows !== 'number'
     || !Number.isSafeInteger(record.rows)
     || record.rows < 0) {
@@ -249,15 +351,21 @@ function assertSourceSegments(value: unknown): asserts value is MarketSnapshotSo
     'public-history',
     'gap-fill',
     'edb-tail',
+    'benchmark-main',
     'legacy-migration',
     'test-fixture',
   ]);
+  const sourceIds = new Set<string>();
   for (const item of value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new Error('快照分段来源声明无效');
     }
     const segment = item as unknown as Record<string, unknown>;
-    nonEmptyString(segment.sourceId, '快照来源标识');
+    const sourceId = nonEmptyString(segment.sourceId, '快照来源标识');
+    if (sourceIds.has(sourceId)) {
+      throw new Error('快照来源标识重复');
+    }
+    sourceIds.add(sourceId);
     nonEmptyString(segment.sourceName, '快照来源名称');
     if (!kinds.has(segment.kind as string)) {
       throw new Error('快照来源类型无效');
@@ -325,6 +433,162 @@ function assertRedistribution(
   nonEmptyString(redistribution.conclusion, '快照再分发结论');
 }
 
+function assertRedistributionDenied(
+  value: unknown,
+  label: string,
+): asserts value is MarketSnapshotRedistribution {
+  assertRedistribution(value);
+  if (value.allowed !== false) {
+    throw new Error(`${label}必须禁止再分发`);
+  }
+}
+
+function parseV7Storage(value: unknown): MarketSnapshotMetadataV7['storage'] {
+  const storage = objectValue(value, 'schema v7 存储声明');
+  if (storage.kind === 'full') {
+    assertExactKeys(storage, ['kind'], 'schema v7 完整存储声明');
+    return storage as unknown as MarketSnapshotMetadataV7Full['storage'];
+  }
+  if (storage.kind !== 'tail') {
+    throw new Error('schema v7 存储类型无效');
+  }
+  assertExactKeys(
+    storage,
+    ['kind', 'base', 'replacementCutoff', 'layerSequence'],
+    'schema v7 尾部存储声明',
+  );
+  const base = objectValue(storage.base, 'schema v7 尾部基础引用');
+  assertExactKeys(
+    base,
+    ['snapshotId', 'metadataSha256'],
+    'schema v7 尾部基础引用',
+  );
+  assertSnapshotId(base.snapshotId);
+  assertSha256(base.metadataSha256, 'schema v7 尾部基础元数据哈希');
+  if (typeof storage.replacementCutoff !== 'string') {
+    throw new Error('schema v7 尾部替换起点无效');
+  }
+  parseBeijing(storage.replacementCutoff);
+  if (!Number.isSafeInteger(storage.layerSequence)
+    || (storage.layerSequence as number) <= 0) {
+    throw new Error('schema v7 尾部层序号无效');
+  }
+  return storage as unknown as MarketSnapshotMetadataV7Tail['storage'];
+}
+
+function assertBenchmarkProtection(
+  value: unknown,
+  sourceSegments: MarketSnapshotSourceSegment[],
+  snapshotRedistribution: MarketSnapshotRedistribution,
+): asserts value is MarketSnapshotBenchmarkProtection {
+  const protection = objectValue(value, '基准保护元数据');
+  assertExactKeys(protection, [
+    'provider',
+    'sourceSegmentId',
+    'bars5',
+    'bars60',
+    'mappings',
+    'rollovers',
+    'minutePolicy',
+    'reportSha256',
+    'redistribution',
+  ], '基准保护元数据');
+  if (protection.provider !== 'THS') {
+    throw new Error('基准保护提供方无效');
+  }
+  const sourceSegmentId = nonEmptyString(
+    protection.sourceSegmentId,
+    '基准保护来源分段标识',
+  );
+
+  const bars5 = objectValue(protection.bars5, '基准 5 分钟保护范围');
+  assertExactKeys(
+    bars5,
+    ['firstStart', 'lastEnd', 'protectedFields'],
+    '基准 5 分钟保护范围',
+  );
+  const firstStart = nonEmptyString(bars5.firstStart, '基准 5 分钟首条时间');
+  const lastEnd = nonEmptyString(bars5.lastEnd, '基准 5 分钟末条时间');
+  if (parseBeijing(firstStart) >= parseBeijing(lastEnd)) {
+    throw new Error('基准 5 分钟保护范围无效');
+  }
+  const protectedFields = bars5.protectedFields;
+  if (!Array.isArray(protectedFields)
+    || protectedFields.length !== BENCHMARK_PROTECTED_FIELDS.length
+    || new Set(protectedFields).size !== BENCHMARK_PROTECTED_FIELDS.length
+    || BENCHMARK_PROTECTED_FIELDS.some(field => !protectedFields.includes(field))) {
+    throw new Error('基准 5 分钟受保护字段无效');
+  }
+
+  const bars60 = objectValue(protection.bars60, '基准 60 分钟保护范围');
+  assertExactKeys(
+    bars60,
+    ['firstStart', 'lastEnd', 'derivedFrom'],
+    '基准 60 分钟保护范围',
+  );
+  const firstSixtyStart = nonEmptyString(
+    bars60.firstStart,
+    '基准 60 分钟首条时间',
+  );
+  const lastSixtyEnd = nonEmptyString(
+    bars60.lastEnd,
+    '基准 60 分钟末条时间',
+  );
+  if (parseBeijing(firstSixtyStart) >= parseBeijing(lastSixtyEnd)
+    || bars60.derivedFrom !== 'bars5') {
+    throw new Error('基准 60 分钟保护范围无效');
+  }
+
+  const mappings = objectValue(protection.mappings, '基准主力映射保护范围');
+  assertExactKeys(
+    mappings,
+    ['firstTradingDate', 'lastTradingDate'],
+    '基准主力映射保护范围',
+  );
+  assertTradingDate(mappings.firstTradingDate, '基准主力映射首个交易日');
+  assertTradingDate(mappings.lastTradingDate, '基准主力映射末个交易日');
+  if (mappings.firstTradingDate > mappings.lastTradingDate) {
+    throw new Error('基准主力映射保护范围无效');
+  }
+
+  const rollovers = objectValue(protection.rollovers, '基准换月保护范围');
+  assertExactKeys(
+    rollovers,
+    ['firstTradingDate', 'lastTradingDate'],
+    '基准换月保护范围',
+  );
+  assertTradingDate(rollovers.firstTradingDate, '基准换月首个交易日');
+  assertTradingDate(rollovers.lastTradingDate, '基准换月末个交易日');
+  if (rollovers.firstTradingDate > rollovers.lastTradingDate
+    || rollovers.firstTradingDate < mappings.firstTradingDate
+    || rollovers.lastTradingDate > mappings.lastTradingDate) {
+    throw new Error('基准换月保护范围无效');
+  }
+
+  if (protection.minutePolicy !== 'preserved-audit-only') {
+    throw new Error('基准分钟保护策略无效');
+  }
+  assertSha256(protection.reportSha256, '基准保护报告哈希');
+  assertRedistributionDenied(protection.redistribution, '基准保护');
+  if (snapshotRedistribution.allowed !== false) {
+    throw new Error('基准快照必须禁止再分发');
+  }
+
+  const benchmarkSegments = sourceSegments.filter(
+    segment => segment.kind === 'benchmark-main',
+  );
+  const matchingSegments = benchmarkSegments.filter(
+    segment => segment.sourceId === sourceSegmentId,
+  );
+  if (benchmarkSegments.length !== 1
+    || matchingSegments.length !== 1
+    || matchingSegments[0].coverage.first !== firstStart
+    || matchingSegments[0].coverage.last !== lastEnd
+    || matchingSegments[0].license.redistributionAllowed !== false) {
+    throw new Error('基准保护来源分段无效');
+  }
+}
+
 function parseMetadata(
   text: string,
   expectedId: string | undefined,
@@ -340,12 +604,25 @@ function parseMetadata(
   if (expectedId !== undefined && value.snapshotId !== expectedId) {
     throw new Error('快照标识与目录不一致');
   }
+  const v7Storage = schemaVersion === 7
+    ? parseV7Storage(value.storage)
+    : undefined;
+  if (schemaVersion === 7) {
+    if (definition.id !== 'glass_main') {
+      throw new Error('schema v7 仅支持玻璃主连');
+    }
+    if (['base', 'replacementCutoff', 'layerSequence'].some(
+      key => Object.prototype.hasOwnProperty.call(value, key),
+    )) {
+      throw new Error('schema v7 不允许旧版尾部存储字段');
+    }
+  }
   const source = value.source;
   if (!source || typeof source !== 'object' || Array.isArray(source)) {
     throw new Error('快照数据源声明无效');
   }
   const sourceRecord = source as Record<string, unknown>;
-  if (schemaVersion === 5 || schemaVersion === 6) {
+  if (schemaVersion === 5 || schemaVersion === 6 || schemaVersion === 7) {
     if (!['EDB', 'MIXED'].includes(sourceRecord.provider as string)
       || typeof sourceRecord.symbol !== 'string'
       || (sourceRecord.endpoint !== undefined
@@ -380,8 +657,9 @@ function parseMetadata(
   if ((schemaVersion as number) >= 4) {
     fileMetadata(files, 'mainContractMappings');
   }
-  if (schemaVersion === 5 || schemaVersion === 6) {
-    const bars1File = schemaVersion === 5
+  if (schemaVersion === 5 || schemaVersion === 6 || schemaVersion === 7) {
+    const isFullStorage = schemaVersion === 5 || v7Storage?.kind === 'full';
+    const bars1File = isFullStorage
       ? optionalFileMetadata(files, 'bars1')
       : fileMetadata(files, 'bars1');
     const periods = value.periods;
@@ -392,14 +670,14 @@ function parseMetadata(
     assertPeriodMetadata(
       periodRecord.bars5,
       '5 分钟',
-      schemaVersion === 5 ? bars5File.rows : undefined,
+      isFullStorage ? bars5File.rows : undefined,
     );
     assertPeriodMetadata(
       periodRecord.bars60,
       '60 分钟',
-      schemaVersion === 5 ? bars60File.rows : undefined,
+      isFullStorage ? bars60File.rows : undefined,
     );
-    if (schemaVersion === 5) {
+    if (isFullStorage) {
       if ((bars1File === undefined) !== (periodRecord.bars1 === undefined)) {
         throw new Error('快照 1 分钟文件与覆盖元数据不一致');
       }
@@ -434,6 +712,12 @@ function parseMetadata(
         || (value.layerSequence as number) <= 0) {
         throw new Error('尾部快照层序号无效');
       }
+    } else if (schemaVersion === 7) {
+      assertBenchmarkProtection(
+        value.benchmarkProtection,
+        value.sourceSegments,
+        value.redistribution,
+      );
     }
   }
   for (const field of ['generatedAt', 'requestStart', 'requestEnd', 'sourceLatestAt'] as const) {
@@ -497,6 +781,78 @@ function validateSnapshotData(
   }
 }
 
+function validateV7ProtectionData(
+  definition: InstrumentDefinition,
+  protection: MarketSnapshotBenchmarkProtection,
+  bars1: readonly EdbMinuteRecord[],
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  mainContractMappings: readonly MainContractMapping[],
+  rollovers: readonly ContractRollover[],
+): void {
+  const firstProtectedStartMs = parseBeijing(protection.bars5.firstStart);
+  const lastProtectedEndMs = parseBeijing(protection.bars5.lastEnd);
+  auditThsGlassMainMinuteProtection(
+    bars1,
+    bars5,
+    bars60,
+    firstProtectedStartMs,
+    lastProtectedEndMs,
+  );
+
+  const protectedBars5 = bars5.filter(bar => (
+    bar.startMs >= firstProtectedStartMs
+    && bar.endMs <= lastProtectedEndMs
+  ));
+  const rebuiltProtectedBars60 = aggregateFiveMinuteBars(
+    protectedBars5,
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  if (!rebuiltProtectedBars60.length
+    || rebuiltProtectedBars60[0].start !== protection.bars60.firstStart
+    || rebuiltProtectedBars60.at(-1)!.end !== protection.bars60.lastEnd) {
+    throw new Error('基准 60 分钟保护范围与 5 分钟重建结果不一致');
+  }
+
+  const hasMappingDate = (tradingDate: string) => (
+    mainContractMappings.some(mapping => mapping.tradingDate === tradingDate)
+  );
+  if (!hasMappingDate(protection.mappings.firstTradingDate)
+    || !hasMappingDate(protection.mappings.lastTradingDate)) {
+    throw new Error('基准主力映射保护边界不存在');
+  }
+
+  const hasRolloverDate = (tradingDate: string) => (
+    rollovers.some(rollover => rollover.tradingDate === tradingDate)
+  );
+  if (!hasRolloverDate(protection.rollovers.firstTradingDate)
+    || !hasRolloverDate(protection.rollovers.lastTradingDate)
+    || protection.rollovers.firstTradingDate < protection.mappings.firstTradingDate
+    || protection.rollovers.lastTradingDate > protection.mappings.lastTradingDate) {
+    throw new Error('基准换月保护边界不存在或越过主力映射范围');
+  }
+}
+
+function validateV7Protection(
+  definition: InstrumentDefinition,
+  metadata: MarketSnapshotMetadataV7,
+  bars1: readonly EdbMinuteRecord[],
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  mainContractMappings: readonly MainContractMapping[],
+  rollovers: readonly ContractRollover[],
+): void {
+  validateV7ProtectionData(
+    definition,
+    metadata.benchmarkProtection,
+    bars1,
+    bars5,
+    bars60,
+    mainContractMappings,
+    rollovers,
+  );
+}
+
 function deriveLegacyMappings(
   bars5: Bar[],
   rollovers: ContractRollover[],
@@ -540,7 +896,10 @@ async function readVerifiedFile(
 }
 
 function assertLoadedPeriods(
-  metadata: MarketSnapshotMetadataV5 | MarketSnapshotMetadataV6,
+  metadata:
+    | MarketSnapshotMetadataV5
+    | MarketSnapshotMetadataV6
+    | MarketSnapshotMetadataV7,
   bars1: readonly EdbMinuteRecord[],
   bars5: readonly Bar[],
   bars60: readonly Bar[],
@@ -582,7 +941,10 @@ async function loadStandaloneMetadataSnapshotDirectory(
   directory: string,
   expectedId: string | undefined,
   definition: InstrumentDefinition,
-  metadata: Exclude<MarketSnapshotMetadata, MarketSnapshotMetadataV6>,
+  metadata: Exclude<
+    MarketSnapshotMetadata,
+    MarketSnapshotMetadataV6 | MarketSnapshotMetadataV7Tail
+  >,
   source: SnapshotSource,
   fallback?: LoadedMarketSnapshot,
 ): Promise<LoadedMarketSnapshot> {
@@ -607,7 +969,8 @@ async function loadStandaloneMetadataSnapshotDirectory(
   }
 
   let bars1: EdbMinuteRecord[];
-  if (metadata.schemaVersion === 5 && !files.bars1) {
+  if ((metadata.schemaVersion === 5 || metadata.schemaVersion === 7)
+    && !files.bars1) {
     bars1 = [];
   } else if (metadata.schemaVersion >= 3) {
     const bars1File = files.bars1;
@@ -671,14 +1034,26 @@ async function loadStandaloneMetadataSnapshotDirectory(
     mainContractMappings = deriveLegacyMappings(bars5, rollovers, definition);
   }
 
-  validateSnapshotData(
-    definition,
-    bars1,
-    bars5,
-    bars60,
-    metadata.schemaVersion,
-  );
-  if (metadata.schemaVersion === 5) {
+  if (metadata.schemaVersion === 7) {
+    validateV7Protection(
+      definition,
+      metadata,
+      bars1,
+      bars5,
+      bars60,
+      mainContractMappings,
+      rollovers,
+    );
+  } else {
+    validateSnapshotData(
+      definition,
+      bars1,
+      bars5,
+      bars60,
+      metadata.schemaVersion,
+    );
+  }
+  if (metadata.schemaVersion === 5 || metadata.schemaVersion === 7) {
     assertLoadedPeriods(metadata, bars1, bars5, bars60);
   }
   return {
@@ -702,7 +1077,7 @@ function snapshotDirectoryRoot(directory: string): string {
 
 async function fileSignatures(
   directory: string,
-  metadata: MarketSnapshotMetadataV5,
+  metadata: MarketSnapshotMetadataV5 | MarketSnapshotMetadataV7Full,
 ): Promise<string[]> {
   const files = Object.values(metadata.files)
     .filter((file): file is SnapshotFileMetadata => file !== undefined);
@@ -715,27 +1090,41 @@ async function fileSignatures(
 
 async function loadVerifiedBaseSnapshot(
   layerDirectory: string,
-  metadata: MarketSnapshotMetadataV6,
+  metadata: MarketSnapshotMetadataV6 | MarketSnapshotMetadataV7Tail,
   definition: InstrumentDefinition,
 ): Promise<LoadedMarketSnapshot> {
+  const baseReference = metadata.schemaVersion === 6
+    ? metadata.base
+    : metadata.storage.base;
   const baseDirectory = join(
     snapshotDirectoryRoot(layerDirectory),
-    metadata.base.snapshotId,
+    baseReference.snapshotId,
   );
   const metadataText = await readFile(join(baseDirectory, METADATA_FILE), 'utf8');
-  if (sha256(metadataText) !== metadata.base.metadataSha256) {
+  if (sha256(metadataText) !== baseReference.metadataSha256) {
     throw new Error('尾部快照基础元数据哈希不一致');
   }
   const baseMetadata = parseMetadata(
     metadataText,
-    metadata.base.snapshotId,
+    baseReference.snapshotId,
     definition,
   );
-  if (baseMetadata.schemaVersion !== 5) {
-    throw new Error('尾部快照必须直接引用 schema 5 基础快照');
+  let verifiedBaseMetadata:
+    | MarketSnapshotMetadataV5
+    | MarketSnapshotMetadataV7Full;
+  if (metadata.schemaVersion === 6) {
+    if (baseMetadata.schemaVersion !== 5) {
+      throw new Error('尾部快照必须直接引用 schema 5 基础快照');
+    }
+    verifiedBaseMetadata = baseMetadata;
+  } else {
+    if (!isV7Full(baseMetadata)) {
+      throw new Error('schema v7 尾部快照必须直接引用 schema v7 完整基础快照');
+    }
+    verifiedBaseMetadata = baseMetadata;
   }
-  const signatures = await fileSignatures(baseDirectory, baseMetadata);
-  const cacheKey = `${baseDirectory}\0${metadata.base.metadataSha256}`;
+  const signatures = await fileSignatures(baseDirectory, verifiedBaseMetadata);
+  const cacheKey = `${baseDirectory}\0${baseReference.metadataSha256}`;
   const cached = verifiedBaseCache.get(cacheKey);
   if (cached
     && cached.signatures.length === signatures.length
@@ -744,9 +1133,9 @@ async function loadVerifiedBaseSnapshot(
   }
   const snapshot = await loadStandaloneMetadataSnapshotDirectory(
     baseDirectory,
-    metadata.base.snapshotId,
+    baseReference.snapshotId,
     definition,
-    baseMetadata,
+    verifiedBaseMetadata,
     'user',
   );
   verifiedBaseCache.set(cacheKey, { signatures, snapshot });
@@ -771,6 +1160,25 @@ function mergeTailRecords<T extends { startMs: number }>(
   const first = tail[0];
   if (previous && first
     && (first.startMs <= previous.startMs || first.startMs < endMs(previous))) {
+    throw new Error(`${label}基础前缀与尾部重叠`);
+  }
+  return [...prefix, ...tail];
+}
+
+function mergeOverlappingTailRecords<T extends { startMs: number }>(
+  base: readonly T[],
+  tail: readonly T[],
+  cutoffMs: number,
+  endMs: (value: T) => number,
+  label: string,
+): T[] {
+  if (tail.some(value => endMs(value) <= cutoffMs)) {
+    throw new Error(`${label}尾部包含替换起点之前的记录`);
+  }
+  const prefix = base.filter(value => endMs(value) <= cutoffMs);
+  const previous = prefix.at(-1);
+  const first = tail[0];
+  if (previous && first && endMs(previous) > first.startMs) {
     throw new Error(`${label}基础前缀与尾部重叠`);
   }
   return [...prefix, ...tail];
@@ -824,10 +1232,59 @@ function validateTailReplacement(
   );
 }
 
+function assertV7TailBaseProtection(
+  metadata: MarketSnapshotMetadataV7Tail,
+  base: LoadedMarketSnapshot,
+): asserts base is LoadedMarketSnapshot & {
+  metadata: MarketSnapshotMetadataV7Full;
+} {
+  if (base.metadata?.schemaVersion !== 7
+    || base.metadata.storage.kind !== 'full') {
+    throw new Error('schema v7 尾部快照基础保护元数据无效');
+  }
+  if (!isDeepStrictEqual(
+    metadata.benchmarkProtection,
+    base.metadata.benchmarkProtection,
+  )) {
+    throw new Error('schema v7 尾部快照基准保护元数据与基础快照不一致');
+  }
+  const benchmarkSegment = metadata.sourceSegments.filter(
+    segment => segment.kind === 'benchmark-main',
+  );
+  const baseBenchmarkSegment = base.metadata.sourceSegments.filter(
+    segment => segment.kind === 'benchmark-main',
+  );
+  if (benchmarkSegment.length !== 1
+    || baseBenchmarkSegment.length !== 1
+    || !isDeepStrictEqual(benchmarkSegment[0], baseBenchmarkSegment[0])) {
+    throw new Error('schema v7 尾部快照基准来源分段与基础快照不一致');
+  }
+}
+
+function assertV7ProtectedDataUnchanged(
+  protection: MarketSnapshotBenchmarkProtection,
+  base: LoadedMarketSnapshot,
+  bars5: readonly Bar[],
+  bars60: readonly Bar[],
+  mainContractMappings: readonly MainContractMapping[],
+  rollovers: readonly ContractRollover[],
+): void {
+  assertBenchmarkProtectionUnchanged(
+    protection,
+    base,
+    {
+      bars5,
+      bars60,
+      mainContractMappings,
+      rollovers,
+    },
+  );
+}
+
 async function loadTailLayerSnapshotDirectory(
   directory: string,
   definition: InstrumentDefinition,
-  metadata: MarketSnapshotMetadataV6,
+  metadata: MarketSnapshotMetadataV6 | MarketSnapshotMetadataV7Tail,
   source: SnapshotSource,
 ): Promise<LoadedMarketSnapshot> {
   if (source !== 'user') throw new Error('内置快照不支持尾部增量层');
@@ -847,6 +1304,9 @@ async function loadTailLayerSnapshotDirectory(
     readVerifiedFile(directory, files.mainContractMappings, MAPPING_FILE),
     loadVerifiedBaseSnapshot(directory, metadata, definition),
   ]);
+  if (metadata.schemaVersion === 7) {
+    assertV7TailBaseProtection(metadata, base);
+  }
   const bars1Tail = parseTailMinutes(
     oneText,
     files.bars1.rows,
@@ -879,7 +1339,11 @@ async function loadTailLayerSnapshotDirectory(
     || mainContractMappings.length !== files.mainContractMappings.rows) {
     throw new Error('尾部快照记录数与元数据不一致');
   }
-  const cutoffMs = parseBeijing(metadata.replacementCutoff);
+  const cutoffMs = parseBeijing(
+    metadata.schemaVersion === 6
+      ? metadata.replacementCutoff
+      : metadata.storage.replacementCutoff,
+  );
   const bars1 = mergeTailRecords(
     base.bars1,
     bars1Tail,
@@ -894,19 +1358,47 @@ async function loadTailLayerSnapshotDirectory(
     value => value.endMs,
     '5 分钟',
   );
-  const bars60 = mergeTailRecords(
-    base.bars60,
-    bars60Tail,
-    cutoffMs,
-    value => value.endMs,
-    '60 分钟',
-  );
-  validateTailReplacement(
-    definition,
-    bars1.filter(record => record.startMs >= cutoffMs),
-    bars5.filter(bar => bar.startMs >= cutoffMs),
-    bars60.filter(bar => bar.startMs >= cutoffMs),
-  );
+  const bars60 = metadata.schemaVersion === 6
+    ? mergeTailRecords(
+        base.bars60,
+        bars60Tail,
+        cutoffMs,
+        value => value.endMs,
+        '60 分钟',
+      )
+    : mergeOverlappingTailRecords(
+        base.bars60,
+        bars60Tail,
+        cutoffMs,
+        value => value.endMs,
+        '60 分钟',
+      );
+  if (metadata.schemaVersion === 6) {
+    validateTailReplacement(
+      definition,
+      bars1.filter(record => record.startMs >= cutoffMs),
+      bars5.filter(bar => bar.startMs >= cutoffMs),
+      bars60.filter(bar => bar.startMs >= cutoffMs),
+    );
+  } else {
+    assertV7ProtectedDataUnchanged(
+      metadata.benchmarkProtection,
+      base,
+      bars5,
+      bars60,
+      mainContractMappings,
+      rollovers,
+    );
+    validateV7Protection(
+      definition,
+      metadata,
+      bars1,
+      bars5,
+      bars60,
+      mainContractMappings,
+      rollovers,
+    );
+  }
   assertLoadedPeriods(metadata, bars1, bars5, bars60);
   return {
     source,
@@ -934,7 +1426,18 @@ async function loadMetadataSnapshotDirectory(
     expectedId,
     definition,
   );
+  if (source === 'builtin' && metadata.schemaVersion === 7) {
+    throw new Error('内置快照不支持 schema v7 基准保护数据');
+  }
   if (metadata.schemaVersion === 6) {
+    return loadTailLayerSnapshotDirectory(
+      directory,
+      definition,
+      metadata,
+      source,
+    );
+  }
+  if (isV7Tail(metadata)) {
     return loadTailLayerSnapshotDirectory(
       directory,
       definition,
@@ -990,21 +1493,45 @@ async function loadLegacyBuiltinSnapshot(
   };
 }
 
+export function prepareSnapshotDirectory(
+  request: SnapshotDirectoryLoadRequest,
+): Promise<LoadedMarketSnapshot> {
+  if (request.kind === 'legacy-builtin') {
+    return loadLegacyBuiltinSnapshot(request.directory, request.definition);
+  }
+  return loadMetadataSnapshotDirectory(
+    request.directory,
+    request.expectedId,
+    request.definition,
+    request.source,
+    request.fallback,
+  );
+}
+
 async function loadBuiltinSnapshot(
   paths: MarketDataPaths,
   definition: InstrumentDefinition,
+  loadDirectory: SnapshotDirectoryLoader = prepareSnapshotDirectory,
 ): Promise<LoadedMarketSnapshot> {
   const directory = instrumentBuiltinDirectory(paths, definition);
   try {
-    return await loadMetadataSnapshotDirectory(
+    return await loadDirectory({
+      kind: 'metadata',
       directory,
-      undefined,
       definition,
-      'builtin',
-    );
-  } catch (error) {
-    if (definition.id !== DEFAULT_INSTRUMENT.id) throw error;
-    return loadLegacyBuiltinSnapshot(legacyBuiltinDirectory(paths), definition);
+      source: 'builtin',
+    });
+  } catch (metadataError) {
+    if (definition.id !== DEFAULT_INSTRUMENT.id) throw metadataError;
+    try {
+      return await loadDirectory({
+        kind: 'legacy-builtin',
+        directory: legacyBuiltinDirectory(paths),
+        definition,
+      });
+    } catch {
+      throw metadataError;
+    }
   }
 }
 
@@ -1022,7 +1549,7 @@ async function readCurrentPointer(directory: string): Promise<CurrentPointer> {
   return value as unknown as CurrentPointer;
 }
 
-async function activatedSnapshotIds(directory: string): Promise<string[]> {
+async function activatedSnapshots(directory: string): Promise<ActivatedSnapshot[]> {
   const snapshots = join(directory, 'snapshots');
   let entries;
   try {
@@ -1030,7 +1557,7 @@ async function activatedSnapshotIds(directory: string): Promise<string[]> {
   } catch {
     return [];
   }
-  const activated: Array<{ id: string; time: number }> = [];
+  const activated: ActivatedSnapshot[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !SNAPSHOT_ID.test(entry.name)) continue;
     try {
@@ -1048,19 +1575,120 @@ async function activatedSnapshotIds(directory: string): Promise<string[]> {
     }
   }
   return activated
-    .sort((left, right) => right.time - left.time)
-    .map(item => item.id);
+    .sort((left, right) => right.time - left.time);
 }
 
-async function snapshotCandidates(directory: string): Promise<string[]> {
-  const candidates: string[] = [];
+async function readSnapshotMetadata(
+  directory: string,
+  snapshotId: string,
+  definition: InstrumentDefinition,
+): Promise<{ metadata: MarketSnapshotMetadata; metadataText: string }> {
+  const metadataText = await readFile(
+    join(directory, 'snapshots', snapshotId, METADATA_FILE),
+    'utf8',
+  );
+  return {
+    metadata: parseMetadata(metadataText, snapshotId, definition),
+    metadataText,
+  };
+}
+
+async function activationReportSnapshotIds(
+  directory: string,
+  definition: InstrumentDefinition,
+): Promise<string[]> {
+  const repairsDirectory = join(
+    dirname(dirname(directory)),
+    'repairs',
+    definition.id,
+  );
+  let runs;
   try {
-    candidates.push((await readCurrentPointer(directory)).snapshotId);
+    runs = await readdir(repairsDirectory, { withFileTypes: true });
   } catch {
-    // A broken pointer must not block fallback discovery.
+    return [];
   }
-  for (const id of await activatedSnapshotIds(directory)) {
-    if (!candidates.includes(id)) candidates.push(id);
+  const referenced = new Map<string, number>();
+  for (const run of runs) {
+    if (!run.isDirectory()) continue;
+    const reportPath = join(
+      repairsDirectory,
+      run.name,
+      'reports',
+      'activation.json',
+    );
+    try {
+      const report = parseObject(
+        await readFile(reportPath, 'utf8'),
+        'activation.json',
+      );
+      assertSnapshotId(report.snapshotId);
+      assertSha256(report.metadataSha256, '激活报告元数据哈希');
+      const { metadata, metadataText } = await readSnapshotMetadata(
+        directory,
+        report.snapshotId,
+        definition,
+      );
+      if (metadata.schemaVersion !== 7
+        || sha256(metadataText) !== report.metadataSha256) {
+        continue;
+      }
+      const reportInfo = await stat(reportPath);
+      referenced.set(
+        report.snapshotId,
+        Math.max(referenced.get(report.snapshotId) ?? 0, reportInfo.mtimeMs),
+      );
+    } catch {
+      // Broken or stale reports must not protect unrelated snapshots.
+    }
+  }
+  return [...referenced]
+    .sort((left, right) => right[1] - left[1])
+    .map(([snapshotId]) => snapshotId);
+}
+
+async function snapshotCandidates(
+  directory: string,
+  definition: InstrumentDefinition,
+): Promise<string[]> {
+  const candidates: string[] = [];
+  const add = (snapshotId: string | undefined) => {
+    if (snapshotId && !candidates.includes(snapshotId)) {
+      candidates.push(snapshotId);
+    }
+  };
+  const pointerId = await readCurrentPointer(directory)
+    .then(pointer => pointer.snapshotId)
+    .catch(() => undefined);
+  const activated = await activatedSnapshots(directory);
+  const schemaVersions = new Map<string, number | undefined>();
+  const schemaVersion = async (snapshotId: string | undefined) => {
+    if (!snapshotId) return undefined;
+    if (!schemaVersions.has(snapshotId)) {
+      const version = await readSnapshotMetadata(
+        directory,
+        snapshotId,
+        definition,
+      ).then(value => value.metadata.schemaVersion).catch(() => undefined);
+      schemaVersions.set(snapshotId, version);
+    }
+    return schemaVersions.get(snapshotId);
+  };
+  if (await schemaVersion(pointerId) === 7) add(pointerId);
+  for (const snapshotId of await activationReportSnapshotIds(
+    directory,
+    definition,
+  )) {
+    add(snapshotId);
+  }
+  for (const snapshot of activated) {
+    if (await schemaVersion(snapshot.id) === 7) add(snapshot.id);
+  }
+  const pointerVersion = await schemaVersion(pointerId);
+  if (pointerVersion !== undefined && pointerVersion <= 6) add(pointerId);
+  for (const snapshot of activated) {
+    const version = await schemaVersion(snapshot.id);
+    if (version !== undefined && version <= 6) add(snapshot.id);
   }
   return candidates;
 }
@@ -1069,16 +1697,18 @@ async function firstValidUserSnapshot(
   directory: string,
   definition: InstrumentDefinition,
   builtin?: LoadedMarketSnapshot,
+  loadDirectory: SnapshotDirectoryLoader = prepareSnapshotDirectory,
 ): Promise<LoadedMarketSnapshot | undefined> {
-  for (const snapshotId of await snapshotCandidates(directory)) {
+  for (const snapshotId of await snapshotCandidates(directory, definition)) {
     try {
-      return await loadMetadataSnapshotDirectory(
-        join(directory, 'snapshots', snapshotId),
-        snapshotId,
+      return await loadDirectory({
+        kind: 'metadata',
+        directory: join(directory, 'snapshots', snapshotId),
+        expectedId: snapshotId,
         definition,
-        'user',
-        builtin,
-      );
+        source: 'user',
+        fallback: builtin,
+      });
     } catch {
       // Try the previous activated snapshot before the built-in baseline.
     }
@@ -1128,15 +1758,24 @@ function inheritCandidateProvenance(
   current?: LoadedMarketSnapshot,
 ): SnapshotCandidate {
   const metadata = current?.metadata;
-  if (metadata?.schemaVersion !== 5 && metadata?.schemaVersion !== 6) {
+  if (metadata?.schemaVersion !== 5
+    && metadata?.schemaVersion !== 6
+    && metadata?.schemaVersion !== 7) {
     return candidate;
   }
-  return {
+  const inherited = {
     ...candidate,
     source: candidate.source ?? metadata.source,
     sourceSegments: candidate.sourceSegments ?? metadata.sourceSegments,
     redistribution: candidate.redistribution ?? metadata.redistribution,
   };
+  return metadata.schemaVersion === 7
+    ? {
+        ...inherited,
+        benchmarkProtection: candidate.benchmarkProtection
+          ?? metadata.benchmarkProtection,
+      }
+    : inherited;
 }
 
 function prepareCandidateV5(
@@ -1201,6 +1840,104 @@ function prepareCandidateV6(
     preparedCandidate.bars1,
     preparedCandidate.bars5,
     preparedCandidate.bars60,
+  );
+  return {
+    candidate: preparedCandidate,
+    serialized: serializedTailSnapshot(definition, preparedCandidate),
+  };
+}
+
+function prepareCandidateV7Full(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+): PreparedSnapshot {
+  if (definition.id !== 'glass_main') {
+    throw new Error('schema v7 基准保护快照仅支持玻璃主连');
+  }
+  const protection = candidate.benchmarkProtection;
+  if (!protection) throw new Error('schema v7 快照缺少基准保护元数据');
+  if (!candidate.bars5.length) throw new Error('快照缺少必要的 5 分钟行情');
+  const bars60 = aggregateFiveMinuteBars(
+    candidate.bars5,
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  if (!bars60.length) throw new Error('快照缺少可由 5 分钟重建的完整 60 分钟行情');
+  const preparedCandidate = {
+    ...candidate,
+    bars60,
+  };
+  validateV7ProtectionData(
+    definition,
+    protection,
+    preparedCandidate.bars1,
+    preparedCandidate.bars5,
+    preparedCandidate.bars60,
+    preparedCandidate.mainContractMappings,
+    preparedCandidate.rollovers,
+  );
+  return {
+    candidate: preparedCandidate,
+    serialized: serializedSnapshot(definition, preparedCandidate),
+  };
+}
+
+function prepareCandidateV7Tail(
+  definition: InstrumentDefinition,
+  candidate: SnapshotCandidate,
+  current: LoadedMarketSnapshot,
+  replacementCutoff: string,
+): PreparedSnapshot {
+  if (definition.id !== 'glass_main') {
+    throw new Error('schema v7 基准保护快照仅支持玻璃主连');
+  }
+  const protection = candidate.benchmarkProtection;
+  if (!protection || current.metadata?.schemaVersion !== 7) {
+    throw new Error('schema v7 尾部快照缺少有效的当前保护快照');
+  }
+  if (!isDeepStrictEqual(protection, current.metadata.benchmarkProtection)) {
+    throw new Error('schema v7 尾部快照不得修改基准保护元数据');
+  }
+  assertV7ProtectedDataUnchanged(
+    protection,
+    current,
+    candidate.bars5,
+    candidate.bars60,
+    candidate.mainContractMappings,
+    candidate.rollovers,
+  );
+  validateV7ProtectionData(
+    definition,
+    protection,
+    candidate.bars1,
+    candidate.bars5,
+    candidate.bars60,
+    candidate.mainContractMappings,
+    candidate.rollovers,
+  );
+  const cutoffMs = parseBeijing(replacementCutoff);
+  const preparedCandidate = {
+    ...candidate,
+    bars1: candidate.bars1.filter(record => record.startMs >= cutoffMs),
+    bars5: candidate.bars5.filter(bar => bar.startMs >= cutoffMs),
+    bars60: candidate.bars60.filter(bar => bar.endMs > cutoffMs),
+  };
+  assertMinuteRecordsValid(
+    preparedCandidate.bars1,
+    definition.tradingSessions,
+  );
+  assertBarsValid(
+    preparedCandidate.bars5,
+    5,
+    definition.tradingSessions,
+  );
+  assertSegmentedSixtyMinuteBarsValid(
+    preparedCandidate.bars60,
+    definition.tradingSessions,
+  );
+  assertMinuteCoverageMatchesFiveMinuteBars(
+    preparedCandidate.bars1,
+    preparedCandidate.bars5,
+    definition.tradingSessions,
   );
   return {
     candidate: preparedCandidate,
@@ -1421,7 +2158,7 @@ function buildMetadataV6(
   mergedCandidate: SnapshotCandidate,
   tail: PreparedSnapshot,
   generatedAt: string,
-  plan: TailLayerPlan,
+  plan: TailLayerPlanV6,
 ): MarketSnapshotMetadataV6 {
   if (!tail.serialized.oneText) {
     throw new Error('尾部快照必须包含 1 分钟文件');
@@ -1479,6 +2216,138 @@ function buildMetadataV6(
   };
 }
 
+function buildMetadataV7Full(
+  definition: InstrumentDefinition,
+  snapshotId: string,
+  candidate: SnapshotCandidate,
+  generatedAt: string,
+  serialized: SerializedSnapshot,
+): MarketSnapshotMetadataV7Full {
+  const protection = candidate.benchmarkProtection;
+  if (!protection) throw new Error('schema v7 快照缺少基准保护元数据');
+  const provenance = snapshotProvenance(
+    definition,
+    candidate,
+    serialized,
+    generatedAt,
+  );
+  const bars1File = serialized.oneText ? {
+    name: ONE_MINUTE_FILE,
+    sha256: sha256(serialized.oneText),
+    rows: candidate.bars1.length,
+  } : undefined;
+  return {
+    schemaVersion: 7,
+    snapshotId,
+    instrumentId: definition.id,
+    mainSymbol: definition.mainSymbol,
+    parameterVersion: definition.parameterVersion,
+    source: provenance.source,
+    generatedAt,
+    requestStart: candidate.requestStart,
+    requestEnd: candidate.requestEnd,
+    sourceLatestAt: candidate.sourceLatestAt,
+    sourceSegments: provenance.sourceSegments,
+    redistribution: provenance.redistribution,
+    storage: { kind: 'full' },
+    periods: snapshotPeriods(candidate),
+    benchmarkProtection: protection,
+    files: {
+      bars1: bars1File,
+      bars5: {
+        name: FIVE_MINUTE_FILE,
+        sha256: sha256(serialized.fiveText),
+        rows: candidate.bars5.length,
+      },
+      bars60: {
+        name: SIXTY_MINUTE_FILE,
+        sha256: sha256(serialized.sixtyText),
+        rows: candidate.bars60.length,
+      },
+      rollovers: {
+        name: ROLLOVER_FILE,
+        sha256: sha256(serialized.rolloverText),
+        rows: candidate.rollovers.length,
+      },
+      mainContractMappings: {
+        name: MAPPING_FILE,
+        sha256: sha256(serialized.mappingText),
+        rows: candidate.mainContractMappings.length,
+      },
+    },
+  };
+}
+
+function buildMetadataV7Tail(
+  definition: InstrumentDefinition,
+  snapshotId: string,
+  mergedCandidate: SnapshotCandidate,
+  tail: PreparedSnapshot,
+  generatedAt: string,
+  plan: TailLayerPlanV7,
+): MarketSnapshotMetadataV7Tail {
+  const protection = mergedCandidate.benchmarkProtection;
+  if (!protection) throw new Error('schema v7 快照缺少基准保护元数据');
+  if (!tail.serialized.oneText) {
+    throw new Error('schema v7 尾部快照必须包含 1 分钟文件');
+  }
+  const provenance = snapshotProvenance(
+    definition,
+    mergedCandidate,
+    tail.serialized,
+    generatedAt,
+  );
+  return {
+    schemaVersion: 7,
+    snapshotId,
+    instrumentId: definition.id,
+    mainSymbol: definition.mainSymbol,
+    parameterVersion: definition.parameterVersion,
+    source: provenance.source,
+    generatedAt,
+    requestStart: mergedCandidate.requestStart,
+    requestEnd: mergedCandidate.requestEnd,
+    sourceLatestAt: mergedCandidate.sourceLatestAt,
+    sourceSegments: provenance.sourceSegments,
+    redistribution: provenance.redistribution,
+    storage: {
+      kind: 'tail',
+      base: plan.base,
+      replacementCutoff: plan.replacementCutoff,
+      layerSequence: plan.layerSequence,
+    },
+    periods: snapshotPeriods(mergedCandidate),
+    benchmarkProtection: protection,
+    files: {
+      bars1: {
+        name: ONE_MINUTE_FILE,
+        sha256: sha256(tail.serialized.oneText),
+        rows: tail.candidate.bars1.length,
+      },
+      bars5: {
+        name: FIVE_MINUTE_FILE,
+        sha256: sha256(tail.serialized.fiveText),
+        rows: tail.candidate.bars5.length,
+      },
+      bars60: {
+        name: SIXTY_MINUTE_FILE,
+        sha256: sha256(tail.serialized.sixtyText),
+        rows: tail.candidate.bars60.length,
+      },
+      rollovers: {
+        name: ROLLOVER_FILE,
+        sha256: sha256(tail.serialized.rolloverText),
+        rows: tail.candidate.rollovers.length,
+      },
+      mainContractMappings: {
+        name: MAPPING_FILE,
+        sha256: sha256(tail.serialized.mappingText),
+        rows: tail.candidate.mainContractMappings.length,
+      },
+    },
+  };
+}
+
 async function tailLayerPlan(
   candidate: SnapshotCandidate,
   options: SaveSnapshotOptions,
@@ -1489,9 +2358,51 @@ async function tailLayerPlan(
   const metadata = current?.metadata;
   if (options.intent !== 'tail'
     || current?.source !== 'user'
-    || (metadata?.schemaVersion !== 5 && metadata?.schemaVersion !== 6)
     || !Number.isSafeInteger(threshold)
     || threshold <= 0) {
+    return undefined;
+  }
+  if (candidate.benchmarkProtection) {
+    if (metadata?.schemaVersion !== 7) return undefined;
+    if (!isDeepStrictEqual(
+      candidate.benchmarkProtection,
+      metadata.benchmarkProtection,
+    )) {
+      throw new Error('后续快照不得修改既有基准保护元数据');
+    }
+    const layerSequence = metadata.storage.kind === 'full'
+      ? 1
+      : metadata.storage.layerSequence + 1;
+    if (layerSequence >= threshold) return undefined;
+    const replacementCutoff = metadata.storage.kind === 'full'
+      ? candidate.requestStart
+      : metadata.storage.replacementCutoff;
+    if (parseBeijing(candidate.requestStart) < parseBeijing(replacementCutoff)) {
+      return undefined;
+    }
+    if (metadata.storage.kind === 'tail') {
+      return {
+        schemaVersion: 7,
+        base: metadata.storage.base,
+        replacementCutoff,
+        layerSequence,
+      };
+    }
+    const metadataText = await readFile(
+      join(current.directory, METADATA_FILE),
+      'utf8',
+    );
+    return {
+      schemaVersion: 7,
+      base: {
+        snapshotId: metadata.snapshotId,
+        metadataSha256: sha256(metadataText),
+      },
+      replacementCutoff,
+      layerSequence,
+    };
+  }
+  if (metadata?.schemaVersion !== 5 && metadata?.schemaVersion !== 6) {
     return undefined;
   }
   const layerSequence = metadata.schemaVersion === 5
@@ -1506,6 +2417,7 @@ async function tailLayerPlan(
   }
   if (metadata.schemaVersion === 6) {
     return {
+      schemaVersion: 6,
       base: metadata.base,
       replacementCutoff,
       layerSequence,
@@ -1513,6 +2425,7 @@ async function tailLayerPlan(
   }
   const metadataText = await readFile(join(current.directory, METADATA_FILE), 'utf8');
   return {
+    schemaVersion: 6,
     base: {
       snapshotId: metadata.snapshotId,
       metadataSha256: sha256(metadataText),
@@ -1559,6 +2472,7 @@ async function pathExists(path: string): Promise<boolean> {
 
 async function migrateLegacyBuiltin(
   paths: MarketDataPaths,
+  loadDirectory: SnapshotDirectoryLoader = prepareSnapshotDirectory,
 ): Promise<boolean> {
   if (!paths.legacyBuiltinDataDirectory) return false;
   const target = instrumentBuiltinDirectory(paths, DEFAULT_INSTRUMENT);
@@ -1592,12 +2506,12 @@ async function migrateLegacyBuiltin(
   try {
     await mkdir(staging);
     await writeSerializedSnapshot(staging, metadata, prepared.serialized);
-    await loadMetadataSnapshotDirectory(
-      staging,
-      undefined,
-      DEFAULT_INSTRUMENT,
-      'builtin',
-    );
+    await loadDirectory({
+      kind: 'metadata',
+      directory: staging,
+      definition: DEFAULT_INSTRUMENT,
+      source: 'builtin',
+    });
     await rename(staging, target);
     return true;
   } catch (error) {
@@ -1623,9 +2537,15 @@ async function writeCurrentPointer(
 async function migrateLegacyUserSnapshot(
   paths: MarketDataPaths,
   builtin: LoadedMarketSnapshot,
+  loadDirectory: SnapshotDirectoryLoader,
 ): Promise<boolean> {
   const target = instrumentMarketDataDirectory(paths, DEFAULT_INSTRUMENT);
-  if (await firstValidUserSnapshot(target, DEFAULT_INSTRUMENT, builtin)) {
+  if (await firstValidUserSnapshot(
+    target,
+    DEFAULT_INSTRUMENT,
+    builtin,
+    loadDirectory,
+  )) {
     return false;
   }
   let pointer: CurrentPointer;
@@ -1639,13 +2559,14 @@ async function migrateLegacyUserSnapshot(
     'snapshots',
     pointer.snapshotId,
   );
-  const legacy = await loadMetadataSnapshotDirectory(
-    source,
-    pointer.snapshotId,
-    DEFAULT_INSTRUMENT,
-    'user',
-    builtin,
-  );
+  const legacy = await loadDirectory({
+    kind: 'metadata',
+    directory: source,
+    expectedId: pointer.snapshotId,
+    definition: DEFAULT_INSTRUMENT,
+    source: 'user',
+    fallback: builtin,
+  });
   const migratedId = `legacy-${pointer.snapshotId}`.slice(0, 100);
   assertSnapshotId(migratedId);
   const snapshots = join(target, 'snapshots');
@@ -1665,26 +2586,28 @@ async function migrateLegacyUserSnapshot(
         `${JSON.stringify({ activatedAt: pointer.updatedAt }, null, 2)}\n`,
         'utf8',
       );
-      await loadMetadataSnapshotDirectory(
-        staging,
-        migratedId,
-        DEFAULT_INSTRUMENT,
-        'user',
-        builtin,
-      );
+      await loadDirectory({
+        kind: 'metadata',
+        directory: staging,
+        expectedId: migratedId,
+        definition: DEFAULT_INSTRUMENT,
+        source: 'user',
+        fallback: builtin,
+      });
       await rename(staging, destination);
     } catch (error) {
       await rm(staging, { recursive: true, force: true }).catch(() => undefined);
       if (!await pathExists(destination)) throw error;
     }
   }
-  await loadMetadataSnapshotDirectory(
-    destination,
-    migratedId,
-    DEFAULT_INSTRUMENT,
-    'user',
-    builtin,
-  );
+  await loadDirectory({
+    kind: 'metadata',
+    directory: destination,
+    expectedId: migratedId,
+    definition: DEFAULT_INSTRUMENT,
+    source: 'user',
+    fallback: builtin,
+  });
   await writeCurrentPointer(target, {
     schemaVersion: legacy.metadata!.schemaVersion,
     snapshotId: migratedId,
@@ -1695,21 +2618,31 @@ async function migrateLegacyUserSnapshot(
 
 async function performLegacySoymealMigration(
   paths: MarketDataPaths,
+  loadDirectory: SnapshotDirectoryLoader,
 ): Promise<LegacyMigrationResult> {
-  const builtinMigrated = await migrateLegacyBuiltin(paths);
-  const builtin = await loadBuiltinSnapshot(paths, DEFAULT_INSTRUMENT);
-  const userSnapshotMigrated = await migrateLegacyUserSnapshot(paths, builtin);
+  const builtinMigrated = await migrateLegacyBuiltin(paths, loadDirectory);
+  const builtin = await loadBuiltinSnapshot(
+    paths,
+    DEFAULT_INSTRUMENT,
+    loadDirectory,
+  );
+  const userSnapshotMigrated = await migrateLegacyUserSnapshot(
+    paths,
+    builtin,
+    loadDirectory,
+  );
   return { builtinMigrated, userSnapshotMigrated };
 }
 
-export function migrateLegacySoymealData(
+function migrateLegacySoymealDataWithLoader(
   paths: MarketDataPaths,
+  loadDirectory: SnapshotDirectoryLoader,
 ): Promise<LegacyMigrationResult> {
   const key = resolve(paths.marketDataDirectory);
   const running = legacyMigrationFlights.get(key);
   if (running) return running;
 
-  const migration = performLegacySoymealMigration(paths);
+  const migration = performLegacySoymealMigration(paths, loadDirectory);
   legacyMigrationFlights.set(key, migration);
   const clear = () => {
     if (legacyMigrationFlights.get(key) === migration) {
@@ -1718,6 +2651,12 @@ export function migrateLegacySoymealData(
   };
   void migration.then(clear, clear);
   return migration;
+}
+
+export function migrateLegacySoymealData(
+  paths: MarketDataPaths,
+): Promise<LegacyMigrationResult> {
+  return migrateLegacySoymealDataWithLoader(paths, prepareSnapshotDirectory);
 }
 
 function snapshotRequestBoundary(
@@ -1752,14 +2691,39 @@ function mergeSnapshotSourceSegments(
   if (!segments.length) return undefined;
   const unique = new Map<string, MarketSnapshotSourceSegment>();
   for (const segment of segments) {
-    const rawHashes = segment.rawFiles.map(file => file.sha256).join(',');
-    const key = [
-      segment.sourceId,
-      segment.coverage.first,
-      segment.coverage.last,
-      rawHashes,
-    ].join('\0');
-    if (!unique.has(key)) unique.set(key, segment);
+    const existing = unique.get(segment.sourceId);
+    if (!existing) {
+      unique.set(segment.sourceId, segment);
+      continue;
+    }
+    const sameSource = existing.sourceName === segment.sourceName
+      && existing.kind === segment.kind
+      && existing.sourceVersion === segment.sourceVersion
+      && existing.importerVersion === segment.importerVersion
+      && isDeepStrictEqual(existing.license, segment.license);
+    if (sameSource) {
+      const rawFiles = new Map(existing.rawFiles.map(file => [
+        `${file.name}\0${file.sha256}\0${file.rows}`,
+        file,
+      ]));
+      for (const file of segment.rawFiles) {
+        rawFiles.set(`${file.name}\0${file.sha256}\0${file.rows}`, file);
+      }
+      unique.set(segment.sourceId, {
+        ...existing,
+        acquiredAt: segment.acquiredAt ?? existing.acquiredAt,
+        coverage: {
+          first: earlierBeijing(existing.coverage.first, segment.coverage.first),
+          last: laterBeijing(existing.coverage.last, segment.coverage.last),
+        },
+        rawFiles: [...rawFiles.values()],
+      });
+      continue;
+    }
+    let suffix = 2;
+    while (unique.has(`${segment.sourceId}-${suffix}`)) suffix += 1;
+    const sourceId = `${segment.sourceId}-${suffix}`;
+    unique.set(sourceId, { ...segment, sourceId });
   }
   return [...unique.values()];
 }
@@ -1879,17 +2843,34 @@ export async function loadEffectiveSnapshot(
   paths: MarketDataPaths,
   definition: InstrumentDefinition,
 ): Promise<LoadedMarketSnapshot> {
+  return loadEffectiveSnapshotWithLoader(
+    paths,
+    definition,
+    prepareSnapshotDirectory,
+  );
+}
+
+export async function loadEffectiveSnapshotWithLoader(
+  paths: MarketDataPaths,
+  definition: InstrumentDefinition,
+  loadDirectory: SnapshotDirectoryLoader,
+): Promise<LoadedMarketSnapshot> {
   if (definition.id === DEFAULT_INSTRUMENT.id && paths.legacyBuiltinDataDirectory) {
-    await migrateLegacySoymealData(paths).catch(() => undefined);
+    await migrateLegacySoymealDataWithLoader(
+      paths,
+      loadDirectory,
+    ).catch(() => undefined);
   }
   const userDirectory = instrumentMarketDataDirectory(paths, definition);
   let builtin: LoadedMarketSnapshot;
   try {
-    builtin = await loadBuiltinSnapshot(paths, definition);
+    builtin = await loadBuiltinSnapshot(paths, definition, loadDirectory);
   } catch (error) {
     const standaloneUser = await firstValidUserSnapshot(
       userDirectory,
       definition,
+      undefined,
+      loadDirectory,
     );
     if (standaloneUser) return standaloneUser;
     throw error;
@@ -1898,6 +2879,7 @@ export async function loadEffectiveSnapshot(
     userDirectory,
     definition,
     builtin,
+    loadDirectory,
   );
   if (!user) return builtin;
   return upgradeUserSnapshotWithBuiltin(paths, definition, builtin, user);
@@ -1940,13 +2922,22 @@ export async function saveMarketSnapshot(
   );
   const serializationStarted = performance.now();
   const plan = await tailLayerPlan(effectiveCandidate, options);
-  const prepared = plan
+  const prepared = plan?.schemaVersion === 6
     ? prepareCandidateV6(
         definition,
         effectiveCandidate,
         plan.replacementCutoff,
       )
-    : prepareCandidateV5(definition, effectiveCandidate);
+    : plan?.schemaVersion === 7
+      ? prepareCandidateV7Tail(
+          definition,
+          effectiveCandidate,
+          options.current!,
+          plan.replacementCutoff,
+        )
+      : effectiveCandidate.benchmarkProtection
+        ? prepareCandidateV7Full(definition, effectiveCandidate)
+        : prepareCandidateV5(definition, effectiveCandidate);
   options.onTiming?.(
     'serialization',
     performance.now() - serializationStarted,
@@ -1959,7 +2950,7 @@ export async function saveMarketSnapshot(
   const stagingDirectory = join(marketDataDirectory, `.staging-${snapshotId}`);
   const finalDirectory = join(snapshotsDirectory, snapshotId);
   const generatedAt = now.toISOString();
-  const metadata = plan
+  const metadata = plan?.schemaVersion === 6
     ? buildMetadataV6(
         definition,
         snapshotId,
@@ -1968,15 +2959,41 @@ export async function saveMarketSnapshot(
         generatedAt,
         plan,
       )
-    : buildMetadataV5(
-        definition,
-        snapshotId,
-        prepared.candidate,
-        generatedAt,
-        prepared.serialized,
-      );
+    : plan?.schemaVersion === 7
+      ? buildMetadataV7Tail(
+          definition,
+          snapshotId,
+          effectiveCandidate,
+          prepared,
+          generatedAt,
+          plan,
+        )
+      : effectiveCandidate.benchmarkProtection
+        ? buildMetadataV7Full(
+            definition,
+            snapshotId,
+            prepared.candidate,
+            generatedAt,
+            prepared.serialized,
+          )
+        : buildMetadataV5(
+            definition,
+            snapshotId,
+            prepared.candidate,
+            generatedAt,
+            prepared.serialized,
+          );
   await mkdir(snapshotsDirectory, { recursive: true });
+  if (await pathExists(finalDirectory)) {
+    throw new Error(`快照标识已存在：${snapshotId}`);
+  }
   await rm(stagingDirectory, { recursive: true, force: true });
+  let previousPointer: CurrentPointer | undefined;
+  try {
+    previousPointer = await readCurrentPointer(marketDataDirectory);
+  } catch {
+    // A first user snapshot has no pointer to restore.
+  }
   let finalRenamed = false;
   let pointerSwitched = false;
   try {
@@ -2032,6 +3049,19 @@ export async function saveMarketSnapshot(
   } catch (error) {
     await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined);
     if (finalRenamed && !pointerSwitched) {
+      await rm(finalDirectory, { recursive: true, force: true }).catch(() => undefined);
+    } else if (pointerSwitched) {
+      if (previousPointer) {
+        await writeCurrentPointer(
+          marketDataDirectory,
+          previousPointer,
+        ).catch(() => undefined);
+      } else {
+        await rm(
+          join(marketDataDirectory, POINTER_FILE),
+          { force: true },
+        ).catch(() => undefined);
+      }
       await rm(finalDirectory, { recursive: true, force: true }).catch(() => undefined);
     }
     throw error;
@@ -2132,23 +3162,68 @@ export async function cleanupSnapshots(
     ?? await readCurrentPointer(marketDataDirectory)
       .then(pointer => pointer.snapshotId)
       .catch(() => undefined);
-  const activated = await activatedSnapshotIds(marketDataDirectory);
+  const activated = await activatedSnapshots(marketDataDirectory);
   const keep = new Set<string>();
   if (pointerId) keep.add(pointerId);
-  for (const id of activated) {
-    keep.add(id);
+  for (const snapshot of activated) {
+    keep.add(snapshot.id);
     if (keep.size >= 2) break;
   }
   const snapshotsDirectory = join(marketDataDirectory, 'snapshots');
-  for (const id of [...keep]) {
+  for (const snapshotId of await activationReportSnapshotIds(
+    marketDataDirectory,
+    definition,
+  )) {
+    keep.add(snapshotId);
+  }
+  let builtin: LoadedMarketSnapshot | undefined;
+  try {
+    builtin = await loadBuiltinSnapshot(paths, definition);
+  } catch {
+    // A self-contained compatibility snapshot can still be retained.
+  }
+  for (const snapshot of activated) {
     try {
-      const metadata = parseMetadata(
-        await readFile(join(snapshotsDirectory, id, METADATA_FILE), 'utf8'),
-        id,
+      const { metadata } = await readSnapshotMetadata(
+        marketDataDirectory,
+        snapshot.id,
         definition,
       );
-      if (metadata.schemaVersion === 6) {
-        keep.add(metadata.base.snapshotId);
+      if (metadata.schemaVersion > 6) continue;
+      await prepareSnapshotDirectory({
+        kind: 'metadata',
+        directory: join(snapshotsDirectory, snapshot.id),
+        expectedId: snapshot.id,
+        definition,
+        source: 'user',
+        fallback: builtin,
+      });
+      keep.add(snapshot.id);
+      break;
+    } catch {
+      // Keep looking for the newest compatibility snapshot that fully loads.
+    }
+  }
+  const pending = [...keep];
+  const inspected = new Set<string>();
+  while (pending.length > 0) {
+    const snapshotId = pending.shift()!;
+    if (inspected.has(snapshotId)) continue;
+    inspected.add(snapshotId);
+    try {
+      const { metadata } = await readSnapshotMetadata(
+        marketDataDirectory,
+        snapshotId,
+        definition,
+      );
+      const baseId = metadata.schemaVersion === 6
+        ? metadata.base.snapshotId
+        : isV7Tail(metadata)
+          ? metadata.storage.base.snapshotId
+          : undefined;
+      if (baseId && !keep.has(baseId)) {
+        keep.add(baseId);
+        pending.push(baseId);
       }
     } catch {
       // Invalid retained snapshots will be skipped by normal fallback loading.

@@ -1,10 +1,45 @@
 import { launchElectronTest } from './electron-test-launch.mjs';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { assertElectronWindowOffscreen } from './electron-offscreen.mjs';
 
-const parse = async (instrument, period) => (await readFile(`futures_investigation_20261009/edb_${instrument}_${period}m.csv`, 'utf8')).trim().split(/\r?\n/).slice(1).map(line => {
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const executablePath = process.env.MONEYCOMING_EXE
+  ? resolve(process.env.MONEYCOMING_EXE)
+  : undefined;
+const builtinDataRoot = process.env.MONEYCOMING_TEST_BUILTIN_DATA
+  ? resolve(process.env.MONEYCOMING_TEST_BUILTIN_DATA)
+  : executablePath
+    ? join(dirname(executablePath), 'data')
+    : join(root, 'data');
+const sandbox = process.env.MONEYCOMING_TEST_USER_DATA
+  ? undefined
+  : await mkdtemp(join(tmpdir(), 'moneycoming-entry-marker-'));
+const userData = process.env.MONEYCOMING_TEST_USER_DATA
+  ? resolve(process.env.MONEYCOMING_TEST_USER_DATA)
+  : join(sandbox, 'user-data');
+
+async function readInstrumentCsv(instrument, period) {
+  const filename = `edb_main_continuous_${period}m.csv`;
+  const candidates = [
+    join(builtinDataRoot, 'instruments', instrument, filename),
+    join(builtinDataRoot, instrument, filename),
+    join(builtinDataRoot, filename),
+  ];
+  for (const candidate of candidates) {
+    try {
+      return await readFile(candidate, 'utf8');
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+  throw new Error(`未找到 ${instrument} 的 ${period} 分钟测试基线：${candidates.join(', ')}`);
+}
+
+const parse = async (instrument, period) => (await readInstrumentCsv(instrument, period)).trim().split(/\r?\n/).slice(1).map(line => {
   const c = line.split(',');
   return { start: c[0], end: c[1], startMs: Date.parse(c[0].replace(' ', 'T') + '+08:00'), endMs: Date.parse(c[1].replace(' ', 'T') + '+08:00'),
     open: +c[3], high: +c[4], low: +c[5], close: +c[6], expected: +c[11], complete: c[12] === 'True' };
@@ -44,8 +79,13 @@ async function expectedFor(instrument) {
   return { entries: results, hours, five };
 }
 
-const env = { ...process.env, MONEYCOMING_TEST_MODE: '1' }; delete env.ELECTRON_RUN_AS_NODE;
-const executablePath = process.env.MONEYCOMING_EXE;
+const env = {
+  ...process.env,
+  MONEYCOMING_TEST_MODE: '1',
+  MONEYCOMING_TEST_USER_DATA: userData,
+  MONEYCOMING_TEST_EDB_MODE: 'offline',
+};
+delete env.ELECTRON_RUN_AS_NODE;
 const app = await launchElectronTest({ ...(executablePath ? { executablePath, args: [], cwd: process.env.TEMP } : { args: ['.'] }), env });
 const report = { packaged: !!executablePath, instruments: {}, observations: {}, passed: false };
 try {
@@ -63,6 +103,8 @@ try {
   const reactionOverlay = page.getByTestId('entry-reaction-range');
   const reactionOverlay2 = page.getByTestId('entry-reaction-range-2');
   const entryRangePercent = 25;
+  const stopLossRangePercent = 75;
+  const takeProfitRangePercent = 200;
   const sessionExitMinuteOptions = [0, 5, 10, 15, 20, 25, 30];
   const beijingDateTime = ms => new Date(ms + 8 * 60 * 60_000).toISOString().slice(0, 16).replace('T', ' ');
   const beijingClock = ms => beijingDateTime(ms).slice(11, 16);
@@ -270,7 +312,7 @@ try {
   const stopLossSignalFor = (direction, reaction) => {
     if (!reaction) return undefined;
     const rangeTicks = Math.round(reaction.high - reaction.low);
-    const stopTicks = Math.ceil(rangeTicks * 0.75);
+    const stopTicks = Math.ceil(rangeTicks * stopLossRangePercent / 100);
     const price = direction === 'long'
       ? reaction.low - stopTicks
       : reaction.high + stopTicks;
@@ -285,7 +327,7 @@ try {
   const takeProfitSignalFor = (direction, bars, reaction, quarter) => {
     if (!reaction || !quarter) return undefined;
     const rangeTicks = Math.round(reaction.high - reaction.low);
-    const targetTicks = rangeTicks * 2;
+    const targetTicks = Math.ceil(rangeTicks * takeProfitRangePercent / 100);
     const defaultPrice = direction === 'long'
       ? reaction.high + targetTicks
       : reaction.low - targetTicks;
@@ -319,28 +361,67 @@ try {
     const target = String(parent.startMs);
     const box = await page.locator('#canvas-60').boundingBox();
     assert.ok(box);
-    const y = box.y + Math.min(35, box.height * .15);
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt) await page.waitForTimeout(80);
-      let first; let last;
-      for (let offset = 2; offset < box.width - 66; offset += 2) {
-        await page.mouse.move(box.x + offset, y);
-        await frame();
-        if (await linkedOverlay.getAttribute('data-first-start') === target) {
-          first ??= offset; last = offset;
-        } else if (first !== undefined && offset > last + 4) {
-          break;
+    const observedStarts = new Set();
+    for (const yRatio of [.15, .35, .6, .82]) {
+      const y = box.y + box.height * yRatio;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt) await page.waitForTimeout(80);
+        let first; let last;
+        for (let offset = 2; offset < box.width - 66; offset += 2) {
+          await page.mouse.move(box.x + offset, y);
+          await frame();
+          const observedStart = await linkedOverlay.getAttribute('data-first-start');
+          if (observedStart) observedStarts.add(observedStart);
+          if (observedStart === target) {
+            first ??= offset; last = offset;
+          } else if (first !== undefined && offset > last + 4) {
+            break;
+          }
+        }
+        if (first === undefined || last === undefined) continue;
+        for (const offset of [Math.round((first + last) / 2), first, last]) {
+          const x = box.x + offset;
+          await page.mouse.move(x, y);
+          await frame();
+          if (await linkedOverlay.getAttribute('data-first-start') === target) {
+            return {
+              x,
+              y,
+              box,
+              target,
+              firstX: box.x + first,
+              lastX: box.x + last,
+            };
+          }
         }
       }
-      if (first === undefined || last === undefined) continue;
-      for (const offset of [Math.round((first + last) / 2), first, last]) {
-        const x = box.x + offset;
-        await page.mouse.move(x, y);
-        await frame();
-        if (await linkedOverlay.getAttribute('data-first-start') === target) return { x, y, box, target };
-      }
     }
-    assert.fail(`Visible 60m candle ${parent.start}`);
+    assert.fail(`Visible 60m candle ${parent.start}: ${JSON.stringify({
+      target,
+      range: await chartRange(60),
+      box,
+      overlayFirstStart: await linkedOverlay.getAttribute('data-first-start'),
+      selectedStart: await html.getAttribute('data-selected-start'),
+      observedAroundTarget: [...observedStarts]
+        .map(Number)
+        .filter(startMs => Math.abs(startMs - parent.startMs) <= 4 * 60 * 60_000)
+        .sort((a, b) => a - b),
+    })}`);
+  };
+  const assertPrimaryPricePaneHeight = async () => {
+    const pane = await page.locator('#canvas-60').evaluate(host => {
+      const rects = [...host.querySelectorAll('canvas')]
+        .map(canvas => canvas.getBoundingClientRect())
+        .filter(rect => rect.width > 0 && rect.height > 0)
+        .map(rect => ({
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        }));
+      return rects[0];
+    });
+    assert.ok(pane && pane.height >= 48, `60-minute primary price pane is too short: ${JSON.stringify(pane)}`);
   };
   const zoomLeftTo = async (parent, targetSpan) => {
     let point = await findParentPoint(parent);
@@ -358,18 +439,57 @@ try {
     return { point, span };
   };
   const assertEntrySelection = async (entry, five, source, sourceSpan) => {
-    const { index } = observationFor(entry, five);
+    const { index: triggerIndex } = observationFor(entry, five);
     const selectedCount = Number(await card5.getAttribute('data-selected-count'));
     assert.ok(Number.isInteger(selectedCount) && selectedCount > 0, `Invalid lifecycle count ${selectedCount}`);
-    const bars = five.slice(index, index + selectedCount);
-    assert.equal(bars.length, selectedCount, `Lifecycle extends beyond available data for ${entry.child.start}`);
+    const attemptCount = Number(await card5.getAttribute('data-attempt-count'));
+    assert.ok(attemptCount === 1 || attemptCount === 2, `Unexpected attempt count ${attemptCount}`);
+    const attemptObservations = [];
+    for (let attempt = 1; attempt <= attemptCount; attempt += 1) {
+      const count = Number(await card5.getAttribute(`data-attempt${attempt}-analysis-count`));
+      const firstStart = Number(await card5.getAttribute(`data-attempt${attempt}-analysis-first-start`));
+      const lastStart = Number(await card5.getAttribute(`data-attempt${attempt}-analysis-last-start`));
+      const firstIndex = five.findIndex(bar => bar.startMs === firstStart);
+      const lastIndex = five.findIndex(bar => bar.startMs === lastStart);
+      assert.ok(Number.isInteger(count) && count > 0, `Invalid attempt ${attempt} analysis count ${count}`);
+      assert.ok(firstIndex >= 0 && lastIndex >= firstIndex, JSON.stringify({
+        attempt,
+        firstStart,
+        lastStart,
+        firstIndex,
+        lastIndex,
+      }));
+      const attemptBars = five.slice(firstIndex, lastIndex + 1);
+      assert.equal(attemptBars.length, count, JSON.stringify({
+        attempt,
+        count,
+        firstStart,
+        lastStart,
+        firstIndex,
+        lastIndex,
+      }));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-analysis-first-index`), String(firstIndex));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-analysis-last-index`), String(lastIndex));
+      attemptObservations.push({ count, firstIndex, lastIndex, bars: attemptBars });
+    }
+    const bars = [...new Map(
+      attemptObservations.flatMap(attempt => attempt.bars).map(bar => [bar.startMs, bar]),
+    ).values()].sort((a, b) => a.startMs - b.startMs);
+    assert.equal(bars.length, selectedCount, JSON.stringify({
+      selectedCount,
+      attemptCounts: attemptObservations.map(attempt => attempt.count),
+    }));
+    const index = five.findIndex(bar => bar.startMs === bars[0].startMs);
+    const lastIndex = five.findIndex(bar => bar.startMs === bars.at(-1).startMs);
+    assert.equal(index, triggerIndex);
+    assert.ok(lastIndex >= index);
     const focusCount = Number(await card5.getAttribute('data-lifecycle-focus-count'));
     const focusFirstIndex = Number(await card5.getAttribute('data-lifecycle-focus-first-index'));
     const focusLastIndex = Number(await card5.getAttribute('data-lifecycle-focus-last-index'));
     const focusBars = bars.slice(0, focusCount);
     assert.equal(focusBars.length, focusCount);
-    assert.equal(focusFirstIndex, index);
-    assert.equal(focusLastIndex, index + focusCount - 1);
+    assert.equal(focusFirstIndex, five.findIndex(bar => bar.startMs === focusBars[0].startMs));
+    assert.equal(focusLastIndex, five.findIndex(bar => bar.startMs === focusBars.at(-1).startMs));
     assert.ok(focusCount <= 16);
     const sessionExitMinutes = Number(await html.getAttribute('data-session-exit-minutes'));
     assert.ok(sessionExitMinuteOptions.includes(sessionExitMinutes), `Invalid session exit setting ${sessionExitMinutes}`);
@@ -377,15 +497,11 @@ try {
     const forcedExitBar = policy.forcedExitStart === undefined
       ? undefined
       : five.find((bar, barIndex) =>
-          barIndex >= index && bar.startMs === policy.forcedExitStart && bar.complete);
+          barIndex >= triggerIndex && bar.startMs === policy.forcedExitStart && bar.complete);
     const endReason = await card5.getAttribute('data-lifecycle-end-reason');
     const observation = { index, bars, focusBars, focusFirstIndex, focusLastIndex, endReason };
-    const lastIndex = observation.index + observation.bars.length - 1;
-    const attemptCount = Number(await card5.getAttribute('data-attempt-count'));
-    const firstAttemptCount = Number(await card5.getAttribute('data-attempt1-analysis-count'));
-    const firstAttemptStartIndex =
-      Number(await card5.getAttribute('data-attempt1-analysis-first-index'));
-    assert.ok(attemptCount === 1 || attemptCount === 2, `Unexpected attempt count ${attemptCount}`);
+    const firstAttemptCount = attemptObservations[0].count;
+    const firstAttemptStartIndex = attemptObservations[0].firstIndex;
     assert.ok(firstAttemptCount > 0 && firstAttemptCount <= observation.bars.length,
       JSON.stringify({ firstAttemptCount, selectedCount }));
     assert.ok(
@@ -394,10 +510,9 @@ try {
         && firstAttemptStartIndex <= lastIndex,
       JSON.stringify({ firstAttemptStartIndex, observationIndex: observation.index, lastIndex }),
     );
-    const firstAttemptBars =
-      five.slice(firstAttemptStartIndex, firstAttemptStartIndex + firstAttemptCount);
+    const firstAttemptBars = attemptObservations[0].bars;
     assert.equal(firstAttemptBars.length, firstAttemptCount);
-    const firstAttemptLastIndex = firstAttemptStartIndex + firstAttemptBars.length - 1;
+    const firstAttemptLastIndex = attemptObservations[0].lastIndex;
     assert.equal(
       await card5.getAttribute('data-attempt1-analysis-last-index'),
       String(firstAttemptLastIndex),
@@ -541,6 +656,10 @@ try {
       assert.equal(Number(await card5.getAttribute('data-quarter-line-first-index')),
         firstAttemptStartIndex + quarter.lineStartOffset);
       assert.equal(Number(await card5.getAttribute('data-quarter-line-last-index')), firstAttemptLastIndex);
+      assert.equal(Number(await card5.getAttribute('data-attempt1-stop-loss-range-percent')),
+        stopLossRangePercent);
+      assert.equal(Number(await card5.getAttribute('data-attempt1-take-profit-range-percent')),
+        takeProfitRangePercent);
       assert.equal(await card5.getAttribute('data-stop-loss-signal-direction'), entry.direction);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-price')), stopLoss.price);
       assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-tick')), stopLoss.tick);
@@ -754,15 +873,102 @@ try {
   };
   const clickConcreteMarker = async (entry, five) => {
     const point = await findParentPoint(entry.parent);
-    for (let offset = 1; offset < point.box.height - 1; offset += 1) {
+    const markerColor = entry.direction === 'long' ? [0x74, 0xe2, 0xa6] : [0xff, 0x9d, 0x82];
+    const markerPixelScan = await page.locator('#canvas-60').evaluate((host, { firstX, lastX, markerColor }) => {
+      const result = [];
+      const diagnostics = [];
+      const canvases = [
+        ...(host instanceof HTMLCanvasElement ? [host] : []),
+        ...host.querySelectorAll('canvas'),
+      ];
+      for (const canvas of canvases) {
+        const rect = canvas.getBoundingClientRect();
+        const diagnostic = {
+          rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+          bitmap: { width: canvas.width, height: canvas.height },
+          context: false,
+          minDelta: null,
+          nearestColor: null,
+        };
+        diagnostics.push(diagnostic);
+        if (!rect.width || !rect.height || !canvas.width || !canvas.height) continue;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const fromX = Math.max(0, Math.floor((firstX - rect.left) * scaleX));
+        const toX = Math.min(canvas.width - 1, Math.ceil((lastX - rect.left) * scaleX));
+        if (toX < fromX) continue;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) continue;
+        diagnostic.context = true;
+        const image = context.getImageData(fromX, 0, toX - fromX + 1, canvas.height);
+        for (let y = 0; y < image.height; y += 1) {
+          for (let x = 0; x < image.width; x += 1) {
+            const index = (y * image.width + x) * 4;
+            if (image.data[index + 3] < 192) continue;
+            const delta = Math.abs(image.data[index] - markerColor[0])
+              + Math.abs(image.data[index + 1] - markerColor[1])
+              + Math.abs(image.data[index + 2] - markerColor[2]);
+            if (diagnostic.minDelta === null || delta < diagnostic.minDelta) {
+              diagnostic.minDelta = delta;
+              diagnostic.nearestColor = [
+                image.data[index],
+                image.data[index + 1],
+                image.data[index + 2],
+                image.data[index + 3],
+              ];
+            }
+            if (delta > 12) continue;
+            result.push({
+              x: rect.left + (fromX + x + .5) / scaleX,
+              y: rect.top + (y + .5) / scaleY,
+              delta,
+            });
+          }
+        }
+      }
+      return {
+        points: result.sort((a, b) => a.delta - b.delta).slice(0, 200),
+        diagnostics: {
+          hostTag: host.tagName,
+          canvasCount: canvases.length,
+          canvases: diagnostics,
+        },
+      };
+    }, { firstX: point.firstX, lastX: point.lastX, markerColor });
+    const markerPixels = markerPixelScan.points;
+    const tryClick = async (x, y) => {
       await html.evaluate(element => { delete element.dataset.entrySelectionSource; });
-      await page.mouse.click(point.x, point.box.y + offset);
+      await page.mouse.click(x, y);
+      if (await html.getAttribute('data-entry-selection-source') !== 'marker') return false;
       await frame();
-      if (await html.getAttribute('data-entry-selection-source') !== 'marker') continue;
       assert.equal(await html.getAttribute('data-entry-trigger-start'), String(entry.child.startMs));
-      return assertEntrySelection(entry, five, 'marker', (await chartRange(60)).span);
+      return true;
+    };
+    for (const pixel of markerPixels) {
+      if (await tryClick(pixel.x, pixel.y)) {
+        return assertEntrySelection(entry, five, 'marker', (await chartRange(60)).span);
+      }
     }
-    assert.fail(`Clickable entry marker ${entry.direction} ${entry.parent.start}`);
+    const centerX = Math.round((point.firstX + point.lastX) / 2);
+    const xCandidates = [];
+    for (let distance = 0; distance <= Math.ceil(point.lastX - point.firstX); distance += 1) {
+      for (const x of distance ? [centerX - distance, centerX + distance] : [centerX]) {
+        if (x >= point.firstX && x <= point.lastX && !xCandidates.includes(x)) xCandidates.push(x);
+      }
+    }
+    for (const x of xCandidates) {
+      for (let offset = 1; offset < point.box.height - 1; offset += 1) {
+        if (await tryClick(x, point.box.y + offset)) {
+          return assertEntrySelection(entry, five, 'marker', (await chartRange(60)).span);
+        }
+      }
+    }
+    assert.fail(`Clickable entry marker ${entry.direction} ${entry.parent.start}: ${JSON.stringify({
+      markerPixels: markerPixels.length,
+      firstX: point.firstX,
+      lastX: point.lastX,
+      pixelScan: markerPixelScan.diagnostics,
+    })}`);
   };
 
   assert.equal(await card60.getAttribute('data-entry-long-count'), '0');
@@ -771,19 +977,36 @@ try {
   const oracle = {};
   const instrument = 'main_continuous';
   const expected = await expectedFor(instrument);
-  oracle[instrument] = expected;
-    const long = expected.entries.filter(entry => entry.direction === 'long').length;
-    const short = expected.entries.filter(entry => entry.direction === 'short').length;
+  const allExpectedEntriesByMarkerId = new Map(expected.entries.map(entry => [
+    `entry-${entry.direction}-${entry.child.startMs}`,
+    entry,
+  ]));
+  assert.equal(allExpectedEntriesByMarkerId.size, expected.entries.length);
+  const dateRangeDiagnostics = await page.evaluate(() => window.moneyComingTest.strategyDateRangeDiagnostics());
+  assert.equal(dateRangeDiagnostics.totalCandidateCount, expected.entries.length);
+  assert.equal(await card60.getAttribute('data-entry-candidate-count'), String(expected.entries.length));
+  const visibleEntries = dateRangeDiagnostics.visibleMarkerIds.map(markerId => {
+    const entry = allExpectedEntriesByMarkerId.get(markerId);
+    assert.ok(entry, `Visible marker missing from independent oracle: ${markerId}`);
+    return entry;
+  });
+  assert.equal(dateRangeDiagnostics.visibleCandidateCount, visibleEntries.length);
+  assert.equal(await card60.getAttribute('data-visible-entry-candidate-count'), String(visibleEntries.length));
+  oracle[instrument] = { ...expected, entries: visibleEntries };
+    const long = visibleEntries.filter(entry => entry.direction === 'long').length;
+    const short = visibleEntries.filter(entry => entry.direction === 'short').length;
     assert.equal(await card60.getAttribute('data-entry-long-count'), String(long));
     assert.equal(await card60.getAttribute('data-entry-short-count'), String(short));
-    const expected60EntryMarkerIds = expected.entries
+    const expected60EntryMarkerIds = visibleEntries
       .map(entry => `entry-${entry.direction}-${entry.child.startMs}`);
     const original60EntryMarkerIds = JSON.parse(await card60.getAttribute('data-entry-marker-ids'));
     assert.deepEqual(original60EntryMarkerIds, expected60EntryMarkerIds);
+    assert.deepEqual(original60EntryMarkerIds, dateRangeDiagnostics.visibleMarkerIds);
     assert.equal(await card5.getAttribute('data-entry-long-count'), '0');
     for (const direction of ['long', 'short']) {
-      const entry = expected.entries.find(item => item.direction === direction && item.parent.start > '2026-03-01'); assert.ok(entry);
+      const entry = visibleEntries.find(item => item.direction === direction && item.parent.start > '2026-03-01'); assert.ok(entry);
       await jump(entry.parent.start.slice(0, 10));
+      await waitForChartRangeStability(60);
       const point = await findParentPoint(entry.parent);
       await page.mouse.move(point.x, point.y); await frame();
       const info = await card60.locator('.entry-info').innerText();
@@ -795,6 +1018,7 @@ try {
   await page.getByTestId('mode-dual').click();
   await frame();
   await waitForChartRangeStability(60);
+  await assertPrimaryPricePaneHeight();
   const { entries, hours, five } = oracle.main_continuous;
   const findFormalEntry = async direction => {
     for (const entry of entries) {
@@ -1146,7 +1370,14 @@ try {
 
   const shortSelection = await clickBody(shortEntry, five, 10);
   assert.ok(shortSelection.span < 20, `Expected a source span below the 20-bar observation minimum, got ${shortSelection.span}`);
-  assert.ok(Math.abs(shortSelection.observation.range.span - 20) < .05);
+  const shortExpectedSpan = Math.min(
+    five.length,
+    Math.max(shortSelection.span, shortSelection.observation.focusBars.length + 4),
+  );
+  assert.ok(
+    Math.abs(shortSelection.observation.range.span - shortExpectedSpan) < .05,
+    JSON.stringify({ shortExpectedSpan, shortSelection }),
+  );
   assert.ok(shortSelection.observation.reaction, 'Short entry must expose a first reaction range');
   const shortStopLossDiagnostics = await stopLossDiagnostics();
   const shortTakeProfitDiagnostics = await takeProfitDiagnostics();
@@ -1158,11 +1389,16 @@ try {
   const narrowLast = Number(await card5.getAttribute('data-lifecycle-focus-last-index'));
   let narrowRange = await chartRange(5);
   for (let attempt = 0; attempt < 20; attempt++) {
-    if (Math.abs(narrowRange.span - 20) < .05 && narrowRange.from <= narrowFirst - .5 && narrowRange.to >= narrowLast + .5) break;
+    if (Math.abs(narrowRange.span - shortExpectedSpan) < .05
+      && narrowRange.from <= narrowFirst - .5
+      && narrowRange.to >= narrowLast + .5) break;
     await page.waitForTimeout(50);
     narrowRange = await chartRange(5);
   }
-  assert.ok(Math.abs(narrowRange.span - 20) < .05, JSON.stringify({ narrowRange, narrowFirst, narrowLast }));
+  assert.ok(
+    Math.abs(narrowRange.span - shortExpectedSpan) < .05,
+    JSON.stringify({ narrowRange, shortExpectedSpan, narrowFirst, narrowLast }),
+  );
   assert.ok(narrowRange.from <= narrowFirst - .5 && narrowRange.to >= narrowLast + .5, JSON.stringify({ narrowRange, narrowFirst, narrowLast }));
   await page.mouse.move(10, 10); await frame();
   await page.waitForTimeout(150);
@@ -1204,8 +1440,8 @@ try {
     const rangeTicks = scenario === 'quarter-divisible' ? 12 : 11;
     const entryDistanceTicks = Math.ceil(rangeTicks * entryRangePercent / 100);
     const quarterTicks = entryDistanceTicks;
-    const stopTicks = Math.ceil(rangeTicks * 0.75);
-    const targetTicks = rangeTicks * 2;
+    const stopTicks = Math.ceil(rangeTicks * stopLossRangePercent / 100);
+    const targetTicks = Math.ceil(rangeTicks * takeProfitRangePercent / 100);
     const base = Math.round(scenarioBars[0].close / 20) * 20 + (scenario === 'quarter-autoscale' ? 10_000 : 0);
     const price = direction === 'long' ? base + quarterTicks : base + rangeTicks - quarterTicks;
     const stopPrice = direction === 'long' ? base - stopTicks : base + rangeTicks + stopTicks;
@@ -1277,6 +1513,10 @@ try {
     assert.equal(Number(await card5.getAttribute('data-quarter-line-first-index')), startIndex);
     assert.equal(Number(await card5.getAttribute('data-quarter-line-last-index')), startIndex + shown.count - 1);
 
+    assert.equal(Number(await card5.getAttribute('data-attempt1-stop-loss-range-percent')),
+      stopLossRangePercent);
+    assert.equal(Number(await card5.getAttribute('data-attempt1-take-profit-range-percent')),
+      takeProfitRangePercent);
     assert.equal(await card5.getAttribute('data-stop-loss-signal-present'), 'true');
     assert.equal(await card5.getAttribute('data-stop-loss-signal-direction'), direction);
     assert.equal(Number(await card5.getAttribute('data-stop-loss-signal-price')), stopPrice);
@@ -1582,6 +1822,10 @@ try {
       assert.equal(await card5.getAttribute(`data-attempt${attempt}-reaction-start`), String(reactionStart));
       assert.equal(await card5.getAttribute(`data-attempt${attempt}-entry-range-percent`),
         String(entryRangePercent));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-stop-loss-range-percent`),
+        String(stopLossRangePercent));
+      assert.equal(await card5.getAttribute(`data-attempt${attempt}-take-profit-range-percent`),
+        String(takeProfitRangePercent));
       assert.equal(
         await card5.getAttribute(`data-attempt${attempt}-entry-distance-ticks`),
         await card5.getAttribute(`data-attempt${attempt}-quarter-line-entry-distance-ticks`),
@@ -2065,9 +2309,11 @@ try {
   assert.match(await page.locator('#rules-content').innerText(), /当前入场线百分比P为0至100之间的整数[\s\S]*entryDistanceTicks = ceil\(rangeTicks × P \/ 100\)/);
   assert.match(await page.locator('#rules-content').innerText(), /P=0时[\s\S]*P=25时[\s\S]*P=100时[\s\S]*右侧价格轴显示“入场”/);
   assert.match(await page.locator('#rules-content').innerText(), /首次方向反应K线的下一根5分钟K线[\s\S]*白色入场线首次合格触碰即真正入场/);
-  assert.match(await page.locator('#rules-content').innerText(), /stopTicks = ceil\(rangeTicks × 0\.75\)[\s\S]*多头止损为3011，空头止损为3040/);
+  assert.match(await page.locator('#rules-content').innerText(), /止损0%至300%，默认75%[\s\S]*5%步长[\s\S]*stopTicks = ceil\(rangeTicks × S \/ 100\)[\s\S]*多头止损为3011，空头止损为3040/);
   assert.match(await page.locator('#rules-content').innerText(), /明黄色实线[\s\S]*不参与价格轴自动缩放/);
-  assert.match(await page.locator('#rules-content').innerText(), /targetTicks = rangeTicks × 2[\s\S]*多头默认止盈为3053，空头默认止盈为2998/);
+  assert.match(await page.locator('#rules-content').innerText(), /默认止盈0%至500%，默认200%[\s\S]*targetTicks = ceil\(rangeTicks × T \/ 100\)[\s\S]*多头默认止盈为3053，空头默认止盈为2998/);
+  assert.match(await page.locator('#rules-content').innerText(), /理论默认盈亏比[\s\S]*P=25、S=75、T=200时为2\.75:1[\s\S]*P\+S=0时显示“不可计算”/);
+  assert.match(await page.locator('#rules-content').innerText(), /风险侧特殊止盈价[\s\S]*不受默认止盈百分比T影响/);
   assert.match(await page.locator('#rules-content').innerText(), /第一根触碰白色入场线的1分钟K线开始持仓检测[\s\S]*该分钟之前发生的风险侧、止盈或止损触碰全部忽略/);
   assert.match(await page.locator('#rules-content').innerText(), /多头首次满足[\s\S]*空头首次满足[\s\S]*后续重复触碰不再调整目标/);
   assert.match(await page.locator('#rules-content').innerText(), /#4fc3f7[\s\S]*2像素亮蓝色阶梯实线[\s\S]*两条计划线都不参与价格轴自动缩放/);
@@ -2099,4 +2345,7 @@ try {
   assert.deepEqual(errors, []); report.passed = true;
   report.offscreen = { beforeShow: offscreenBeforeShow, afterShow: offscreenAfterShow };
   await writeFile('artifacts/entry-markers.json', JSON.stringify(report, null, 2)); console.log(JSON.stringify(report));
-} finally { await app.close(); }
+} finally {
+  await app.close();
+  if (sandbox) await rm(sandbox, { recursive: true, force: true });
+}

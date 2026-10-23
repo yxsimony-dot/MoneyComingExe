@@ -13,7 +13,12 @@ import { autoUpdater } from 'electron-updater';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { formatBeijing } from '../domain/time';
-import { createDataService, resolveMarketDataPaths } from './data-service';
+import {
+  createDataService,
+  resolveMarketDataPaths,
+  type DataServiceDiagnostics,
+} from './data-service';
+import { createWorkerMarketDataPreparation } from './market-data-preparation';
 import { EdbClient, fetchEdbChunks, fetchEdbContractMappings } from './edb-client';
 import { FakeUpdater, type FakeMode } from './fake-updater';
 import { registerMarketUpdateIpc } from './market-update-ipc';
@@ -118,7 +123,18 @@ app.whenReady().then(async () => {
     marketPaths.builtinDataDirectory = testDataDirectory;
     marketPaths.legacyBuiltinDataDirectory = testDataDirectory;
   }
-  const service = createDataService(marketPaths);
+  const workerScriptPath = app.isPackaged
+    ? join(
+        process.resourcesPath,
+        'app.asar.unpacked',
+        'build',
+        'market-data-worker.cjs',
+      )
+    : join(app.getAppPath(), 'build', 'market-data-worker.cjs');
+  const service = createDataService(marketPaths, {
+    testMode,
+    preparationBackend: createWorkerMarketDataPreparation(workerScriptPath),
+  });
   const edbClient = new EdbClient({
     fetch: (input, init) => marketSession.fetch(input, init) as unknown as Promise<Response>,
   });
@@ -189,6 +205,7 @@ app.whenReady().then(async () => {
         getEdbRequests: () => TestEdbRequestRecord[];
         getMarketStates: () => MarketUpdateState[];
         getOnlineStates: () => OnlineMarketState[];
+        getDataServiceDiagnostics: () => DataServiceDiagnostics | undefined;
       };
     };
     scope.__moneyComingTest = {
@@ -200,6 +217,7 @@ app.whenReady().then(async () => {
       getEdbRequests: () => structuredClone(testDiagnostics.edbRequests),
       getMarketStates: () => structuredClone(testDiagnostics.marketStates),
       getOnlineStates: () => structuredClone(testDiagnostics.onlineStates),
+      getDataServiceDiagnostics: () => service.getTestDiagnostics?.(),
     };
   }
   ipcMain.handle('market:load', async (event, instrument: Instrument, reload: boolean) => {
@@ -285,16 +303,17 @@ app.whenReady().then(async () => {
     if (!testMode) window?.show();
     setTimeout(() => void coordinator.check('startup'), 500);
   });
-  let onlineDisposed = false;
-  const disposeOnline = () => {
-    if (onlineDisposed) return;
-    onlineDisposed = true;
+  let runtimeDisposed = false;
+  const disposeRuntime = () => {
+    if (runtimeDisposed) return;
+    runtimeDisposed = true;
     powerMonitor.removeListener('resume', handleResume);
     onlineCoordinator.dispose();
+    void service.dispose();
   };
-  app.once('before-quit', disposeOnline);
+  app.once('before-quit', disposeRuntime);
   window.on('closed', () => {
-    disposeOnline();
+    disposeRuntime();
     window = null;
   });
   window.loadURL('app://viewer/index.html');

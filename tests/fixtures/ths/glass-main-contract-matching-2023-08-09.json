@@ -1,0 +1,83 @@
+{
+  "tradingDates": [
+    "2023-08-08",
+    "2023-08-09",
+    "2023-08-10"
+  ],
+  "benchmark": [
+    {
+      "tradingDate": "2023-08-08",
+      "start": "2023-08-08 09:00:00",
+      "open": 1660,
+      "high": 1665,
+      "low": 1658,
+      "close": 1663,
+      "volume": 120,
+      "turnover": 3991200
+    },
+    {
+      "tradingDate": "2023-08-09",
+      "start": "2023-08-09 09:00:00",
+      "open": 1662,
+      "high": 1668,
+      "low": 1660,
+      "close": 1667,
+      "volume": 150,
+      "turnover": 5001000
+    },
+    {
+      "tradingDate": "2023-08-10",
+      "start": "2023-08-09 21:00:00",
+      "open": 1730,
+      "high": 1742,
+      "low": 1728,
+      "close": 1738,
+      "volume": 210,
+      "turnover": 7299600
+    }
+  ],
+  "contracts": [
+    {
+      "rawContract": "FG309",
+      "normalizedContract": "FG2309",
+      "rows": [
+        {
+          "tradingDate": "2023-08-08",
+          "benchmarkIndex": 0,
+          "priceOffset": 0
+        },
+        {
+          "tradingDate": "2023-08-09",
+          "benchmarkIndex": 1,
+          "priceOffset": 0
+        },
+        {
+          "tradingDate": "2023-08-10",
+          "benchmarkIndex": 2,
+          "priceOffset": -12
+        }
+      ]
+    },
+    {
+      "rawContract": "FG401",
+      "normalizedContract": "FG2401",
+      "rows": [
+        {
+          "tradingDate": "2023-08-08",
+          "benchmarkIndex": 0,
+          "priceOffset": 18
+        },
+        {
+          "tradingDate": "2023-08-09",
+          "benchmarkIndex": 1,
+          "priceOffset": 22
+        },
+        {
+          "tradingDate": "2023-08-10",
+          "benchmarkIndex": 2,
+          "priceOffset": 0
+        }
+      ]
+    }
+  ]
+}

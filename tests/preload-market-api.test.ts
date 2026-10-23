@@ -1,10 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type {
+  LoadResult,
   MarketAPI,
   MarketSnapshotActivatedEvent,
   MarketUpdateState,
   OnlineMarketState,
 } from '../src/shared/types';
+import { loadDeclaredMarketSnapshot } from '../src/renderer/online-market-view';
 
 const electronMocks = vi.hoisted(() => ({
   exposeInMainWorld: vi.fn(),
@@ -34,6 +36,32 @@ beforeAll(async () => {
 });
 
 describe('preload market API', () => {
+  it('preserves the declared-instrument load result across the preload IPC chain', async () => {
+    const expected = {
+      ok: false,
+      error: 'fixture snapshot result',
+    } satisfies LoadResult;
+    electronMocks.invoke.mockImplementation(async channel => {
+      if (channel === 'market:current-instrument') {
+        return {
+          enabled: false,
+          phase: 'disabled',
+          instrument: 'rebar_main',
+        } satisfies OnlineMarketState;
+      }
+      if (channel === 'market:load') return expected;
+      return undefined;
+    });
+
+    const result = await loadDeclaredMarketSnapshot(market, 'rebar_main');
+
+    expect(result).toBe(expected);
+    expect(electronMocks.invoke.mock.calls.slice(-2)).toEqual([
+      ['market:current-instrument', 'rebar_main'],
+      ['market:load', 'rebar_main', false],
+    ]);
+  });
+
   it('passes only registered instrument identifiers to semantic update channels', async () => {
     electronMocks.invoke.mockResolvedValue(undefined);
 

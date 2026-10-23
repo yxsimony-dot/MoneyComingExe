@@ -71,6 +71,8 @@ async function reviewDateRange(page) {
 
 function withReviewRange(settings, range) {
   return {
+    stopLossRangePercent: 75,
+    takeProfitRangePercent: 200,
     ...settings,
     reviewStartDate: range.startDate,
     reviewEndDate: range.endDate,
@@ -128,6 +130,38 @@ async function setPercent(page, percent) {
   }
   await frame(page);
   assert.equal(await page.locator('html').getAttribute('data-entry-range-percent'), String(percent));
+}
+
+async function setStopLossPercent(page, percent) {
+  const input = page.getByTestId('stop-loss-percent-input');
+  const modalOpen = await page.locator('#review-dialog, #reaction-rules-dialog')
+    .evaluateAll(elements => elements.some(element => element.open));
+  if (modalOpen) {
+    await input.evaluate((element, value) => {
+      element.value = String(value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, percent);
+  } else {
+    await input.fill(String(percent));
+  }
+  await frame(page);
+  assert.equal(await page.locator('html').getAttribute('data-stop-loss-range-percent'), String(percent));
+}
+
+async function setTakeProfitPercent(page, percent) {
+  const input = page.getByTestId('take-profit-percent-input');
+  const modalOpen = await page.locator('#review-dialog, #reaction-rules-dialog')
+    .evaluateAll(elements => elements.some(element => element.open));
+  if (modalOpen) {
+    await input.evaluate((element, value) => {
+      element.value = String(value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, percent);
+  } else {
+    await input.fill(String(percent));
+  }
+  await frame(page);
+  assert.equal(await page.locator('html').getAttribute('data-take-profit-range-percent'), String(percent));
 }
 
 async function setOppositeCount(page, count) {
@@ -205,12 +239,20 @@ async function strategySnapshot(page) {
   ));
 }
 
+function plannedPriceSnapshot(snapshot) {
+  return Object.fromEntries(
+    Object.entries(snapshot)
+      .filter(([key]) => /(?:StopLossPrice|TakeProfitDefaultPrice)$/.test(key)),
+  );
+}
+
 async function panelSummary(page) {
   const panel = page.getByTestId('entry-settings-panel');
   return {
     finalCapital: await page.getByTestId('settings-final-capital').innerText(),
     returnRate: await page.getByTestId('settings-return-rate').innerText(),
     completedTrades: await page.getByTestId('settings-completed-trades').innerText(),
+    theoreticalRewardRisk: await page.getByTestId('settings-theoretical-reward-risk').innerText(),
     raw: {
       finalCapital: await panel.getAttribute('data-final-capital'),
       returnRate: await panel.getAttribute('data-return-rate'),
@@ -233,6 +275,8 @@ const report = {
   offscreen: [],
   persistedTicks: undefined,
   persistedPercent: undefined,
+  persistedStopLossPercent: undefined,
+  persistedTakeProfitPercent: undefined,
   persistedOppositeCount: undefined,
   persistedSessionExitMinutes: undefined,
   persistedReviewRange: undefined,
@@ -257,6 +301,12 @@ try {
   const percentInput = page.getByTestId('entry-percent-input');
   const percentDecrease = page.getByTestId('entry-percent-decrease');
   const percentIncrease = page.getByTestId('entry-percent-increase');
+  const stopLossInput = page.getByTestId('stop-loss-percent-input');
+  const stopLossDecrease = page.getByTestId('stop-loss-percent-decrease');
+  const stopLossIncrease = page.getByTestId('stop-loss-percent-increase');
+  const takeProfitInput = page.getByTestId('take-profit-percent-input');
+  const takeProfitDecrease = page.getByTestId('take-profit-percent-decrease');
+  const takeProfitIncrease = page.getByTestId('take-profit-percent-increase');
   const oppositeInput = page.getByTestId('opposite-count-input');
   const oppositeDecrease = page.getByTestId('opposite-count-decrease');
   const oppositeIncrease = page.getByTestId('opposite-count-increase');
@@ -269,6 +319,38 @@ try {
   assert.equal(await input.getAttribute('aria-label'), '最小入场K线浮动');
   assert.equal(await page.getByTestId('opposite-count-label').innerText(), '连续反向K线数量');
   assert.equal(await oppositeInput.getAttribute('aria-label'), '连续反向K线数量');
+  assert.equal(await stopLossInput.getAttribute('aria-label'), '止损距离百分比');
+  assert.equal(await takeProfitInput.getAttribute('aria-label'), '默认止盈距离百分比');
+  assert.equal(
+    await stopLossInput.locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " entry-setting-control ")][1]',
+    )
+      .locator('.entry-setting-label').innerText(),
+    '止损距离',
+  );
+  assert.equal(
+    await takeProfitInput.locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " entry-setting-control ")][1]',
+    )
+      .locator('.entry-setting-label').innerText(),
+    '默认止盈距离',
+  );
+  assert.deepEqual(
+    {
+      min: await stopLossInput.getAttribute('min'),
+      max: await stopLossInput.getAttribute('max'),
+      step: await stopLossInput.getAttribute('step'),
+    },
+    { min: '0', max: '300', step: '5' },
+  );
+  assert.deepEqual(
+    {
+      min: await takeProfitInput.getAttribute('min'),
+      max: await takeProfitInput.getAttribute('max'),
+      step: await takeProfitInput.getAttribute('step'),
+    },
+    { min: '0', max: '500', step: '5' },
+  );
   assert.equal(await reviewStartInput.getAttribute('type'), 'date');
   assert.equal(await reviewEndInput.getAttribute('type'), 'date');
   assert.match(initialReviewRange.startDate, /^\d{4}-\d{2}-\d{2}$/);
@@ -283,12 +365,22 @@ try {
   assert.equal(await reactionRulesInfo.isHidden(), true);
   assert.equal(await html.getAttribute('data-reaction-body-ticks'), '1');
   assert.equal(await html.getAttribute('data-entry-range-percent'), '25');
+  assert.equal(await html.getAttribute('data-stop-loss-range-percent'), '75');
+  assert.equal(await html.getAttribute('data-take-profit-range-percent'), '200');
   assert.equal(await html.getAttribute('data-opposite-candle-count'), '6');
   assert.equal(await html.getAttribute('data-session-exit-minutes'), '15');
+  assert.equal(await html.getAttribute('data-theoretical-default-reward-risk'), '2.75');
   assert.equal(await input.inputValue(), '1');
   assert.equal(await percentInput.inputValue(), '25');
+  assert.equal(await stopLossInput.inputValue(), '75');
+  assert.equal(await takeProfitInput.inputValue(), '200');
   assert.equal(await oppositeInput.inputValue(), '6');
   assert.equal(await sessionExitSelect.inputValue(), '15');
+  assert.equal(await page.getByTestId('settings-theoretical-reward-risk').innerText(), '2.75:1');
+  assert.equal(await stopLossDecrease.isDisabled(), false);
+  assert.equal(await stopLossIncrease.isDisabled(), false);
+  assert.equal(await takeProfitDecrease.isDisabled(), false);
+  assert.equal(await takeProfitIncrease.isDisabled(), false);
   assert.deepEqual(
     await sessionExitSelect.locator('option').evaluateAll(options =>
       options.map(option => ({ value: option.value, label: option.textContent }))),
@@ -348,8 +440,54 @@ try {
       oppositeCandleCount: 4,
       sessionExitMinutes: 20,
     }), { reactionBodyTicks: 7, entryRangePercent: 37, oppositeCandleCount: 4, sessionExitMinutes: 20 }],
+    [JSON.stringify({
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 350,
+    }), {
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 350,
+    }],
+    [JSON.stringify({
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 12,
+      takeProfitRangePercent: 350,
+    }), {
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 75,
+      takeProfitRangePercent: 350,
+    }],
+    [JSON.stringify({
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 333,
+    }), {
+      reactionBodyTicks: 7,
+      entryRangePercent: 35,
+      oppositeCandleCount: 4,
+      sessionExitMinutes: 20,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 200,
+    }],
   ]) {
     await setStoredValueAndReload(page, raw);
+    const expectedSettings = withReviewRange(expected, initialReviewRange);
     assert.equal(
       await page.locator('html').getAttribute('data-reaction-body-ticks'),
       String(expected.reactionBodyTicks),
@@ -366,7 +504,15 @@ try {
       await page.locator('html').getAttribute('data-session-exit-minutes'),
       String(expected.sessionExitMinutes),
     );
-    assert.deepEqual(await storedSettings(page), withReviewRange(expected, initialReviewRange));
+    assert.equal(
+      await page.locator('html').getAttribute('data-stop-loss-range-percent'),
+      String(expectedSettings.stopLossRangePercent),
+    );
+    assert.equal(
+      await page.locator('html').getAttribute('data-take-profit-range-percent'),
+      String(expectedSettings.takeProfitRangePercent),
+    );
+    assert.deepEqual(await storedSettings(page), expectedSettings);
   }
 
   await setStoredValueAndReload(page, JSON.stringify({
@@ -378,6 +524,8 @@ try {
   await page.getByTestId('toggle-monday').click();
   await setTicks(page, 7);
   await setPercent(page, 37);
+  await setStopLossPercent(page, 125);
+  await setTakeProfitPercent(page, 350);
   await setOppositeCount(page, 4);
   for (const minutes of [0, 5, 10, 15, 20, 25, 30]) {
     await setSessionExitMinutes(page, minutes);
@@ -386,21 +534,29 @@ try {
   assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
+    stopLossRangePercent: 125,
+    takeProfitRangePercent: 350,
     oppositeCandleCount: 4,
     sessionExitMinutes: 20,
   }, expectedReviewRange));
   await reload(page);
   assert.equal(await page.locator('html').getAttribute('data-reaction-body-ticks'), '7');
   assert.equal(await page.locator('html').getAttribute('data-entry-range-percent'), '37');
+  assert.equal(await page.locator('html').getAttribute('data-stop-loss-range-percent'), '125');
+  assert.equal(await page.locator('html').getAttribute('data-take-profit-range-percent'), '350');
   assert.equal(await page.locator('html').getAttribute('data-opposite-candle-count'), '4');
   assert.equal(await page.locator('html').getAttribute('data-session-exit-minutes'), '20');
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
+  assert.equal(await page.getByTestId('stop-loss-percent-input').inputValue(), '125');
+  assert.equal(await page.getByTestId('take-profit-percent-input').inputValue(), '350');
   assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
   assert.equal(await page.getByTestId('session-exit-minutes').inputValue(), '20');
   assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
+    stopLossRangePercent: 125,
+    takeProfitRangePercent: 350,
     oppositeCandleCount: 4,
     sessionExitMinutes: 20,
   }, expectedReviewRange));
@@ -444,6 +600,8 @@ try {
   assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
+    stopLossRangePercent: 125,
+    takeProfitRangePercent: 350,
     oppositeCandleCount: 4,
     sessionExitMinutes: 20,
   }, expectedReviewRange));
@@ -517,6 +675,12 @@ try {
   ({ app, page } = running);
   report.persistedTicks = Number(await page.locator('html').getAttribute('data-reaction-body-ticks'));
   report.persistedPercent = Number(await page.locator('html').getAttribute('data-entry-range-percent'));
+  report.persistedStopLossPercent = Number(
+    await page.locator('html').getAttribute('data-stop-loss-range-percent'),
+  );
+  report.persistedTakeProfitPercent = Number(
+    await page.locator('html').getAttribute('data-take-profit-range-percent'),
+  );
   report.persistedOppositeCount = Number(
     await page.locator('html').getAttribute('data-opposite-candle-count'),
   );
@@ -526,6 +690,8 @@ try {
   report.persistedReviewRange = await reviewDateRange(page);
   assert.equal(report.persistedTicks, 7);
   assert.equal(report.persistedPercent, 37);
+  assert.equal(report.persistedStopLossPercent, 125);
+  assert.equal(report.persistedTakeProfitPercent, 350);
   assert.equal(report.persistedOppositeCount, 4);
   assert.equal(report.persistedSessionExitMinutes, 20);
   assert.deepEqual(report.persistedReviewRange, expectedReviewRange);
@@ -540,11 +706,15 @@ try {
   assert.equal(await page.getByTestId('entry-settings-panel').isHidden(), true);
   assert.equal(await page.getByTestId('reaction-ticks-input').inputValue(), '7');
   assert.equal(await page.getByTestId('entry-percent-input').inputValue(), '37');
+  assert.equal(await page.getByTestId('stop-loss-percent-input').inputValue(), '125');
+  assert.equal(await page.getByTestId('take-profit-percent-input').inputValue(), '350');
   assert.equal(await page.getByTestId('opposite-count-input').inputValue(), '4');
   assert.equal(await page.getByTestId('session-exit-minutes').inputValue(), '20');
   assert.deepEqual(await storedSettings(page), withReviewRange({
     reactionBodyTicks: 7,
     entryRangePercent: 37,
+    stopLossRangePercent: 125,
+    takeProfitRangePercent: 350,
     oppositeCandleCount: 4,
     sessionExitMinutes: 20,
   }, expectedReviewRange));
@@ -556,6 +726,12 @@ try {
   const restartedPercentInput = page.getByTestId('entry-percent-input');
   const restartedPercentDecrease = page.getByTestId('entry-percent-decrease');
   const restartedPercentIncrease = page.getByTestId('entry-percent-increase');
+  const restartedStopLossInput = page.getByTestId('stop-loss-percent-input');
+  const restartedStopLossDecrease = page.getByTestId('stop-loss-percent-decrease');
+  const restartedStopLossIncrease = page.getByTestId('stop-loss-percent-increase');
+  const restartedTakeProfitInput = page.getByTestId('take-profit-percent-input');
+  const restartedTakeProfitDecrease = page.getByTestId('take-profit-percent-decrease');
+  const restartedTakeProfitIncrease = page.getByTestId('take-profit-percent-increase');
   const restartedOppositeInput = page.getByTestId('opposite-count-input');
   const restartedOppositeDecrease = page.getByTestId('opposite-count-decrease');
   const restartedOppositeIncrease = page.getByTestId('opposite-count-increase');
@@ -569,6 +745,8 @@ try {
   assert.deepEqual(await reviewDateRange(page), expectedReviewRange);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedStopLossInput.inputValue(), '125');
+  assert.equal(await restartedTakeProfitInput.inputValue(), '350');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
   assert.equal(await restartedSessionExitSelect.inputValue(), '20');
   await setReviewDateRange(page, initialReviewRange.startDate, initialReviewRange.endDate);
@@ -650,6 +828,11 @@ try {
     '第二轮根据自己的最终方向反应K线独立决定使用当前百分比或风险侧边界',
     '不继承首轮的影线分类',
     '连续反向K线数量',
+    '止损0%至300%',
+    '默认止盈0%至500%',
+    'stopTicks = ceil(rangeTicks × S / 100)',
+    'targetTicks = ceil(rangeTicks × T / 100)',
+    '理论默认盈亏比',
     '十字星不计数且不中断',
     '立即终止当前形态',
     '放弃红框',
@@ -670,12 +853,16 @@ try {
   assert.equal(await restartedReactionRulesInfo.isHidden(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedStopLossInput.inputValue(), '125');
+  assert.equal(await restartedTakeProfitInput.inputValue(), '350');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
   assert.equal(await restartedSessionExitSelect.inputValue(), '20');
   await mondayToggle.click();
   assert.equal(await restartedPanel.isVisible(), true);
   assert.equal(await restartedInput.inputValue(), '7');
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedStopLossInput.inputValue(), '125');
+  assert.equal(await restartedTakeProfitInput.inputValue(), '350');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
   assert.equal(await restartedSessionExitSelect.inputValue(), '20');
 
@@ -703,6 +890,8 @@ try {
     assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
       entryRangePercent: 37,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 350,
       oppositeCandleCount: 4,
       sessionExitMinutes: 20,
     }, expectedReviewRange));
@@ -748,6 +937,8 @@ try {
     assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
       entryRangePercent: 0,
+      stopLossRangePercent: 125,
+      takeProfitRangePercent: 350,
       oppositeCandleCount: 4,
       sessionExitMinutes: 20,
     }, expectedReviewRange));
@@ -777,6 +968,108 @@ try {
   assert.equal(await restartedPercentDecrease.isDisabled(), false);
   await setPercent(page, 37);
 
+  await setStopLossPercent(page, 0);
+  assert.equal(await restartedStopLossDecrease.isDisabled(), true);
+  assert.equal(await restartedStopLossIncrease.isDisabled(), false);
+  const refreshBeforeSameStopLoss = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setStopLossPercent(page, 0);
+  assert.equal(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+    refreshBeforeSameStopLoss,
+  );
+  const refreshBeforeInvalidStopLoss = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  for (const invalid of ['', 'text', '1.5', '1', '-5', '305']) {
+    await dispatchInvalidInput(page, 'stop-loss-percent-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidStopLoss,
+      `Invalid stop-loss percentage ${JSON.stringify(invalid)} must not refresh the strategy`,
+    );
+    await restartedStopLossInput.blur();
+    await frame(page);
+    assert.equal(await restartedStopLossInput.inputValue(), '0');
+  }
+  for (const invalid of ['', '1.5', '1', '-5', '305']) {
+    await pressInvalidEnter(page, 'stop-loss-percent-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidStopLoss,
+    );
+    assert.equal(await restartedStopLossInput.inputValue(), '0');
+  }
+  await restartedStopLossIncrease.click();
+  await frame(page);
+  assert.equal(await restartedStopLossInput.inputValue(), '5');
+  await restartedStopLossDecrease.click();
+  await frame(page);
+  assert.equal(await restartedStopLossInput.inputValue(), '0');
+  await setStopLossPercent(page, 300);
+  assert.equal(await restartedStopLossIncrease.isDisabled(), true);
+  assert.equal(await restartedStopLossDecrease.isDisabled(), false);
+  await setStopLossPercent(page, 75);
+
+  await setTakeProfitPercent(page, 0);
+  assert.equal(await restartedTakeProfitDecrease.isDisabled(), true);
+  assert.equal(await restartedTakeProfitIncrease.isDisabled(), false);
+  const refreshBeforeSameTakeProfit = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setTakeProfitPercent(page, 0);
+  assert.equal(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+    refreshBeforeSameTakeProfit,
+  );
+  const refreshBeforeInvalidTakeProfit = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  for (const invalid of ['', 'text', '1.5', '1', '-5', '505']) {
+    await dispatchInvalidInput(page, 'take-profit-percent-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidTakeProfit,
+      `Invalid take-profit percentage ${JSON.stringify(invalid)} must not refresh the strategy`,
+    );
+    await restartedTakeProfitInput.blur();
+    await frame(page);
+    assert.equal(await restartedTakeProfitInput.inputValue(), '0');
+  }
+  for (const invalid of ['', '1.5', '1', '-5', '505']) {
+    await pressInvalidEnter(page, 'take-profit-percent-input', invalid);
+    assert.equal(
+      Number(await page.locator('html').getAttribute('data-strategy-refresh-count')),
+      refreshBeforeInvalidTakeProfit,
+    );
+    assert.equal(await restartedTakeProfitInput.inputValue(), '0');
+  }
+  await restartedTakeProfitIncrease.click();
+  await frame(page);
+  assert.equal(await restartedTakeProfitInput.inputValue(), '5');
+  await restartedTakeProfitDecrease.click();
+  await frame(page);
+  assert.equal(await restartedTakeProfitInput.inputValue(), '0');
+  await setTakeProfitPercent(page, 500);
+  assert.equal(await restartedTakeProfitIncrease.isDisabled(), true);
+  assert.equal(await restartedTakeProfitDecrease.isDisabled(), false);
+  await setTakeProfitPercent(page, 200);
+
+  await setPercent(page, 0);
+  await setStopLossPercent(page, 0);
+  assert.equal(await page.locator('html').getAttribute('data-theoretical-default-reward-risk'), 'unavailable');
+  assert.equal(await page.getByTestId('settings-theoretical-reward-risk').innerText(), '不可计算');
+  await setStopLossPercent(page, 50);
+  await setTakeProfitPercent(page, 150);
+  assert.equal(await page.locator('html').getAttribute('data-theoretical-default-reward-risk'), '5');
+  assert.equal(await page.getByTestId('settings-theoretical-reward-risk').innerText(), '5.00:1');
+  await setPercent(page, 25);
+  await setStopLossPercent(page, 75);
+  await setTakeProfitPercent(page, 200);
+  assert.equal(await page.locator('html').getAttribute('data-theoretical-default-reward-risk'), '2.75');
+  assert.equal(await page.getByTestId('settings-theoretical-reward-risk').innerText(), '2.75:1');
+
   await setOppositeCount(page, 0);
   assert.equal(await restartedOppositeDecrease.isDisabled(), true);
   assert.equal(await restartedOppositeIncrease.isDisabled(), false);
@@ -792,7 +1085,7 @@ try {
     );
     assert.deepEqual(await storedSettings(page), withReviewRange({
       reactionBodyTicks: 1,
-      entryRangePercent: 37,
+      entryRangePercent: 25,
       oppositeCandleCount: 0,
       sessionExitMinutes: 20,
     }, expectedReviewRange));
@@ -839,6 +1132,38 @@ try {
 
   await page.getByTestId('profit-loss-review').click();
   assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  await assertReviewMatchesPanel(page, summary1);
+
+  const refreshBeforeRiskParameters = Number(
+    await page.locator('html').getAttribute('data-strategy-refresh-count'),
+  );
+  await setStopLossPercent(page, 300);
+  await setTakeProfitPercent(page, 500);
+  assert.ok(
+    Number(await page.locator('html').getAttribute('data-strategy-refresh-count'))
+      > refreshBeforeRiskParameters,
+  );
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), selectedStart);
+  assertRangeEqual(await chartRange(page, 60), range60, '60-minute viewport after risk parameters');
+  assertRangeEqual(await chartRange(page, 5), range5, '5-minute viewport after risk parameters');
+  const riskParameterSnapshot = await strategySnapshot(page);
+  assert.notDeepEqual(riskParameterSnapshot, snapshot1);
+  assert.notDeepEqual(
+    plannedPriceSnapshot(riskParameterSnapshot),
+    plannedPriceSnapshot(snapshot1),
+    'Stop-loss and take-profit prices must be replaced after parameter changes.',
+  );
+  const riskParameterSummary = await panelSummary(page);
+  assert.equal(riskParameterSummary.theoreticalRewardRisk, '1.77:1');
+  await assertReviewMatchesPanel(page, riskParameterSummary);
+
+  await setStopLossPercent(page, 75);
+  await setTakeProfitPercent(page, 200);
+  assert.equal(await page.locator('html').getAttribute('data-selected-start'), selectedStart);
+  assertRangeEqual(await chartRange(page, 60), range60, '60-minute viewport after restoring risk parameters');
+  assertRangeEqual(await chartRange(page, 5), range5, '5-minute viewport after restoring risk parameters');
+  assert.deepEqual(await strategySnapshot(page), snapshot1);
+  assert.deepEqual((await panelSummary(page)).raw, summary1.raw);
   await assertReviewMatchesPanel(page, summary1);
 
   const refreshBeforeValid = Number(await page.locator('html').getAttribute('data-strategy-refresh-count'));
@@ -1071,10 +1396,21 @@ try {
   const summaryBeforeInstrumentSwitch = await panelSummary(page);
   await page.locator('#instrument').selectOption(alternateInstrument.value);
   await page.waitForFunction(
-    ({ instrument, percent, oppositeCount, sessionExitMinutes, startDate, endDate }) =>
+    ({
+      instrument,
+      percent,
+      stopLossPercent,
+      takeProfitPercent,
+      oppositeCount,
+      sessionExitMinutes,
+      startDate,
+      endDate,
+    }) =>
       document.querySelector('#instrument')?.value === instrument
       && document.querySelector('#instrument')?.getAttribute('data-loaded') === instrument
       && document.documentElement.dataset.entryRangePercent === percent
+      && document.documentElement.dataset.stopLossRangePercent === stopLossPercent
+      && document.documentElement.dataset.takeProfitRangePercent === takeProfitPercent
       && document.documentElement.dataset.oppositeCandleCount === oppositeCount
       && document.documentElement.dataset.sessionExitMinutes === sessionExitMinutes
       && document.documentElement.dataset.reviewStartDate === startDate
@@ -1083,6 +1419,8 @@ try {
     {
       instrument: alternateInstrument.value,
       percent: '37',
+      stopLossPercent: '75',
+      takeProfitPercent: '200',
       oppositeCount: '4',
       sessionExitMinutes: '20',
       startDate: expectedReviewRange.startDate,
@@ -1094,6 +1432,8 @@ try {
   assert.equal(await page.locator('#instrument-name').innerText(), alternateInstrument.label);
   assert.deepEqual(await reviewDateRange(page), expectedReviewRange);
   assert.equal(await restartedPercentInput.inputValue(), '37');
+  assert.equal(await restartedStopLossInput.inputValue(), '75');
+  assert.equal(await restartedTakeProfitInput.inputValue(), '200');
   assert.equal(await restartedOppositeInput.inputValue(), '4');
   assert.equal(await restartedSessionExitSelect.inputValue(), '20');
   assert.deepEqual(await storedSettings(page), withReviewRange({
@@ -1123,6 +1463,9 @@ try {
       '.toolbar-right',
       '#entry-settings-panel',
       '#reaction-rules-info',
+      '#stop-loss-percent-input',
+      '#take-profit-percent-input',
+      '#settings-theoretical-reward-risk',
       '.entry-review-date-control',
       '#review-start-date',
       '#review-end-date',
@@ -1179,6 +1522,9 @@ try {
     const startDate = rectangles['#review-start-date'];
     const endDate = rectangles['#review-end-date'];
     const dateError = rectangles['#review-date-error'];
+    const stopLossInput = rectangles['#stop-loss-percent-input'];
+    const takeProfitInput = rectangles['#take-profit-percent-input'];
+    const theoreticalRewardRisk = rectangles['#settings-theoretical-reward-risk'];
     const intersects = (left, right) => !!left && !!right
       && left.left < right.right && left.right > right.left
       && left.top < right.bottom && left.bottom > right.top;
@@ -1201,6 +1547,12 @@ try {
         && rect.right <= innerWidth
         && rect.top >= 0
         && rect.bottom <= innerHeight),
+      riskControlsInViewport: [stopLossInput, takeProfitInput, theoreticalRewardRisk].every(rect =>
+        !!rect
+        && rect.left >= 0
+        && rect.right <= innerWidth
+        && rect.top >= 0
+        && rect.bottom <= innerHeight),
     };
   });
   assert.deepEqual(layout.overlaps, [], JSON.stringify(layout));
@@ -1212,6 +1564,7 @@ try {
   assert.equal(layout.dateInputsOverlap, false, JSON.stringify(layout));
   assert.equal(layout.dateErrorOverlapsInput, false, JSON.stringify(layout));
   assert.equal(layout.dateElementsInViewport, true, JSON.stringify(layout));
+  assert.equal(layout.riskControlsInViewport, true, JSON.stringify(layout));
   await page.screenshot({ path: join(output, 'strategy-settings-1100.png') });
   await setReviewDateRange(page, expectedReviewRange.startDate, expectedReviewRange.endDate);
   assert.equal(await page.getByTestId('review-date-error').isHidden(), true);

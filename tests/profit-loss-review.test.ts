@@ -469,6 +469,147 @@ describe('profit and loss review', () => {
     });
   });
 
+  it('recalculates exit type, timing, capital, equity, and statistics from the target parameter', () => {
+    const bars = [
+      bar('13:30', 100, 104, 100, 103),
+      bar('13:35', 103, 103, 101, 102),
+      bar('13:40', 102, 108, 101, 107),
+      bar('13:45', 107, 107, 97, 98),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const baselineLifecycle = entryLifecycle(
+      candidate,
+      bars,
+      [],
+      1,
+      DEFAULT_ENTRY_STRATEGY_SETTINGS,
+    );
+    const baselineReview = reviewProfitLoss(
+      [candidate],
+      bars,
+      [],
+      DEFINITION,
+      DEFAULT_ENTRY_STRATEGY_SETTINGS,
+    );
+    const targetSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      takeProfitRangePercent: 100,
+    };
+    const targetLifecycle = entryLifecycle(candidate, bars, [], 1, targetSettings);
+    const targetReview = reviewProfitLoss([candidate], bars, [], DEFINITION, targetSettings);
+
+    expect(baselineLifecycle.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'stop-loss',
+      price: 97,
+      bar: bars[3],
+    });
+    expect(baselineReview.completedTrades[0]).toMatchObject({
+      exitType: 'stop-loss',
+      exitPrice: 97,
+      exitBar: bars[3],
+      lots: 9900,
+      cashPnl: -396_000,
+      capitalAfter: 604_000,
+    });
+    expect(baselineReview.statistics).toMatchObject({
+      takeProfitCount: 0,
+      stopLossCount: 1,
+      winningTradeCount: 0,
+      losingTradeCount: 1,
+      cumulativeLoss: -396_000,
+    });
+    expect(baselineReview.equityCurve).toEqual([
+      expect.objectContaining({ capital: 604_000, cashPnl: -396_000 }),
+    ]);
+    expect(baselineReview.finalCapital).toBe(604_000);
+
+    expect(targetLifecycle.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'take-profit',
+      price: 108,
+      bar: bars[2],
+    });
+    expect(targetReview.completedTrades[0]).toMatchObject({
+      exitType: 'take-profit',
+      exitPrice: 108,
+      exitBar: bars[2],
+      lots: 9900,
+      cashPnl: 693_000,
+      capitalAfter: 1_693_000,
+    });
+    expect(targetReview.statistics).toMatchObject({
+      takeProfitCount: 1,
+      stopLossCount: 0,
+      winningTradeCount: 1,
+      losingTradeCount: 0,
+      cumulativeProfit: 693_000,
+    });
+    expect(targetReview.equityCurve).toEqual([
+      expect.objectContaining({ capital: 1_693_000, cashPnl: 693_000 }),
+    ]);
+    expect(targetReview.finalCapital).toBe(1_693_000);
+  });
+
+  it('recalculates stop timing, cash loss, and final capital from the stop parameter', () => {
+    const bars = [
+      bar('13:30', 100, 104, 100, 103),
+      bar('13:35', 103, 103, 101, 102),
+      bar('13:40', 102, 107, 98, 100),
+      bar('13:45', 100, 103, 97, 98),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const halfStopSettings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 50,
+    };
+    const baselineLifecycle = entryLifecycle(
+      candidate,
+      bars,
+      [],
+      1,
+      DEFAULT_ENTRY_STRATEGY_SETTINGS,
+    );
+    const halfStopLifecycle = entryLifecycle(candidate, bars, [], 1, halfStopSettings);
+    const baselineReview = reviewProfitLoss(
+      [candidate],
+      bars,
+      [],
+      DEFINITION,
+      DEFAULT_ENTRY_STRATEGY_SETTINGS,
+    );
+    const halfStopReview = reviewProfitLoss([candidate], bars, [], DEFINITION, halfStopSettings);
+
+    expect(baselineLifecycle.stopLossSignal?.price).toBe(97);
+    expect(baselineLifecycle.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'stop-loss',
+      price: 97,
+      bar: bars[3],
+    });
+    expect(halfStopLifecycle.stopLossSignal?.price).toBe(98);
+    expect(halfStopLifecycle.exitAnalysis?.exitSignal).toMatchObject({
+      type: 'stop-loss',
+      price: 98,
+      bar: bars[2],
+    });
+    expect(baselineReview.completedTrades[0]).toMatchObject({
+      exitPrice: 97,
+      exitBar: bars[3],
+      cashPnl: -396_000,
+      capitalAfter: 604_000,
+    });
+    expect(halfStopReview.completedTrades[0]).toMatchObject({
+      exitPrice: 98,
+      exitBar: bars[2],
+      cashPnl: -297_000,
+      capitalAfter: 703_000,
+    });
+    expect(halfStopReview.statistics).toMatchObject({
+      stopLossCount: 1,
+      cumulativeLoss: -297_000,
+      largestLoss: -297_000,
+    });
+    expect(halfStopReview.finalCapital).toBe(703_000);
+  });
+
   it('reuses the risk-edge lifecycle reaction, entry, exit, sizing, and capital in the full review', () => {
     const bars = [
       bar('13:30', 100, 106, 100, 102),
@@ -480,6 +621,8 @@ describe('profit and loss review', () => {
       ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
       reactionBodyTicks: 1,
       entryRangePercent: 67,
+      stopLossRangePercent: 50,
+      takeProfitRangePercent: 500,
     };
     const lifecycle = entryLifecycle(candidate, bars, [], 1, settings);
     const review = reviewProfitLoss([candidate], bars, [], DEFINITION, settings);
@@ -498,6 +641,12 @@ describe('profit and loss review', () => {
       entryDistanceTicks: 0,
       price: 100,
       entryBar: bars[1],
+    });
+    expect(attempt.stopLossSignal?.price).toBe(97);
+    expect(attempt.takeProfitSignal).toMatchObject({
+      defaultPrice: 136,
+      adjustedPrice: 106,
+      riskTouchBar: bars[1],
     });
     expect(attempt.exitAnalysis?.exitSignal).toMatchObject({
       type: 'take-profit',
@@ -593,6 +742,71 @@ describe('profit and loss review', () => {
       takeProfitCount: 1,
     });
     expect(hundredReview.finalCapital).toBe(hundredReview.initialCapital);
+  });
+
+  it('replays both attempts with shared percentages and each attempt own reaction range', () => {
+    const bars = [
+      bar('13:30', 100, 104, 100, 103),
+      bar('13:35', 103, 103, 101, 102),
+      bar('13:40', 102, 112, 102, 111),
+      bar('13:45', 100, 105, 100, 104),
+      bar('13:50', 104, 104, 102, 103),
+      bar('13:55', 103, 115, 103, 114),
+    ];
+    const candidate = entry(bars[0], 'long');
+    const settings = {
+      ...DEFAULT_ENTRY_STRATEGY_SETTINGS,
+      stopLossRangePercent: 50,
+      takeProfitRangePercent: 100,
+    };
+    const lifecycle = entryLifecycle(candidate, bars, [], 1, settings);
+    const review = reviewProfitLoss([candidate], bars, [], DEFINITION, settings);
+
+    expect(lifecycle.attempts.map(attempt => ({
+      range: [attempt.reactionRange?.low, attempt.reactionRange?.high],
+      stop: attempt.stopLossSignal?.price,
+      target: attempt.takeProfitSignal?.defaultPrice,
+      exitPrice: attempt.exitAnalysis?.exitSignal?.price,
+    }))).toEqual([
+      { range: [100, 104], stop: 98, target: 108, exitPrice: 108 },
+      { range: [100, 105], stop: 97, target: 110, exitPrice: 110 },
+    ]);
+    expect(review.completedTrades).toHaveLength(2);
+    expect(review.completedTrades.map(trade => ({
+      entryPrice: trade.entryPrice,
+      exitPrice: trade.exitPrice,
+      lots: trade.lots,
+      capitalBefore: trade.capitalBefore,
+      cashPnl: trade.cashPnl,
+      capitalAfter: trade.capitalAfter,
+    }))).toEqual([
+      {
+        entryPrice: 101,
+        exitPrice: 108,
+        lots: 9900,
+        capitalBefore: 1_000_000,
+        cashPnl: 693_000,
+        capitalAfter: 1_693_000,
+      },
+      {
+        entryPrice: 102,
+        exitPrice: 110,
+        lots: 16_598,
+        capitalBefore: 1_693_000,
+        cashPnl: 1_327_840,
+        capitalAfter: 3_020_840,
+      },
+    ]);
+    expect(review.statistics).toMatchObject({
+      validEntryCount: 2,
+      completedTradeCount: 2,
+      takeProfitCount: 2,
+      stopLossCount: 0,
+      winningTradeCount: 2,
+      cumulativeProfit: 2_020_840,
+    });
+    expect(review.equityCurve.map(point => point.capital)).toEqual([1_693_000, 3_020_840]);
+    expect(review.finalCapital).toBe(3_020_840);
   });
 
   it('keeps capital and trade statistics unchanged when the lifecycle only has an abandonment', () => {
