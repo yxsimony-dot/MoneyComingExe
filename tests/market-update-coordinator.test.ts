@@ -4,7 +4,8 @@ import {
   aggregateMinutes,
   parseEdbMinuteCsv,
 } from '../src/domain/market-data';
-import { parseBeijing } from '../src/domain/time';
+import { detectContractRollovers } from '../src/domain/contract-rollover';
+import { formatBeijing, parseBeijing } from '../src/domain/time';
 import { EdbClientError } from '../src/main/edb-client';
 import { MarketUpdateCoordinator, requestStartFor } from '../src/main/market-update-coordinator';
 import {
@@ -16,7 +17,9 @@ import type { LoadedMarketSnapshot, SnapshotCandidate } from '../src/main/market
 import type {
   EdbMinuteRecord,
   MainContractMapping,
+  MarketSnapshotBenchmarkProtection,
   MarketSnapshotActivatedEvent,
+  MarketSnapshotMetadataV7Full,
   MarketUpdateIntent,
   MarketUpdateState,
 } from '../src/shared/types';
@@ -130,6 +133,224 @@ function setup(
     publishActivation,
     published,
     publishedStates,
+  };
+}
+
+function minuteRange(start: string, count: number): string[] {
+  const firstStartMs = parseBeijing(start);
+  return Array.from(
+    { length: count },
+    (_, index) => formatBeijing(firstStartMs + index * 60_000),
+  );
+}
+
+function glassProtection(): MarketSnapshotBenchmarkProtection {
+  return {
+    provider: 'THS',
+    sourceSegmentId: 'ths-fg9999',
+    bars5: {
+      firstStart: '2026-10-09 21:00:00',
+      lastEnd: '2026-10-09 22:00:00',
+      protectedFields: ['open', 'high', 'low', 'close', 'volume'],
+    },
+    bars60: {
+      firstStart: '2026-10-09 21:00:00',
+      lastEnd: '2026-10-09 22:00:00',
+      derivedFrom: 'bars5',
+    },
+    mappings: {
+      firstTradingDate: '2026-10-09',
+      lastTradingDate: '2026-10-10',
+    },
+    rollovers: {
+      firstTradingDate: '2026-10-10',
+      lastTradingDate: '2026-10-10',
+    },
+    minutePolicy: 'preserved-audit-only',
+    reportSha256: 'a'.repeat(64),
+    redistribution: {
+      allowed: false,
+      conclusion: '测试基准仅限本机使用。',
+    },
+  };
+}
+
+function glassMetadata(
+  snapshot: Pick<
+    LoadedMarketSnapshot,
+    'bars1' | 'bars5' | 'bars60' | 'mainContractMappings' | 'rollovers'
+  >,
+): MarketSnapshotMetadataV7Full {
+  const definition = INSTRUMENT_DEFINITIONS.glass_main;
+  const file = (name: string, rows: number) => ({
+    name,
+    sha256: 'b'.repeat(64),
+    rows,
+  });
+  return {
+    schemaVersion: 7,
+    storage: { kind: 'full' },
+    snapshotId: 'glass-protected',
+    instrumentId: definition.id,
+    mainSymbol: definition.mainSymbol,
+    parameterVersion: definition.parameterVersion,
+    source: {
+      provider: 'MIXED',
+      endpoint: 'https://edb.shinnytech.com/md/kline',
+      symbol: definition.mainSymbol,
+    },
+    generatedAt: '2026-10-09T14:00:00.000Z',
+    requestStart: '2026-10-09 21:00:00',
+    requestEnd: '2026-10-09 22:00:00',
+    sourceLatestAt: '2026-10-09 22:00:00',
+    sourceSegments: [{
+      sourceId: 'ths-fg9999',
+      sourceName: 'THS FG9999',
+      kind: 'benchmark-main',
+      coverage: {
+        first: '2026-10-09 21:00:00',
+        last: '2026-10-09 22:00:00',
+      },
+      rawFiles: [],
+      importerVersion: 'test',
+      license: {
+        redistributionAllowed: false,
+        conclusion: '测试基准仅限本机使用。',
+      },
+    }],
+    redistribution: {
+      allowed: false,
+      conclusion: '测试基准仅限本机使用。',
+    },
+    periods: {
+      bars1: {
+        first: snapshot.bars1[0].start,
+        last: snapshot.bars1.at(-1)!.start,
+        rows: snapshot.bars1.length,
+      },
+      bars5: {
+        first: snapshot.bars5[0].start,
+        last: snapshot.bars5.at(-1)!.end,
+        rows: snapshot.bars5.length,
+      },
+      bars60: {
+        first: snapshot.bars60[0].start,
+        last: snapshot.bars60.at(-1)!.end,
+        rows: snapshot.bars60.length,
+      },
+    },
+    benchmarkProtection: glassProtection(),
+    files: {
+      bars1: file('1m.csv', snapshot.bars1.length),
+      bars5: file('5m.csv', snapshot.bars5.length),
+      bars60: file('60m.csv', snapshot.bars60.length),
+      mainContractMappings: file(
+        'main-contract-mapping.csv',
+        snapshot.mainContractMappings.length,
+      ),
+      rollovers: file('rollovers.csv', snapshot.rollovers.length),
+    },
+  };
+}
+
+function protectedGlassFixture() {
+  const definition = INSTRUMENT_DEFINITIONS.glass_main;
+  const bars1 = records(minuteRange('2026-10-09 21:00:00', 60));
+  const bars5 = aggregateMinutes(
+    bars1,
+    5,
+    parseBeijing('2026-10-09 22:00:00'),
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  bars5[0] = {
+    ...bars5[0],
+    open: bars5[0].open + 20,
+    high: bars5[0].high + 25,
+    low: bars5[0].low + 15,
+    close: bars5[0].close + 20,
+    volume: bars5[0].volume + 100,
+  };
+  const bars60 = aggregateFiveMinuteBars(
+    bars5,
+    definition.tradingSessions,
+  ).filter(bar => bar.complete);
+  const mainContractMappings = [
+    { tradingDate: '2026-10-09', contract: 'FG2609' },
+    { tradingDate: '2026-10-10', contract: 'FG2701' },
+  ];
+  const rollovers = detectContractRollovers(
+    mainContractMappings,
+    bars5,
+    definition,
+  );
+  const snapshot: LoadedMarketSnapshot = {
+    source: 'user',
+    directory: 'glass-protected',
+    bars1,
+    bars5,
+    bars60,
+    mainContractMappings,
+    rollovers,
+    sourceLatestAt: '2026-10-09 22:00:00',
+  };
+  snapshot.metadata = glassMetadata(snapshot);
+  const changedProtectedMinute = {
+    ...bars1[10],
+    open: bars1[10].open + 40,
+    high: bars1[10].high + 40,
+    low: bars1[10].low + 40,
+    close: bars1[10].close + 40,
+  };
+  return {
+    snapshot,
+    changedProtectedMinute,
+    remoteMinutes: [
+      changedProtectedMinute,
+      ...records(minuteRange('2026-10-09 22:00:00', 60)),
+    ],
+    remoteMappings: [
+      { tradingDate: '2026-10-10', contract: 'FG2705' },
+      { tradingDate: '2026-10-11', contract: 'FG2701' },
+    ],
+  };
+}
+
+function setupProtectedGlass() {
+  const fixture = protectedGlassFixture();
+  const loadSnapshot = vi.fn(async () => fixture.snapshot);
+  const fetchMinutes = vi.fn(async () => fixture.remoteMinutes);
+  const fetchContractMappings = vi.fn(async () => fixture.remoteMappings);
+  const saveSnapshot = vi.fn(async (
+    _definition: InstrumentDefinition,
+    candidate: SnapshotCandidate,
+  ): Promise<LoadedMarketSnapshot> => ({
+    source: 'user',
+    directory: 'glass-protected-tail',
+    bars1: candidate.bars1,
+    bars5: candidate.bars5,
+    bars60: candidate.bars60,
+    mainContractMappings: candidate.mainContractMappings,
+    rollovers: candidate.rollovers,
+    sourceLatestAt: candidate.sourceLatestAt,
+    snapshotUpdatedAt: '2026-10-09T15:00:30.000Z',
+    metadata: fixture.snapshot.metadata,
+  }));
+  const coordinator = new MarketUpdateCoordinator({
+    loadSnapshot,
+    fetchMinutes,
+    fetchContractMappings,
+    saveSnapshot,
+    invalidate: vi.fn(),
+    publish: vi.fn(),
+    now: () => new Date('2026-10-09T15:00:30.000Z'),
+  });
+  return {
+    ...fixture,
+    coordinator,
+    loadSnapshot,
+    fetchMinutes,
+    fetchContractMappings,
+    saveSnapshot,
   };
 }
 
@@ -297,6 +518,132 @@ describe('market update coordinator', () => {
     expect(saved.bars60).toEqual(initial.bars60);
     expect(saved.bars5.every(bar => bar.complete)).toBe(true);
     expect(saved.bars60.every(bar => bar.complete)).toBe(true);
+  });
+
+  it.each([
+    ['manual full', 'full'],
+    ['automatic tail', 'tail'],
+  ] as const)(
+    'keeps the glass benchmark boundary during a %s update',
+    async (_label, intent) => {
+      const fixture = setupProtectedGlass();
+
+      await expect(
+        fixture.coordinator.update('glass_main', intent),
+      ).resolves.toMatchObject({
+        phase: 'succeeded',
+        intent,
+        counts: {
+          added1: 60,
+          replaced1: 1,
+          added5: 12,
+          replaced5: 0,
+          added60: 1,
+          replaced60: 0,
+        },
+      });
+
+      const saved = fixture.saveSnapshot.mock.calls[0][1];
+      expect(saved.benchmarkProtection)
+        .toEqual(fixture.snapshot.metadata?.schemaVersion === 7
+          ? fixture.snapshot.metadata.benchmarkProtection
+          : undefined);
+      expect(saved.bars1.find(record => (
+        record.startMs === fixture.changedProtectedMinute.startMs
+      ))).toEqual(fixture.changedProtectedMinute);
+      expect(saved.bars5.slice(0, fixture.snapshot.bars5.length))
+        .toEqual(fixture.snapshot.bars5);
+      expect(saved.bars60[0]).toEqual(fixture.snapshot.bars60[0]);
+      expect(saved.mainContractMappings.slice(0, 2))
+        .toEqual(fixture.snapshot.mainContractMappings);
+      expect(saved.rollovers[0]).toEqual(fixture.snapshot.rollovers[0]);
+      expect(saved.bars5.at(-1)?.end).toBe('2026-10-09 23:00:00');
+      expect(saved.bars60.at(-1)?.end).toBe('2026-10-09 23:00:00');
+      expect(saved.mainContractMappings).toContainEqual({
+        tradingDate: '2026-10-11',
+        contract: 'FG2701',
+      });
+      expect(saved.mainContractMappings).not.toContainEqual({
+        tradingDate: '2026-10-10',
+        contract: 'FG2705',
+      });
+    },
+  );
+
+  it('applies the protected boundary in updateAll without changing ordinary instruments', async () => {
+    const glass = protectedGlassFixture();
+    const ordinary = {
+      ...initial,
+      mainContractMappings: [],
+      rollovers: [],
+    };
+    const loadSnapshot = vi.fn(async (
+      definition: InstrumentDefinition,
+    ): Promise<LoadedMarketSnapshot> => (
+      definition.id === 'glass_main' ? glass.snapshot : ordinary
+    ));
+    const fetchMinutes = vi.fn(async (
+      definition: InstrumentDefinition,
+    ) => (
+      definition.id === 'glass_main' ? glass.remoteMinutes : minutes
+    ));
+    const fetchContractMappings = vi.fn(async (
+      definition: InstrumentDefinition,
+    ) => (
+      definition.id === 'glass_main' ? glass.remoteMappings : []
+    ));
+    const saveSnapshot = vi.fn(async (
+      definition: InstrumentDefinition,
+      candidate: SnapshotCandidate,
+      _intent: MarketUpdateIntent,
+      current: LoadedMarketSnapshot,
+    ): Promise<LoadedMarketSnapshot> => ({
+      source: 'user',
+      directory: `${definition.id}-updated`,
+      bars1: candidate.bars1,
+      bars5: candidate.bars5,
+      bars60: candidate.bars60,
+      mainContractMappings: candidate.mainContractMappings,
+      rollovers: candidate.rollovers,
+      sourceLatestAt: candidate.sourceLatestAt,
+      snapshotUpdatedAt: '2026-10-09T15:00:30.000Z',
+      metadata: current.metadata,
+    }));
+    const coordinator = new MarketUpdateCoordinator({
+      loadSnapshot,
+      fetchMinutes,
+      fetchContractMappings,
+      saveSnapshot,
+      invalidate: vi.fn(),
+      publish: vi.fn(),
+      now: () => new Date('2026-10-09T15:00:30.000Z'),
+    });
+
+    await expect(
+      coordinator.updateAll(['glass_main', 'rebar_main']),
+    ).resolves.toMatchObject({
+      results: [
+        { instrument: 'glass_main', phase: 'succeeded' },
+        { instrument: 'rebar_main', phase: 'succeeded' },
+      ],
+    });
+
+    const glassCandidate = saveSnapshot.mock.calls.find(
+      ([definition]) => definition.id === 'glass_main',
+    )?.[1];
+    const ordinaryCandidate = saveSnapshot.mock.calls.find(
+      ([definition]) => definition.id === 'rebar_main',
+    )?.[1];
+    expect(glassCandidate?.bars5.slice(0, glass.snapshot.bars5.length))
+      .toEqual(glass.snapshot.bars5);
+    expect(glassCandidate?.mainContractMappings.slice(0, 2))
+      .toEqual(glass.snapshot.mainContractMappings);
+    expect(ordinaryCandidate?.benchmarkProtection).toBeUndefined();
+    expect(ordinaryCandidate?.bars5.length).toBeGreaterThan(
+      ordinary.bars5.length,
+    );
+    expect(fetchMinutes.mock.calls.map(([definition]) => definition.id))
+      .toEqual(['glass_main', 'rebar_main']);
   });
 
   it('merges duplicate triggers into one network operation and publishes all phases', async () => {
