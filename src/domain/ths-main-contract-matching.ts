@@ -30,6 +30,7 @@ export const THS_GLASS_MAIN_ALLOWED_MATCH_METHODS = [
   'exact-minute-sequence',
   'neighbor-confirmed-source-variance',
   'rollover-boundary-source-variance',
+  'daily-relative-candidate-evidence',
 ] as const satisfies readonly DesktopMainContractDayAudit['method'][];
 
 export type ThsGlassMainAllowedMatchMethod =
@@ -234,7 +235,10 @@ export function matchThsGlassMainContracts(
     benchmarkRecords(benchmarkBars, tradingDateValues),
     candidateRecords(candidateSeries),
     fallback,
-    { heuristicFallback: 'disabled' },
+    {
+      heuristicFallback: 'disabled',
+      relativeCandidateEvidence: 'daily-unique',
+    },
   );
   const expiry = expirySequence(matching);
   const violations = [

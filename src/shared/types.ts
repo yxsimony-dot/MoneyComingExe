@@ -195,6 +195,7 @@ export type BenchmarkProtectedBarField =
   | 'volume';
 export interface MarketSnapshotBenchmarkProtection {
   provider: 'THS';
+  reportRunId: string;
   sourceSegmentId: string;
   bars5: {
     firstStart: string;
@@ -513,7 +514,7 @@ export interface RendererFullSetDataDiagnostic {
 export interface RendererStrategyDerivationDiagnostic {
   requestId: number;
   instrument: Instrument;
-  source: 'chart' | 'profit-loss';
+  source: 'shared';
   timestampMs: number;
 }
 export interface RendererPerformanceDiagnostics {
@@ -522,6 +523,7 @@ export interface RendererPerformanceDiagnostics {
   strategyDerivations: RendererStrategyDerivationDiagnostic[];
   fullSetDataCountByPeriod: Record<Period, number>;
   strategyDerivationCount: number;
+  profitLossDetailGenerationCount: number;
 }
 export interface MoneyComingTestAPI {
   showReactionScenario: (scenario: ReactionTestScenario, direction: WeeklyDirection, startMs: number) => void;

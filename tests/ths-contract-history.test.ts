@@ -64,6 +64,7 @@ function desktopRecords(): DesktopFuturesMinuteRecord[] {
 }
 
 interface DesktopSourceFixtureOptions {
+  contract?: string;
   records?: DesktopFuturesMinuteRecord[];
   description?: Partial<ContractHistorySourceDescription>;
   inspectedFile?: Partial<DesktopFuturesHistoryFile>;
@@ -74,9 +75,10 @@ interface DesktopSourceFixtureOptions {
 function desktopSourceFixture(
   options: DesktopSourceFixtureOptions = {},
 ): DesktopFuturesHistorySource {
+  const contract = options.contract ?? 'FG309';
   const records = options.records ?? desktopRecords();
   const file: DesktopFuturesHistoryFile = {
-    relativePath: 'CZCE_郑州商品交易所/FG_玻璃/FG309.csv',
+    relativePath: `CZCE_郑州商品交易所/FG_玻璃/${contract}.csv`,
     sha256: 'a'.repeat(64),
     bytes: 1_024,
     rows: records.length,
@@ -100,7 +102,7 @@ function desktopSourceFixture(
   return {
     description,
     async listContracts() {
-      return ['FG309'];
+      return [contract];
     },
     async inspectMainFile() {
       throw new Error('unused');
@@ -296,6 +298,79 @@ describe('auditable desktop glass contract fallback', () => {
         },
       }),
     ]);
+  });
+
+  it('uses a four-digit desktop contract code while preserving its audit evidence', async () => {
+    const records = desktopRecords().map(record => ({
+      ...record,
+      sourceSymbol: 'FG2309',
+      provenance: {
+        ...record.provenance,
+        relativePath: 'CZCE_郑州商品交易所/FG_玻璃/FG2309.csv',
+      },
+    }));
+    const result = await loadAuditableDesktopGlassContractFallback(
+      desktopSourceFixture({ contract: 'FG2309', records }),
+      'FG2309',
+      ['2023-08-09'],
+    );
+
+    expect(result).toMatchObject({
+      rawContract: 'FG2309',
+      normalizedContract: 'FG2309',
+      source: {
+        kind: 'project-auditable-fallback',
+        sourceFile: {
+          relativePath: 'CZCE_郑州商品交易所/FG_玻璃/FG2309.csv',
+        },
+      },
+    });
+    expect(result.records[0]).toMatchObject({
+      rawContract: 'FG2309',
+      normalizedContract: 'FG2309',
+      contract: 'FG2309',
+    });
+  });
+
+  it('validates the full source file but normalizes only records inside the protected range', async () => {
+    const records = [
+      desktopMinute('2022-01-04 09:00:00', 2),
+      ...desktopRecords().map((record, index) => ({
+        ...record,
+        provenance: {
+          ...record.provenance,
+          line: index + 3,
+        },
+      })),
+    ];
+    const result = await loadAuditableDesktopGlassContractFallback(
+      desktopSourceFixture({ records }),
+      'FG309',
+      ['2023-08-09'],
+      {
+        firstStartMs: parseBeijing('2023-08-09 09:00:00'),
+        lastEndMs: parseBeijing('2023-08-09 09:05:00'),
+      },
+    );
+
+    expect(result.source).toMatchObject({
+      kind: 'project-auditable-fallback',
+      sourceFile: {
+        rows: 6,
+        firstTimestamp: '2022-01-04 09:00:00',
+        lastTimestamp: '2023-08-09 09:04:00',
+      },
+    });
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0]).toMatchObject({
+      tradingDate: '2023-08-09',
+      timestamp: '2023-08-09 09:00:00',
+      sourceEvidence: {
+        firstLine: 3,
+        lastLine: 7,
+        sourceMinuteRows: 5,
+      },
+    });
   });
 
   it('rejects missing source version and acquisition metadata', async () => {

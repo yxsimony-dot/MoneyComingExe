@@ -267,6 +267,7 @@ describe('desktop main-contract exact minute matching', () => {
       uniqueExactMatches: 1,
       sourceVarianceFallbackMatches: 0,
       rolloverBoundarySourceVarianceMatches: 0,
+      dailyRelativeEvidenceMatches: 0,
       heuristicFallbackMatches: 0,
       zeroExactMatches: 0,
       multipleExactMatches: 0,
@@ -343,6 +344,7 @@ describe('desktop main-contract exact minute matching', () => {
       uniqueExactMatches: 0,
       sourceVarianceFallbackMatches: 0,
       rolloverBoundarySourceVarianceMatches: 0,
+      dailyRelativeEvidenceMatches: 0,
       heuristicFallbackMatches: 0,
       zeroExactMatches: 1,
       multipleExactMatches: 1,
@@ -1498,5 +1500,361 @@ describe('desktop main-contract exact minute matching', () => {
       fromContract: 'm2609',
       toContract: 'm2701',
     });
+  });
+
+  it('keeps daily relative evidence disabled on the generic desktop path', () => {
+    const main = Array.from({ length: 10 }, (_, index) => minute(
+      `2026-08-10 09:${String(index).padStart(2, '0')}:00`,
+      {
+        instrumentId: 'glass_main',
+        open: 1_500 + index,
+        high: 1_510 + index,
+        low: 1_490 + index,
+        close: 1_505 + index,
+      },
+    ));
+    const candidate = main.map((record, index) => ({
+      ...record,
+      contract: 'FG2309',
+      close: index === main.length - 1 ? record.close + 1 : record.close,
+    }));
+
+    const report = matchDesktopMainContractDays(
+      main,
+      candidate,
+      undefined,
+      { heuristicFallback: 'disabled' },
+    );
+
+    expect(report.blocked).toBe(true);
+    expect(report.days[0]).not.toHaveProperty('dailyRelativeEvidence');
+    expect(report.summary.dailyRelativeEvidenceMatches).toBe(0);
+  });
+
+  it('selects the uniquely winning daily relative-evidence candidate', () => {
+    const main = Array.from({ length: 10 }, (_, index) => minute(
+      `2026-08-10 09:${String(index).padStart(2, '0')}:00`,
+      {
+        instrumentId: 'glass_main',
+        open: 1_500 + index,
+        high: 1_510 + index,
+        low: 1_490 + index,
+        close: 1_505 + index,
+      },
+    ));
+    const contracts = [
+      ...main.map((record, index) => ({
+        ...record,
+        contract: 'FG2309',
+        close: index >= 8 ? record.close + 1 : record.close,
+      })),
+      ...main.map((record, index) => ({
+        ...record,
+        contract: 'FG2401',
+        close: index === 0 ? record.close : record.close + 20,
+      })),
+    ];
+
+    const report = matchDesktopMainContractDays(
+      main,
+      contracts,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+
+    expect(report.blocked).toBe(false);
+    expect(report.mappings).toEqual([
+      { tradingDate: '2026-08-10', contract: 'FG2309' },
+    ]);
+    expect(report.days[0]).toMatchObject({
+      status: 'matched',
+      method: 'daily-relative-candidate-evidence',
+      selectedContract: 'FG2309',
+      dailyRelativeEvidence: {
+        status: 'selected',
+        bestContract: 'FG2309',
+        runnerUpContract: 'FG2401',
+      },
+    });
+    expect(report.days[0].dailyRelativeEvidence?.scoreMargin)
+      .toBeGreaterThanOrEqual(0.2);
+    expect(report.summary.dailyRelativeEvidenceMatches).toBe(1);
+    expect(report.summary.heuristicFallbackMatches).toBe(0);
+  });
+
+  it('rejects an insufficient score margin without falling through to source variance', () => {
+    const dates = ['2026-08-07', '2026-08-10', '2026-08-11'];
+    const main = dates.flatMap((tradingDate, dayIndex) => (
+      Array.from({ length: 100 }, (_, index) => {
+        const totalMinutes = 9 * 60 + index;
+        return minute(
+          `${tradingDate} ${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:`
+          + `${String(totalMinutes % 60).padStart(2, '0')}:00`,
+          {
+            instrumentId: 'glass_main',
+            tradingDate,
+            open: 1_500 + dayIndex + index,
+            high: 1_510 + dayIndex + index,
+            low: 1_490 + dayIndex + index,
+            close: 1_505 + dayIndex + index,
+          },
+        );
+      })
+    ));
+    const contracts = main.flatMap(record => {
+      const dayRows = main.filter(item => item.tradingDate === record.tradingDate);
+      const index = dayRows.findIndex(item => item.startMs === record.startMs);
+      if (record.tradingDate !== '2026-08-10') {
+        return [{ ...record, contract: 'FG2309' }];
+      }
+      return [
+        {
+          ...record,
+          contract: 'FG2309',
+          close: index === 99 ? record.close + 1 : record.close,
+        },
+        {
+          ...record,
+          contract: 'FG2401',
+          close: index >= 80 ? record.close + 2 : record.close,
+        },
+      ];
+    });
+
+    const report = matchDesktopMainContractDays(
+      main,
+      contracts,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+    const target = report.days.find(day => day.tradingDate === '2026-08-10')!;
+
+    expect(target).toMatchObject({
+      status: 'ambiguous',
+      method: 'unresolved',
+      dailyRelativeEvidence: {
+        status: 'rejected',
+        bestContract: 'FG2309',
+        runnerUpContract: 'FG2401',
+      },
+    });
+    expect(target).not.toHaveProperty('sourceVariance');
+    expect(target.ambiguityReasons).toEqual(expect.arrayContaining([
+      expect.stringMatching(/低于最低领先 0.2/),
+      expect.stringMatching(/不得改用源差异或 heuristic-fallback/),
+    ]));
+    expect(report.summary.sourceVarianceFallbackMatches).toBe(0);
+    expect(report.summary.heuristicFallbackMatches).toBe(0);
+  });
+
+  it('rejects row-count and timestamp-sequence mismatches', () => {
+    const main = Array.from({ length: 3 }, (_, index) => minute(
+      `2026-08-10 09:0${index}:00`,
+      {
+        instrumentId: 'glass_main',
+        open: 1_500 + index,
+        high: 1_510 + index,
+        low: 1_490 + index,
+        close: 1_505 + index,
+      },
+    ));
+    const contracts = [
+      ...main.slice(0, 2).map(record => ({ ...record, contract: 'FG2309' })),
+      ...main.map((record, index) => ({
+        ...record,
+        contract: 'FG2401',
+        ...(index === 2
+          ? {
+              timestamp: '2026-08-10 09:03:00',
+              startMs: parseBeijing('2026-08-10 09:03:00'),
+            }
+          : {}),
+      })),
+    ];
+
+    const report = matchDesktopMainContractDays(
+      main,
+      contracts,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+
+    expect(report.days[0]).toMatchObject({
+      status: 'ambiguous',
+      method: 'unresolved',
+      dailyRelativeEvidence: {
+        status: 'rejected',
+        issues: [expect.stringMatching(/没有行数和时间戳序列均完整/)],
+        candidateScores: expect.arrayContaining([
+          expect.objectContaining({
+            contract: 'FG2309',
+            timestampSequenceComplete: false,
+            baseEvidenceIssues: expect.arrayContaining([
+              expect.stringMatching(/行数不一致/),
+            ]),
+          }),
+          expect.objectContaining({
+            contract: 'FG2401',
+            timestampSequenceComplete: false,
+            baseEvidenceIssues: expect.arrayContaining([
+              expect.stringMatching(/时间戳序列不完整/),
+            ]),
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('rejects a complete candidate when every OHLC row differs', () => {
+    const main = Array.from({ length: 5 }, (_, index) => minute(
+      `2026-08-10 09:0${index}:00`,
+      {
+        instrumentId: 'glass_main',
+        open: 1_500 + index,
+        high: 1_510 + index,
+        low: 1_490 + index,
+        close: 1_505 + index,
+      },
+    ));
+    const candidate = main.map(record => ({
+      ...record,
+      contract: 'FG2309',
+      open: record.open + 10,
+      high: record.high + 10,
+      low: record.low + 10,
+      close: record.close + 10,
+    }));
+
+    const report = matchDesktopMainContractDays(
+      main,
+      candidate,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+
+    expect(report.days[0]).toMatchObject({
+      status: 'ambiguous',
+      method: 'unresolved',
+      dailyRelativeEvidence: {
+        status: 'rejected',
+        bestContract: 'FG2309',
+        issues: expect.arrayContaining([
+          expect.stringMatching(/没有任何一根 OHLC 四字段完全重合/),
+          expect.stringMatching(/低于最低门槛 0.5/),
+        ]),
+      },
+    });
+  });
+
+  it('audits amount and volume anomalies without rejecting a clear winner', () => {
+    const main = Array.from({ length: 10 }, (_, index) => minute(
+      `2026-08-10 09:${String(index).padStart(2, '0')}:00`,
+      {
+        instrumentId: 'glass_main',
+        open: 1_500 + index,
+        high: 1_510 + index,
+        low: 1_490 + index,
+        close: 1_505 + index,
+        amount: 1_000_000 + index * 10_000,
+        volume: 1_000 + index * 10,
+      },
+    ));
+    const candidate = main.map(record => ({
+      ...record,
+      contract: 'FG2309',
+      amount: record.amount! * 2,
+      volume: record.volume! * 2,
+    }));
+
+    const report = matchDesktopMainContractDays(
+      main,
+      candidate,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+
+    expect(report.days[0]).toMatchObject({
+      status: 'matched',
+      method: 'daily-relative-candidate-evidence',
+      selectedContract: 'FG2309',
+      dailyRelativeEvidence: {
+        status: 'selected',
+        candidateScores: [{
+          contract: 'FG2309',
+          tradeStatisticAnomalies: ['amount', 'volume'],
+        }],
+      },
+    });
+    expect(report.days[0].candidates[0].tradeStatisticsDifferences.amount.anomaly)
+      .toBe(true);
+    expect(report.days[0].candidates[0].tradeStatisticsDifferences.volume.anomaly)
+      .toBe(true);
+  });
+
+  it('rejects a daily relative winner whose expiry moves backward', () => {
+    const first = minute('2026-08-10 09:00:00', {
+      instrumentId: 'glass_main',
+    });
+    const second = Array.from({ length: 5 }, (_, index) => minute(
+      `2026-08-11 09:0${index}:00`,
+      {
+        instrumentId: 'glass_main',
+        tradingDate: '2026-08-11',
+        open: 1_600 + index,
+        high: 1_610 + index,
+        low: 1_590 + index,
+        close: 1_605 + index,
+      },
+    ));
+    const contracts = [
+      { ...first, contract: 'FG2401' },
+      ...second.map(record => ({
+        ...record,
+        contract: 'FG2309',
+        volume: record.volume! * 2,
+      })),
+    ];
+
+    const report = matchDesktopMainContractDays(
+      [first, ...second],
+      contracts,
+      undefined,
+      {
+        heuristicFallback: 'disabled',
+        relativeCandidateEvidence: 'daily-unique',
+      },
+    );
+
+    expect(report.mappings).toEqual([
+      { tradingDate: '2026-08-10', contract: 'FG2401' },
+    ]);
+    expect(report.days[1]).toMatchObject({
+      status: 'ambiguous',
+      method: 'unresolved',
+      dailyRelativeEvidence: {
+        status: 'rejected',
+        bestContract: 'FG2309',
+        issues: [
+          expect.stringMatching(/到期年月异常倒退.*FG2401 -> FG2309/),
+        ],
+      },
+    });
+    expect(report.summary.dailyRelativeEvidenceMatches).toBe(0);
+    expect(report.summary.heuristicFallbackMatches).toBe(0);
   });
 });

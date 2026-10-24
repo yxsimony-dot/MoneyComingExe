@@ -2,6 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const rendererSource = readFileSync('src/renderer/main.ts', 'utf8');
+const strategyDerivationsSource = readFileSync(
+  'src/renderer/strategy-derivations.ts',
+  'utf8',
+);
+const performanceSource = readFileSync(
+  'tests/instrument-switch-performance.mjs',
+  'utf8',
+);
 
 describe('online renderer integration', () => {
   it('keeps the visible chart modes limited to dual, 5-minute, and 60-minute', () => {
@@ -83,11 +91,14 @@ describe('online renderer integration', () => {
   });
 
   it('restores same-instrument chart and selection context without moving latest', () => {
-    expect(rendererSource).toContain(
-      'const refreshContext = sameInstrument ? captureMarketRefreshContext() : undefined;',
+    expect(rendererSource).toMatch(
+      /const refreshContext = sameInstrument\s+\? fallbackForRequest\?\.context\s+: undefined;/,
     );
-    expect(rendererSource).toContain(
-      'next.rollovers, !context',
+    expect(rendererSource).toMatch(
+      /await charts\[60\]\.setData\(\s*derivations\.periods\[60\],\s*next\.anomalies,\s*!context,\s*yieldControl,\s*recordDiagnostics \? diagnosticRequest : undefined,\s*\);/,
+    );
+    expect(rendererSource).toMatch(
+      /await charts\[5\]\.setData\(\s*derivations\.periods\[5\],\s*next\.anomalies,\s*!context,\s*yieldControl,\s*recordDiagnostics \? diagnosticRequest : undefined,\s*\);/,
     );
     expect(rendererSource).toContain('restoredLogicalRange(');
     expect(rendererSource).toContain('restorePriceScaleState(');
@@ -95,13 +106,102 @@ describe('online renderer integration', () => {
     expect(rendererSource).toContain('refreshStrategyResults();');
   });
 
-  it('keeps background one-minute bars in exact strategy and review inputs', () => {
+  it('yields after the full candle commit before moving the viewport', () => {
     expect(rendererSource).toMatch(
+      /this\.candle\.setData\([\s\S]*?\);\s*await yieldControl\(\);\s*if \(moveToLatest\) this\.latest\(\);/,
+    );
+  });
+
+  it('finishes the cached strategy summary without an extra timer yield', () => {
+    expect(rendererSource).toMatch(
+      /function refreshStrategyResults\([\s\S]*?\): void \{/,
+    );
+    expect(rendererSource).toMatch(
+      /refreshStrategyResults\(\s*strategyDerivations,\s*recordDiagnostics \? diagnosticRequest : undefined,\s*\);/,
+    );
+    const refreshStart = rendererSource.indexOf('function refreshStrategyResults(');
+    const refreshEnd = rendererSource.indexOf(
+      '\nfunction validIntegerSetting(',
+      refreshStart,
+    );
+    expect(rendererSource.slice(refreshStart, refreshEnd)).not.toContain(
+      'yieldControl',
+    );
+  });
+
+  it('fails only for renderer tasks strictly over the 50ms contract', () => {
+    expect(performanceSource).toContain('const longTaskThresholdMs = 50;');
+    expect(performanceSource).toMatch(
+      /observedLongTasks\.filter\(\s*entry => entry\.duration > longTaskThresholdMs,\s*\)/,
+    );
+    expect(performanceSource).not.toMatch(
+      /entry\.duration >= longTaskThresholdMs/,
+    );
+  });
+
+  it('overlaps cached Dataset IPC with releasing the previous chart data', () => {
+    const loadInstrumentStart = rendererSource.indexOf('async function loadInstrument(');
+    const loadPromiseIndex = rendererSource.indexOf(
+      'const resultPromise = loadDeclaredMarketSnapshot(',
+      loadInstrumentStart,
+    );
+    const releaseIndex = rendererSource.indexOf(
+      'charts[60].releaseData();',
+      loadPromiseIndex,
+    );
+    const awaitResultIndex = rendererSource.indexOf(
+      'const result = await resultPromise;',
+      releaseIndex,
+    );
+
+    expect(loadPromiseIndex).toBeGreaterThan(loadInstrumentStart);
+    expect(releaseIndex).toBeGreaterThan(loadPromiseIndex);
+    expect(awaitResultIndex).toBeGreaterThan(releaseIndex);
+    expect(rendererSource).toContain(
+      'if (!sameInstrument && !releasedMarketFallback && fallbackForRequest) {',
+    );
+    expect(rendererSource).toContain(
+      'let chartsMayNeedRestore = Boolean(releasedMarketFallback);',
+    );
+  });
+
+  it('restores the last successful dataset after a final switch failure', () => {
+    expect(rendererSource).toContain(
+      'const fallbackForRequest = releasedMarketFallback ?? (dataset ? {',
+    );
+    expect(rendererSource).toContain(
+      'releasedMarketFallback = fallbackForRequest;',
+    );
+    expect(rendererSource).toContain(
+      'await restoreMarketFallback(fallback, diagnosticRequest);',
+    );
+    expect(rendererSource).toMatch(
+      /await renderDataset\(\s*fallback\.dataset,\s*fallback\.context,\s*diagnosticRequest,\s*false,\s*\);/,
+    );
+    expect(rendererSource).toContain(
+      'discardedDatasets.forEach(releaseDatasetDerivations);',
+    );
+    expect(rendererSource).toContain(
+      'releaseDatasetDerivations(obsoleteFallback.dataset);',
+    );
+  });
+
+  it('keeps background one-minute bars in exact strategy and review inputs', () => {
+    expect(strategyDerivationsSource).toMatch(
       /entryLifecycle\(\s*entry,\s*dataset\.bars5,\s*dataset\.bars1,/,
     );
-    expect(rendererSource).toMatch(
-      /dataset\.bars5,\s*dataset\.bars1,\s*dataset\.definition,/,
-    );
+    expect(rendererSource).toContain('reviewProfitLossLifecycles(');
+    expect(rendererSource).toContain('derivations.candidates');
     expect(rendererSource).toContain('根后台 1 分钟 K 线');
+  });
+
+  it('builds profit-loss detail DOM only while the review is open or requested', () => {
+    expect(rendererSource).toContain(
+      'if (reviewDialog.open) renderProfitLossReview(result);',
+    );
+    expect(rendererSource).toContain('profitLossDetailGenerationCount += 1;');
+    expect(rendererSource).toContain(
+      "reviewButton.addEventListener('click', () => showProfitLossReview());",
+    );
   });
 });

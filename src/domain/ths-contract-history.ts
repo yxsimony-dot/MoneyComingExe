@@ -295,6 +295,22 @@ interface NormalizedDesktopMinute {
   normalizedContract: string;
 }
 
+export interface DesktopGlassContractFallbackRange {
+  firstStartMs: number;
+  lastEndMs: number;
+}
+
+function validateFallbackRange(
+  range: DesktopGlassContractFallbackRange | undefined,
+): void {
+  if (!range) return;
+  if (!Number.isSafeInteger(range.firstStartMs)
+    || !Number.isSafeInteger(range.lastEndMs)
+    || range.firstStartMs >= range.lastEndMs) {
+    throw new Error('具体合约后备保护区间无效');
+  }
+}
+
 function aggregateDesktopFallback(
   rows: readonly NormalizedDesktopMinute[],
   rawContract: string,
@@ -368,8 +384,10 @@ export async function loadAuditableDesktopGlassContractFallback(
   source: DesktopFuturesHistorySource,
   rawContract: string,
   tradingDateValues: readonly string[],
+  range?: DesktopGlassContractFallbackRange,
 ): Promise<GlassContractCandidateSeries> {
   validateSourceDescription(source.description);
+  validateFallbackRange(range);
   const tradingDates = normalizeHistoricalTradingDates(tradingDateValues);
   assertGlassSourceContract(rawContract, tradingDates[0]);
   const tradingDateSet = new Set(tradingDates);
@@ -382,6 +400,9 @@ export async function loadAuditableDesktopGlassContractFallback(
   const seenCursors = new Set<string>();
   let cursor: string | undefined;
   let previousStartMs: number | undefined;
+  let sourceRows = 0;
+  let firstSourceTimestamp: string | null = null;
+  let lastSourceTimestamp: string | null = null;
   do {
     const cursorKey = cursor ?? '<first-page>';
     if (seenCursors.has(cursorKey)) {
@@ -413,6 +434,13 @@ export async function loadAuditableDesktopGlassContractFallback(
         );
       }
       previousStartMs = startMs;
+      sourceRows += 1;
+      firstSourceTimestamp ??= record.timestamp;
+      lastSourceTimestamp = record.timestamp;
+      if (range
+        && (startMs < range.firstStartMs || startMs >= range.lastEndMs)) {
+        continue;
+      }
       const tradingDate = tradingDateForHistoricalTimestamp(
         GLASS,
         startMs,
@@ -428,18 +456,21 @@ export async function loadAuditableDesktopGlassContractFallback(
     }
     cursor = page.nextCursor;
   } while (cursor !== undefined);
-  if (rows.length !== sourceFile.rows) {
+  if (sourceRows !== sourceFile.rows) {
     throw new Error(
       `具体合约后备来源文件行数与分页读取数量不一致：`
-      + `${sourceFile.rows} / ${rows.length}`,
+      + `${sourceFile.rows} / ${sourceRows}`,
     );
   }
-  if (rows.length
+  if (sourceRows
     && (
-      rows[0].record.timestamp !== sourceFile.firstTimestamp
-      || rows.at(-1)!.record.timestamp !== sourceFile.lastTimestamp
+      firstSourceTimestamp !== sourceFile.firstTimestamp
+      || lastSourceTimestamp !== sourceFile.lastTimestamp
     )) {
     throw new Error('具体合约后备来源文件首末时间与分页记录不一致');
+  }
+  if (!rows.length) {
+    throw new Error(`具体合约后备在保护区间内没有记录：${rawContract}`);
   }
   const records = aggregateDesktopFallback(rows, rawContract, sourceFile);
   const normalized = oneNormalizedContract(records);

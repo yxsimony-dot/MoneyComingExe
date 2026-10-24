@@ -120,6 +120,17 @@ function exactKeys(record: Record<string, unknown>, expected: readonly string[])
     && actual.every((key, index) => key === required[index]);
 }
 
+function requiredAndOptionalKeys(
+  record: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[],
+): boolean {
+  const actual = Object.keys(record);
+  const allowed = new Set([...required, ...optional]);
+  return required.every(key => Object.hasOwn(record, key))
+    && actual.every(key => allowed.has(key));
+}
+
 function isExactStringArray(value: unknown, expected: readonly string[]): boolean {
   return Array.isArray(value)
     && value.length === expected.length
@@ -233,13 +244,33 @@ function parsePage<Code extends string>(
     throw new ThsMainClientError('invalid-response', '同花顺响应不是有效 JSON');
   }
   if (!isRecord(parsed)
-    || !exactKeys(parsed, ['status_code', 'data'])
+    || !requiredAndOptionalKeys(
+      parsed,
+      ['status_code', 'data'],
+      ['status_msg'],
+    )
     || parsed.status_code !== 0
+    || (parsed.status_msg !== undefined && parsed.status_msg !== 'ok')
     || !isRecord(parsed.data)
-    || !exactKeys(parsed.data, ['quote_data'])
+    || !requiredAndOptionalKeys(
+      parsed.data,
+      ['quote_data'],
+      ['fail_params'],
+    )
+    || (parsed.data.fail_params !== undefined
+      && parsed.data.fail_params !== null)
     || !Array.isArray(parsed.data.quote_data)
-    || parsed.data.quote_data.length !== 1) {
+    || parsed.data.quote_data.length > 1) {
     throw new ThsMainClientError('invalid-response', '同花顺响应顶层结构无效');
+  }
+  if (parsed.data.quote_data.length === 0) {
+    return {
+      market: THS_GLASS_MAIN_MARKET,
+      code: expectedCode,
+      delay: false,
+      dataFields: THS_KLINE_FIELDS,
+      values: [],
+    };
   }
   const quote = parsed.data.quote_data[0];
   if (!isRecord(quote)

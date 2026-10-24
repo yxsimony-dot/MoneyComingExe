@@ -56,15 +56,19 @@ export interface DesktopMainContractCandidateAudit {
   mainRows: number;
   rows: number;
   exact: boolean;
+  timestampSequenceComplete: boolean;
   participatingFields: DesktopMainMatchField[];
   unavailableFields: DesktopMainMatchValueField[];
   mismatchFields: DesktopMainMismatchField[];
   mismatchRows: number;
   timestampMismatchRows: number;
   ohlcMismatchRows: number;
+  ohlcMatchingRows: number;
+  ohlcMatchRate: number;
   optionalMismatchRows: number;
   fullyMatchingRows: number;
   fullFieldMatchRate: number;
+  relativeEvidenceScore: number;
   tradeStatisticsDifferences: {
     amount: DesktopMainTradeStatisticDifference;
     volume: DesktopMainTradeStatisticDifference;
@@ -77,6 +81,7 @@ export interface DesktopMainTradeStatisticDifference {
   absoluteDifference: number | null;
   candidateTotal: number | null;
   differenceRatio: number | null;
+  anomaly: boolean;
 }
 
 export type DesktopMainSourceVarianceRule =
@@ -135,6 +140,42 @@ export interface DesktopMainContractRolloverBoundaryAudit {
   issues: string[];
 }
 
+export interface DesktopMainRelativeEvidenceCandidateAudit {
+  contract: string;
+  timestampSequenceComplete: boolean;
+  ohlcMatchingRows: number;
+  ohlcMatchRate: number;
+  amountSimilarity: number;
+  volumeSimilarity: number;
+  score: number;
+  tradeStatisticAnomalies: Array<'amount' | 'volume'>;
+  baseEvidenceIssues: string[];
+}
+
+export interface DesktopMainContractDailyRelativeEvidenceAudit {
+  status: 'selected' | 'rejected';
+  selectedContract?: string;
+  bestContract?: string;
+  bestScore?: number;
+  runnerUpContract?: string;
+  runnerUpScore?: number;
+  scoreMargin?: number;
+  previousMapping?: MainContractMapping;
+  candidateScores: DesktopMainRelativeEvidenceCandidateAudit[];
+  thresholds: {
+    minimumScore: number;
+    minimumScoreMargin: number;
+    minimumOhlcMatchingRows: number;
+    absoluteTradeStatisticAnomalyRatio: number;
+    weights: {
+      ohlc: number;
+      amount: number;
+      volume: number;
+    };
+  };
+  issues: string[];
+}
+
 export interface DesktopMainContractDayAudit {
   tradingDate: string;
   status: 'matched' | 'ambiguous';
@@ -142,6 +183,7 @@ export interface DesktopMainContractDayAudit {
     | 'exact-minute-sequence'
     | 'neighbor-confirmed-source-variance'
     | 'rollover-boundary-source-variance'
+    | 'daily-relative-candidate-evidence'
     | 'heuristic-fallback'
     | 'unresolved';
   selectedContract?: string;
@@ -156,6 +198,7 @@ export interface DesktopMainContractDayAudit {
   };
   sourceVariance?: DesktopMainContractSourceVarianceAudit;
   rolloverBoundarySourceVariance?: DesktopMainContractRolloverBoundaryAudit;
+  dailyRelativeEvidence?: DesktopMainContractDailyRelativeEvidenceAudit;
   heuristic: DesktopMainContractHeuristicAudit;
   rollover?: {
     tradingDate: string;
@@ -178,6 +221,7 @@ export interface DesktopMainContractExactMatchReport {
     uniqueExactMatches: number;
     sourceVarianceFallbackMatches: number;
     rolloverBoundarySourceVarianceMatches: number;
+    dailyRelativeEvidenceMatches: number;
     heuristicFallbackMatches: number;
     zeroExactMatches: number;
     multipleExactMatches: number;
@@ -192,9 +236,13 @@ export interface DesktopMainContractFallbackEvidence {
 }
 
 export type DesktopMainHeuristicFallbackPolicy = 'allowed' | 'disabled';
+export type DesktopMainRelativeCandidateEvidencePolicy =
+  | 'disabled'
+  | 'daily-unique';
 
 export interface DesktopMainContractMatchOptions {
   heuristicFallback?: DesktopMainHeuristicFallbackPolicy;
+  relativeCandidateEvidence?: DesktopMainRelativeCandidateEvidencePolicy;
 }
 
 export interface DesktopMainContractAuditInput {
@@ -240,6 +288,18 @@ export const DESKTOP_MAIN_TRADE_STATISTICS_ONLY_THRESHOLDS = {
   maximumMismatchRows: 5,
   maximumVolumeDifferenceRatio: 0.0005,
   maximumAmountDifferenceRatio: 0.0005,
+} as const;
+
+export const DESKTOP_MAIN_DAILY_RELATIVE_EVIDENCE_THRESHOLDS = {
+  minimumScore: 0.5,
+  minimumScoreMargin: 0.2,
+  minimumOhlcMatchingRows: 1,
+  absoluteTradeStatisticAnomalyRatio: 0.05,
+  weights: {
+    ohlc: 0.8,
+    amount: 0.1,
+    volume: 0.1,
+  },
 } as const;
 
 const MAX_MISMATCH_SAMPLES = 5;
@@ -362,6 +422,7 @@ function tradeStatisticDifference(
       absoluteDifference: null,
       candidateTotal: null,
       differenceRatio: null,
+      anomaly: false,
     };
   }
   const sharedRows = Math.min(main.length, candidate.length);
@@ -386,7 +447,31 @@ function tradeStatisticDifference(
     absoluteDifference,
     candidateTotal,
     differenceRatio,
+    anomaly: differenceRatio !== null
+      && differenceRatio
+        > DESKTOP_MAIN_DAILY_RELATIVE_EVIDENCE_THRESHOLDS
+          .absoluteTradeStatisticAnomalyRatio,
   };
+}
+
+function tradeStatisticSimilarity(
+  difference: DesktopMainTradeStatisticDifference,
+): number {
+  if (difference.differenceRatio === null) return 0;
+  return 1 - Math.min(1, Math.max(0, difference.differenceRatio));
+}
+
+function relativeEvidenceScore(
+  ohlcMatchRate: number,
+  amount: DesktopMainTradeStatisticDifference,
+  volume: DesktopMainTradeStatisticDifference,
+): number {
+  const weights = DESKTOP_MAIN_DAILY_RELATIVE_EVIDENCE_THRESHOLDS.weights;
+  return (
+    weights.ohlc * ohlcMatchRate
+    + weights.amount * tradeStatisticSimilarity(amount)
+    + weights.volume * tradeStatisticSimilarity(volume)
+  );
 }
 
 export function compareDesktopMainContractCandidate(
@@ -413,6 +498,7 @@ export function compareDesktopMainContractCandidate(
   let mismatchRows = 0;
   let timestampMismatchRows = 0;
   let ohlcMismatchRows = 0;
+  let ohlcMatchingRows = 0;
   let optionalMismatchRows = 0;
   let fullyMatchingRows = 0;
   if (main.length !== candidate.length) mismatchFields.add('rowCount');
@@ -462,6 +548,7 @@ export function compareDesktopMainContractCandidate(
         }
       }
       if (ohlcMismatch) ohlcMismatchRows += 1;
+      else ohlcMatchingRows += 1;
       if (optionalMismatch) optionalMismatchRows += 1;
     }
     if (rowMismatchFields.length) {
@@ -498,26 +585,41 @@ export function compareDesktopMainContractCandidate(
     }
   }
   const comparisonRows = Math.max(main.length, candidate.length);
+  const timestampSequenceComplete = main.length === candidate.length
+    && timestampMismatchRows === 0;
+  const ohlcMatchRate = comparisonRows
+    ? ohlcMatchingRows / comparisonRows
+    : 0;
+  const amountDifference = tradeStatisticDifference(main, candidate, 'amount');
+  const volumeDifference = tradeStatisticDifference(main, candidate, 'volume');
 
   return {
     contract,
     mainRows: main.length,
     rows: candidate.length,
     exact: mismatchFields.size === 0,
+    timestampSequenceComplete,
     participatingFields,
     unavailableFields,
     mismatchFields: [...mismatchFields],
     mismatchRows,
     timestampMismatchRows,
     ohlcMismatchRows,
+    ohlcMatchingRows,
+    ohlcMatchRate,
     optionalMismatchRows,
     fullyMatchingRows,
     fullFieldMatchRate: comparisonRows
       ? fullyMatchingRows / comparisonRows
       : 0,
+    relativeEvidenceScore: relativeEvidenceScore(
+      ohlcMatchRate,
+      amountDifference,
+      volumeDifference,
+    ),
     tradeStatisticsDifferences: {
-      amount: tradeStatisticDifference(main, candidate, 'amount'),
-      volume: tradeStatisticDifference(main, candidate, 'volume'),
+      amount: amountDifference,
+      volume: volumeDifference,
     },
     mismatchSamples,
     firstMismatchTimestamp,
@@ -858,6 +960,136 @@ function expectedNextAllowedYearMonth(
   return `${String(nextYear).padStart(2, '0')}${String(nextMonth).padStart(2, '0')}`;
 }
 
+function dailyRelativeEvidenceAuditForDate(
+  input: DesktopMainContractAuditInput,
+  previousMapping: MainContractMapping | undefined,
+): DesktopMainContractDailyRelativeEvidenceAudit {
+  const thresholds = DESKTOP_MAIN_DAILY_RELATIVE_EVIDENCE_THRESHOLDS;
+  const candidateScores = input.candidates.map(candidate => {
+    const baseEvidenceIssues: string[] = [];
+    if (candidate.mainRows !== candidate.rows) {
+      baseEvidenceIssues.push(
+        `行数不一致：主连 ${candidate.mainRows}，候选 ${candidate.rows}`,
+      );
+    }
+    if (!candidate.timestampSequenceComplete) {
+      baseEvidenceIssues.push(
+        `时间戳序列不完整：${candidate.timestampMismatchRows} 行不一致`,
+      );
+    }
+    if (candidate.ohlcMatchingRows
+      < thresholds.minimumOhlcMatchingRows) {
+      baseEvidenceIssues.push('没有任何一根 OHLC 四字段完全重合');
+    }
+    const tradeStatisticAnomalies: Array<'amount' | 'volume'> = [];
+    if (candidate.tradeStatisticsDifferences.amount.anomaly) {
+      tradeStatisticAnomalies.push('amount');
+    }
+    if (candidate.tradeStatisticsDifferences.volume.anomaly) {
+      tradeStatisticAnomalies.push('volume');
+    }
+    return {
+      contract: candidate.contract,
+      timestampSequenceComplete: candidate.timestampSequenceComplete,
+      ohlcMatchingRows: candidate.ohlcMatchingRows,
+      ohlcMatchRate: candidate.ohlcMatchRate,
+      amountSimilarity: tradeStatisticSimilarity(
+        candidate.tradeStatisticsDifferences.amount,
+      ),
+      volumeSimilarity: tradeStatisticSimilarity(
+        candidate.tradeStatisticsDifferences.volume,
+      ),
+      score: candidate.relativeEvidenceScore,
+      tradeStatisticAnomalies,
+      baseEvidenceIssues,
+    };
+  }).sort((left, right) => (
+    right.score - left.score
+    || left.contract.localeCompare(right.contract, 'en')
+  ));
+  const completeTimelineCandidates = candidateScores.filter(
+    candidate => candidate.timestampSequenceComplete,
+  );
+  const best = completeTimelineCandidates[0];
+  const runnerUp = completeTimelineCandidates[1];
+  const scoreMargin = best && runnerUp
+    ? best.score - runnerUp.score
+    : undefined;
+  const issues: string[] = [];
+
+  if (!best) {
+    issues.push('没有行数和时间戳序列均完整的具体合约候选');
+  } else {
+    if (best.ohlcMatchingRows < thresholds.minimumOhlcMatchingRows) {
+      issues.push(
+        `最佳候选 ${best.contract} 没有任何一根 OHLC 四字段完全重合`,
+      );
+    }
+    if (best.score < thresholds.minimumScore) {
+      issues.push(
+        `最佳候选 ${best.contract} 的相对证据得分 ${best.score} `
+        + `低于最低门槛 ${thresholds.minimumScore}`,
+      );
+    }
+    if (runnerUp
+      && scoreMargin !== undefined
+      && scoreMargin < thresholds.minimumScoreMargin) {
+      issues.push(
+        `最佳候选 ${best.contract} 仅领先次优 ${runnerUp.contract} `
+        + `${scoreMargin}，低于最低领先 ${thresholds.minimumScoreMargin}`,
+      );
+    }
+    if (previousMapping) {
+      const previousExpiry = parseFourDigitContractExpiry(
+        previousMapping.contract,
+      );
+      const selectedExpiry = parseFourDigitContractExpiry(best.contract);
+      if (!previousExpiry) {
+        issues.push(
+          `前序合约不是规范四位到期代码：${previousMapping.contract}`,
+        );
+      } else if (!selectedExpiry) {
+        issues.push(`最佳候选不是规范四位到期代码：${best.contract}`);
+      } else if (previousExpiry.prefix !== selectedExpiry.prefix) {
+        issues.push(
+          `最佳候选与前序合约品种前缀不一致：`
+          + `${previousMapping.contract} -> ${best.contract}`,
+        );
+      } else if (
+        selectedExpiry.year * 100 + selectedExpiry.month
+        < previousExpiry.year * 100 + previousExpiry.month
+      ) {
+        issues.push(
+          `${input.tradingDate} 主力合约到期年月异常倒退：`
+          + `${previousMapping.contract} -> ${best.contract}`,
+        );
+      }
+    }
+  }
+
+  const selected = best && issues.length === 0 ? best : undefined;
+  return {
+    status: selected ? 'selected' : 'rejected',
+    selectedContract: selected?.contract,
+    bestContract: best?.contract,
+    bestScore: best?.score,
+    runnerUpContract: runnerUp?.contract,
+    runnerUpScore: runnerUp?.score,
+    scoreMargin,
+    previousMapping,
+    candidateScores,
+    thresholds: {
+      minimumScore: thresholds.minimumScore,
+      minimumScoreMargin: thresholds.minimumScoreMargin,
+      minimumOhlcMatchingRows: thresholds.minimumOhlcMatchingRows,
+      absoluteTradeStatisticAnomalyRatio:
+        thresholds.absoluteTradeStatisticAnomalyRatio,
+      weights: { ...thresholds.weights },
+    },
+    issues,
+  };
+}
+
 function rolloverBoundarySourceVarianceAuditForDate(
   instrumentId: Instrument,
   inputs: readonly DesktopMainContractAuditInput[],
@@ -993,6 +1225,8 @@ export function resolveDesktopMainContractAudits(
   options: DesktopMainContractMatchOptions = {},
 ): DesktopMainContractExactMatchReport {
   const heuristicFallbackAllowed = options.heuristicFallback !== 'disabled';
+  const dailyRelativeEvidenceEnabled
+    = options.relativeCandidateEvidence === 'daily-unique';
   const inputs = [...auditInputs]
     .sort((left, right) => left.tradingDate.localeCompare(right.tradingDate))
     .map(input => ({
@@ -1006,6 +1240,7 @@ export function resolveDesktopMainContractAudits(
   let uniqueExactMatches = 0;
   let sourceVarianceFallbackMatches = 0;
   let rolloverBoundarySourceVarianceMatches = 0;
+  let dailyRelativeEvidenceMatches = 0;
   let heuristicFallbackMatches = 0;
   let zeroExactMatches = 0;
   let multipleExactMatches = 0;
@@ -1101,6 +1336,102 @@ export function resolveDesktopMainContractAudits(
         ? '没有具体合约与主连分钟序列精确一致'
         : '没有同源具体合约分钟记录',
     ];
+    const dailyRelativeEvidence = dailyRelativeEvidenceEnabled
+      ? dailyRelativeEvidenceAuditForDate(input, mappings.at(-1))
+      : undefined;
+    const dailyRelativeCandidate = dailyRelativeEvidence?.selectedContract
+      ? candidates.find(candidate => (
+          candidate.contract === dailyRelativeEvidence.selectedContract
+        ))
+      : undefined;
+    if (dailyRelativeEvidence?.status === 'selected'
+      && dailyRelativeCandidate) {
+      mappings.push({
+        tradingDate,
+        contract: dailyRelativeCandidate.contract,
+      });
+      dailyRelativeEvidenceMatches += 1;
+      days.push({
+        tradingDate,
+        status: 'matched',
+        method: 'daily-relative-candidate-evidence',
+        selectedContract: dailyRelativeCandidate.contract,
+        confidence: dailyRelativeCandidate.relativeEvidenceScore,
+        participatingFields: dailyRelativeCandidate.participatingFields,
+        unavailableFields: dailyRelativeCandidate.unavailableFields,
+        candidates,
+        exactMatch: {
+          status: 'zero',
+          matchingContracts: [],
+          reasons: exactReasons,
+        },
+        dailyRelativeEvidence,
+        heuristic: heuristicAuditForDate(
+          instrumentId,
+          tradingDate,
+          dailyRelativeCandidate.contract,
+          fallback,
+        ),
+        ambiguityReasons: [],
+      });
+      continue;
+    }
+    if (dailyRelativeEvidence) {
+      const heuristic = heuristicAuditForDate(
+        instrumentId,
+        tradingDate,
+        undefined,
+        fallback,
+      );
+      const heuristicCandidate = heuristic.selectedContract
+        ? candidates.find(candidate => (
+            candidate.contract === heuristic.selectedContract
+          ))
+        : undefined;
+      const bestCandidate = dailyRelativeEvidence.bestContract
+        ? candidates.find(candidate => (
+            candidate.contract === dailyRelativeEvidence.bestContract
+          ))
+        : undefined;
+      const ambiguityReasons = [
+        ...exactReasons,
+        ...dailyRelativeEvidence.issues.map(
+          issue => `每日相对证据未通过：${issue}`,
+        ),
+        '每日相对证据策略已启用，未通过时不得改用源差异或 heuristic-fallback',
+      ];
+      if (heuristic.selectedContract && !heuristicCandidate) {
+        ambiguityReasons.push(
+          `启发式选择 ${heuristic.selectedContract} 缺少同源分钟候选记录`,
+        );
+      }
+      if (!heuristicFallbackAllowed) {
+        ambiguityReasons.push(
+          '当前匹配策略禁止 heuristic-fallback 作为激活依据',
+        );
+      }
+      ambiguityReasons.push(...heuristic.issues);
+      affectedDates.push(tradingDate);
+      days.push({
+        tradingDate,
+        status: 'ambiguous',
+        method: 'unresolved',
+        confidence: 0,
+        participatingFields: bestCandidate?.participatingFields ?? [],
+        unavailableFields: bestCandidate?.unavailableFields
+          ?? uniqueUnavailableFields(candidates),
+        candidates,
+        exactMatch: {
+          status: 'zero',
+          matchingContracts: [],
+          reasons: exactReasons,
+        },
+        dailyRelativeEvidence,
+        heuristic,
+        ambiguityReasons,
+      });
+      continue;
+    }
     const sourceVariance = sourceVarianceAuditForDate(inputs, inputIndex);
     const sourceVarianceCandidate = sourceVariance.selectedContract
       ? candidates.find(
@@ -1292,6 +1623,7 @@ export function resolveDesktopMainContractAudits(
       uniqueExactMatches,
       sourceVarianceFallbackMatches,
       rolloverBoundarySourceVarianceMatches,
+      dailyRelativeEvidenceMatches,
       heuristicFallbackMatches,
       zeroExactMatches,
       multipleExactMatches,

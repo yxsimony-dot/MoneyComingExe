@@ -46,6 +46,40 @@ describe('fixed THS glass main client', () => {
     );
   });
 
+  it('accepts the current THS success envelope without relaxing unknown fields', async () => {
+    const response = JSON.parse(fixture('fg9999-page-latest.json'));
+    response.status_msg = 'ok';
+    response.data.fail_params = null;
+    const client = new ThsMainClient({
+      fetch: async () => jsonResponse(JSON.stringify(response)),
+    });
+
+    const result = await client.fetchGlassMainHistory({
+      minimumCloseTimeMs: 1790230200000,
+    });
+
+    expect(result.pages[0].quote.values).toHaveLength(2);
+
+    response.unexpected = true;
+    const invalidClient = new ThsMainClient({
+      fetch: async () => jsonResponse(JSON.stringify(response)),
+    });
+    await expect(invalidClient.fetchGlassMainHistory())
+      .rejects.toThrow(/顶层结构/);
+  });
+
+  it('rejects a success envelope that reports failed parameters', async () => {
+    const response = JSON.parse(fixture('fg9999-page-latest.json'));
+    response.status_msg = 'ok';
+    response.data.fail_params = ['FG9999'];
+    const client = new ThsMainClient({
+      fetch: async () => jsonResponse(JSON.stringify(response)),
+    });
+
+    await expect(client.fetchGlassMainHistory())
+      .rejects.toThrow(/顶层结构/);
+  });
+
   it('paginates backward with the previous earliest timestamp minus one millisecond', async () => {
     const latest = fixture('fg9999-page-latest.json');
     const previous = fixture('fg9999-page-previous.json');
@@ -124,14 +158,15 @@ describe('fixed THS glass main client', () => {
 });
 
 describe('fixed THS glass contract client', () => {
-  it('uses the same fixed endpoint and request semantics for FG309', async () => {
-    const raw = fixture('fg309-page-2023.json');
+  it('uses the same fixed endpoint and request semantics for FG2309', async () => {
+    const raw = fixture('fg309-page-2023.json')
+      .replace('"code":"FG309"', '"code":"FG2309"');
     const fetch = vi.fn(async (_input: string, _init: RequestInit) => (
       jsonResponse(raw)
     ));
     const client = new ThsMainClient({ fetch });
 
-    const result = await client.fetchGlassContractHistory('FG309', {
+    const result = await client.fetchGlassContractHistory('FG2309', {
       minimumCloseTimeMs: 1691543100000,
     });
 
@@ -141,12 +176,12 @@ describe('fixed THS glass contract client', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       ...THS_GLASS_MAIN_REQUEST,
       code_list: [{
-        codes: ['FG309'],
+        codes: ['FG2309'],
         market: '67',
       }],
     });
     expect(result).toMatchObject({
-      sourceContract: 'FG309',
+      sourceContract: 'FG2309',
       termination: 'target-reached',
       firstCloseTimeMs: 1691543100000,
       lastCloseTimeMs: 1691543400000,
@@ -154,14 +189,15 @@ describe('fixed THS glass contract client', () => {
         rawSha256: createHash('sha256').update(raw).digest('hex'),
         quote: {
           market: '67',
-          code: 'FG309',
+          code: 'FG2309',
         },
       }],
     });
   });
 
   it('paginates a specific contract from the previous earliest close minus one millisecond', async () => {
-    const latest = JSON.parse(fixture('fg309-page-2023.json'));
+    const latest = JSON.parse(fixture('fg309-page-2023.json')
+      .replace('"code":"FG309"', '"code":"FG2309"'));
     const previous = structuredClone(latest);
     previous.data.quote_data[0].value = previous.data.quote_data[0].value.map(
       (row: unknown[]) => [Number(row[0]) - 600_000, ...row.slice(1)],
@@ -174,7 +210,7 @@ describe('fixed THS glass contract client', () => {
       .mockResolvedValueOnce(jsonResponse(JSON.stringify(empty)));
     const client = new ThsMainClient({ fetch });
 
-    const result = await client.fetchGlassContractHistory('FG309');
+    const result = await client.fetchGlassContractHistory('FG2309');
 
     expect(fetch.mock.calls.map(call => JSON.parse(call[1].body as string).end_time))
       .toEqual([0, 1691543099999, 1691542499999]);
@@ -183,15 +219,47 @@ describe('fixed THS glass contract client', () => {
     expect(result.lastCloseTimeMs).toBe(1691543400000);
   });
 
-  it('rejects a response whose contract code differs from the request', async () => {
-    const raw = fixture('fg309-page-2023.json')
-      .replace('"code":"FG309"', '"code":"FG2309"');
+  it('treats the current THS empty quote_data envelope as an empty contract page', async () => {
+    const raw = JSON.stringify({
+      status_code: 0,
+      data: {
+        quote_data: [],
+        fail_params: null,
+      },
+      status_msg: 'ok',
+    });
     const client = new ThsMainClient({
       fetch: async () => jsonResponse(raw),
     });
 
-    await expect(client.fetchGlassContractHistory('FG309'))
-      .rejects.toThrow(/FG309 响应结构无效/);
+    const result = await client.fetchGlassContractHistory('FG112');
+
+    expect(result).toMatchObject({
+      sourceContract: 'FG112',
+      termination: 'empty-page',
+      pages: [{
+        rawText: raw,
+        quote: {
+          market: '67',
+          code: 'FG112',
+          delay: false,
+          values: [],
+        },
+      }],
+    });
+    expect(result.firstCloseTimeMs).toBeUndefined();
+    expect(result.lastCloseTimeMs).toBeUndefined();
+  });
+
+  it('rejects a response whose contract code differs from the request', async () => {
+    const raw = fixture('fg309-page-2023.json')
+      .replace('"code":"FG309"', '"code":"FG2401"');
+    const client = new ThsMainClient({
+      fetch: async () => jsonResponse(raw),
+    });
+
+    await expect(client.fetchGlassContractHistory('FG2309'))
+      .rejects.toThrow(/FG2309 响应结构无效/);
   });
 
   it.each([

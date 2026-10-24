@@ -75,6 +75,28 @@ const FIVE_MINUTE_FILE = 'edb_main_continuous_5m.csv';
 const SIXTY_MINUTE_FILE = 'edb_main_continuous_60m.csv';
 const ROLLOVER_FILE = 'edb_main_continuous_rollovers.csv';
 const MAPPING_FILE = 'edb_main_contract_mapping.csv';
+const DEFAULT_GLASS_REPORT_RUN_ID = 'repair-run';
+const GLASS_RAW_PAGE_PATH = 'raw/pages/ths-fg9999-page-0001.json';
+const GLASS_EVIDENCE_FILES = [
+  ['request.json', '{"fixture":"request"}\n'],
+  ['normalized/ths_fg9999_5m.csv', 'bar_start_ms,bar_end_ms\n'],
+  ['reports/field-diff.json', '{"oneToOne":true}\n'],
+  ['reports/minute-reconciliation.json', '{"status":"audited"}\n'],
+  ['reports/contract-matching.json', '{"allowed":true}\n'],
+  [GLASS_RAW_PAGE_PATH, '{"fixture":"ths-fg9999-page-0001"}\n'],
+] as const;
+
+function glassReportManifestText(): string {
+  return `${JSON.stringify({
+    schemaVersion: 1,
+    hashAlgorithm: 'sha256',
+    files: GLASS_EVIDENCE_FILES.map(([path, text]) => ({
+      path,
+      sha256: sha256Text(text),
+      bytes: Buffer.byteLength(text),
+    })),
+  }, null, 2)}\n`;
+}
 
 afterEach(async () => {
   await Promise.all(temps.splice(0).map(path => rm(path, { recursive: true, force: true })));
@@ -405,6 +427,9 @@ function glassV7Data(
 }
 
 function glassBenchmarkSourceSegment(): MarketSnapshotSourceSegment {
+  const rawText = GLASS_EVIDENCE_FILES.find(
+    ([path]) => path === GLASS_RAW_PAGE_PATH,
+  )![1];
   return {
     sourceId: 'ths-fg9999',
     sourceName: '同花顺 FG9999 玻璃主连',
@@ -416,8 +441,8 @@ function glassBenchmarkSourceSegment(): MarketSnapshotSourceSegment {
       last: '2026-10-09 10:00:00',
     },
     rawFiles: [{
-      name: 'ths-fg9999-page-1.json',
-      sha256: 'b'.repeat(64),
+      name: GLASS_RAW_PAGE_PATH,
+      sha256: sha256Text(rawText),
       rows: 12,
     }],
     importerVersion: 'market-snapshot-test-v7',
@@ -429,9 +454,12 @@ function glassBenchmarkSourceSegment(): MarketSnapshotSourceSegment {
   };
 }
 
-function glassBenchmarkProtection(): MarketSnapshotBenchmarkProtection {
+function glassBenchmarkProtection(
+  reportRunId = DEFAULT_GLASS_REPORT_RUN_ID,
+): MarketSnapshotBenchmarkProtection {
   return {
     provider: 'THS',
+    reportRunId,
     sourceSegmentId: 'ths-fg9999',
     bars5: {
       firstStart: '2026-10-09 09:00:00',
@@ -452,12 +480,39 @@ function glassBenchmarkProtection(): MarketSnapshotBenchmarkProtection {
       lastTradingDate: '2026-10-12',
     },
     minutePolicy: 'preserved-audit-only',
-    reportSha256: 'c'.repeat(64),
+    reportSha256: sha256Text(glassReportManifestText()),
     redistribution: {
       allowed: false,
       conclusion: '同花顺基准只允许当前用户本机使用。',
     },
   };
+}
+
+async function writeGlassRepairEvidence(
+  paths: MarketDataPaths,
+  reportRunId = DEFAULT_GLASS_REPORT_RUN_ID,
+): Promise<string> {
+  const runDirectory = join(
+    paths.marketDataDirectory,
+    'repairs',
+    GLASS.id,
+    reportRunId,
+  );
+  await Promise.all([
+    mkdir(join(runDirectory, 'raw', 'pages'), { recursive: true }),
+    mkdir(join(runDirectory, 'normalized'), { recursive: true }),
+    mkdir(join(runDirectory, 'reports'), { recursive: true }),
+  ]);
+  await Promise.all([
+    ...GLASS_EVIDENCE_FILES.map(([path, text]) => (
+      writeFile(join(runDirectory, ...path.split('/')), text)
+    )),
+    writeFile(
+      join(runDirectory, 'reports', 'report-manifest.json'),
+      glassReportManifestText(),
+    ),
+  ]);
+  return runDirectory;
 }
 
 function v7Periods(data: GlassV7Data) {
@@ -491,8 +546,11 @@ async function writeManualV7Snapshot(
     activatedAt?: string;
     benchmarkProtection?: MarketSnapshotBenchmarkProtection;
     sourceSegments?: MarketSnapshotSourceSegment[];
+    bindActivation?: boolean;
   } = {},
 ): Promise<ManualV7Snapshot> {
+  const protection = options.benchmarkProtection ?? glassBenchmarkProtection();
+  await writeGlassRepairEvidence(paths, protection.reportRunId);
   const marketDirectory = userDirectory(paths, GLASS);
   const directory = join(marketDirectory, 'snapshots', snapshotId);
   const oneText = serializeMinuteRecords(persisted.bars1, GLASS.tradingSessions);
@@ -524,7 +582,7 @@ async function writeManualV7Snapshot(
       conclusion: '至少一个来源未确认允许随产品再分发。',
     },
     periods: v7Periods(merged),
-    benchmarkProtection: options.benchmarkProtection ?? glassBenchmarkProtection(),
+    benchmarkProtection: protection,
   };
   const files = {
     bars1: {
@@ -568,7 +626,8 @@ async function writeManualV7Snapshot(
     writeFile(join(directory, 'metadata.json'), metadataText),
     writeFile(join(directory, 'activated.json'), `${JSON.stringify({
       snapshotId,
-      activatedAt,
+      metadataSha256: sha256Text(metadataText),
+      activatedAt: metadata.generatedAt,
     }, null, 2)}\n`),
   ]);
   await writeFile(join(marketDirectory, 'current.json'), `${JSON.stringify({
@@ -576,7 +635,23 @@ async function writeManualV7Snapshot(
     snapshotId,
     updatedAt: activatedAt,
   }, null, 2)}\n`);
-  return { directory, metadata, metadataText };
+  const snapshot = { directory, metadata, metadataText };
+  if (storage.kind === 'full' && options.bindActivation !== false) {
+    const activationPath = join(
+      paths.marketDataDirectory,
+      'repairs',
+      GLASS.id,
+      protection.reportRunId,
+      'reports',
+      'activation.json',
+    );
+    try {
+      await readFile(activationPath);
+    } catch {
+      await writeGlassActivationReport(paths, snapshot);
+    }
+  }
+  return snapshot;
 }
 
 async function glassV7Fixture(): Promise<{
@@ -584,12 +659,7 @@ async function glassV7Fixture(): Promise<{
   data: GlassV7Data;
   base: ManualV7Snapshot;
 }> {
-  const root = await mkdtemp(join(tmpdir(), '玻璃 v7 快照-'));
-  temps.push(root);
-  const paths: MarketDataPaths = {
-    builtinDataDirectory: join(root, 'builtin'),
-    marketDataDirectory: join(root, 'market-data'),
-  };
+  const paths = await emptyGlassPaths();
   const data = glassV7Data(65);
   const base = await writeManualV7Snapshot(
     paths,
@@ -612,13 +682,17 @@ function v7TailData(data: GlassV7Data, cutoff: string): GlassV7Data {
   };
 }
 
-async function emptyGlassPaths(): Promise<MarketDataPaths> {
+async function emptyGlassPaths(
+  reportRunId = DEFAULT_GLASS_REPORT_RUN_ID,
+): Promise<MarketDataPaths> {
   const root = await mkdtemp(join(tmpdir(), '玻璃 v7 保存-'));
   temps.push(root);
-  return {
+  const paths = {
     builtinDataDirectory: join(root, 'builtin'),
     marketDataDirectory: join(root, 'market-data'),
   };
+  await writeGlassRepairEvidence(paths, reportRunId);
+  return paths;
 }
 
 function glassProtectedCandidate(
@@ -655,11 +729,13 @@ async function cloneBrokenV7Snapshot(
   const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
   metadata.snapshotId = snapshotId;
   await mutate(metadata, directory);
-  await writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+  const metadataText = `${JSON.stringify(metadata, null, 2)}\n`;
+  await writeFile(metadataPath, metadataText);
   const activatedAt = '2026-10-23T00:05:00.000Z';
   await writeFile(join(directory, 'activated.json'), `${JSON.stringify({
     snapshotId,
-    activatedAt,
+    metadataSha256: sha256Text(metadataText),
+    activatedAt: metadata.generatedAt,
   }, null, 2)}\n`);
   await writeFile(join(marketDirectory, 'current.json'), `${JSON.stringify({
     schemaVersion: 7,
@@ -688,12 +764,20 @@ async function cloneActivatedGlassSnapshot(
   const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
   metadata.snapshotId = snapshotId;
   await mutate?.(directory, metadata);
+  const metadataText = `${JSON.stringify(metadata, null, 2)}\n`;
+  const marker = metadata.schemaVersion === 7
+    ? {
+        snapshotId,
+        metadataSha256: sha256Text(metadataText),
+        activatedAt: metadata.generatedAt,
+      }
+    : { activatedAt };
   await Promise.all([
-    writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`),
-    writeFile(join(directory, 'activated.json'), `${JSON.stringify({
-      snapshotId,
-      activatedAt,
-    }, null, 2)}\n`),
+    writeFile(metadataPath, metadataText),
+    writeFile(
+      join(directory, 'activated.json'),
+      `${JSON.stringify(marker, null, 2)}\n`,
+    ),
   ]);
   return directory;
 }
@@ -701,8 +785,9 @@ async function cloneActivatedGlassSnapshot(
 async function writeGlassActivationReport(
   paths: MarketDataPaths,
   snapshot: ManualV7Snapshot,
-  runId = 'repair-run',
 ): Promise<void> {
+  const runId = snapshot.metadata.benchmarkProtection.reportRunId;
+  await writeGlassRepairEvidence(paths, runId);
   const reportsDirectory = join(
     paths.marketDataDirectory,
     'repairs',
@@ -714,8 +799,15 @@ async function writeGlassActivationReport(
   await writeFile(
     join(reportsDirectory, 'activation.json'),
     `${JSON.stringify({
+      schemaVersion: 1,
+      mode: 'activate',
+      status: 'activated',
+      activationAllowed: true,
+      reportRunId: runId,
+      reportSha256: snapshot.metadata.benchmarkProtection.reportSha256,
       snapshotId: snapshot.metadata.snapshotId,
       metadataSha256: sha256Text(snapshot.metadataText),
+      activatedAt: snapshot.metadata.generatedAt,
     }, null, 2)}\n`,
   );
 }
@@ -1179,6 +1271,7 @@ describe('schema 7 protected benchmark snapshots', () => {
       {
         idFactory: () => 'saved-v7-full',
         now: () => new Date('2026-10-23T00:00:00.000Z'),
+        bindBenchmarkReport: true,
       },
     );
 
@@ -1200,7 +1293,225 @@ describe('schema 7 protected benchmark snapshots', () => {
       schemaVersion: 7,
       snapshotId: 'saved-v7-full',
     });
+    const metadataText = await readFile(
+      join(saved.directory, 'metadata.json'),
+      'utf8',
+    );
+    expect(JSON.parse(await readFile(
+      join(saved.directory, 'activated.json'),
+      'utf8',
+    ))).toEqual({
+      snapshotId: 'saved-v7-full',
+      metadataSha256: sha256Text(metadataText),
+      activatedAt: '2026-10-23T00:00:00.000Z',
+    });
+    expect(JSON.parse(await readFile(
+      join(
+        paths.marketDataDirectory,
+        'repairs',
+        GLASS.id,
+        DEFAULT_GLASS_REPORT_RUN_ID,
+        'reports',
+        'activation.json',
+      ),
+      'utf8',
+    ))).toEqual({
+      schemaVersion: 1,
+      mode: 'activate',
+      status: 'activated',
+      activationAllowed: true,
+      reportRunId: DEFAULT_GLASS_REPORT_RUN_ID,
+      reportSha256: glassBenchmarkProtection().reportSha256,
+      snapshotId: 'saved-v7-full',
+      metadataSha256: sha256Text(metadataText),
+      activatedAt: '2026-10-23T00:00:00.000Z',
+    });
   });
+
+  it('rejects a first protected v7 root without explicit report binding', async () => {
+    const paths = await emptyGlassPaths();
+
+    await expect(saveMarketSnapshot(
+      paths,
+      GLASS,
+      glassProtectedCandidate(glassV7Data(65)),
+      {
+        idFactory: () => 'unbound-v7-full',
+        now: () => new Date('2026-10-23T00:00:00.000Z'),
+      },
+    )).rejects.toThrow('首次 schema v7 基准快照必须绑定修复报告');
+    await expect(readFile(
+      join(userDirectory(paths, GLASS), 'current.json'),
+    )).rejects.toThrow();
+    await expect(readFile(
+      join(
+        userDirectory(paths, GLASS),
+        'snapshots',
+        'unbound-v7-full',
+        'metadata.json',
+      ),
+    )).rejects.toThrow();
+  });
+
+  it.each([
+    'raw page',
+    'report file',
+    'metadata',
+  ] as const)(
+    'restores the previous pointer and activation bytes when %s changes before activation',
+    async tamperTarget => {
+      const paths = await emptyGlassPaths();
+      const legacy = await saveMarketSnapshot(
+        paths,
+        GLASS,
+        glassV7Data(65, false),
+        {
+          idFactory: () => 'pre-tamper-v5',
+          now: () => new Date('2026-10-22T23:55:00.000Z'),
+        },
+      );
+      const marketDirectory = userDirectory(paths, GLASS);
+      const pointerPath = join(marketDirectory, 'current.json');
+      const pointerBefore = await readFile(pointerPath);
+      const runDirectory = join(
+        paths.marketDataDirectory,
+        'repairs',
+        GLASS.id,
+        DEFAULT_GLASS_REPORT_RUN_ID,
+      );
+      const activationPath = join(
+        runDirectory,
+        'reports',
+        'activation.json',
+      );
+      const activationBefore = Buffer.from('{"status":"not-activated"}\n');
+      await writeFile(activationPath, activationBefore);
+      const snapshotId = `pre-tamper-${tamperTarget.replaceAll(' ', '-')}`;
+      const stagingDirectory = join(
+        marketDirectory,
+        `.staging-${snapshotId}`,
+      );
+
+      await expect(saveMarketSnapshot(
+        paths,
+        GLASS,
+        glassProtectedCandidate(glassV7Data(65)),
+        {
+          idFactory: () => snapshotId,
+          now: () => new Date('2026-10-23T00:00:00.000Z'),
+          bindBenchmarkReport: true,
+          beforePointerSwitch: async () => {
+            if (tamperTarget === 'raw page') {
+              await writeFile(
+                join(runDirectory, ...GLASS_RAW_PAGE_PATH.split('/')),
+                'tampered raw page\n',
+              );
+            } else if (tamperTarget === 'report file') {
+              await writeFile(
+                join(runDirectory, 'reports', 'field-diff.json'),
+                '{"oneToOne":false}\n',
+              );
+            } else {
+              const metadataPath = join(stagingDirectory, 'metadata.json');
+              const metadataText = await readFile(metadataPath, 'utf8');
+              await writeFile(metadataPath, `${metadataText} `);
+            }
+          },
+        },
+      )).rejects.toThrow();
+
+      expect(await readFile(pointerPath)).toEqual(pointerBefore);
+      expect(await readFile(activationPath)).toEqual(activationBefore);
+      await expect(readFile(
+        join(marketDirectory, 'snapshots', snapshotId, 'metadata.json'),
+      )).rejects.toThrow();
+      await expect(readFile(
+        join(stagingDirectory, 'metadata.json'),
+      )).rejects.toThrow();
+      expect((await loadEffectiveSnapshot(paths, GLASS)).directory)
+        .toBe(legacy.directory);
+    },
+  );
+
+  it.each([
+    'raw page',
+    'report file',
+    'metadata',
+    'local marker',
+  ] as const)(
+    'rolls back to the previous snapshot when %s changes after pointer activation',
+    async tamperTarget => {
+      const paths = await emptyGlassPaths();
+      const legacy = await saveMarketSnapshot(
+        paths,
+        GLASS,
+        glassV7Data(65, false),
+        {
+          idFactory: () => 'post-tamper-v5',
+          now: () => new Date('2026-10-22T23:55:00.000Z'),
+        },
+      );
+      const marketDirectory = userDirectory(paths, GLASS);
+      const pointerPath = join(marketDirectory, 'current.json');
+      const pointerBefore = await readFile(pointerPath);
+      const runDirectory = join(
+        paths.marketDataDirectory,
+        'repairs',
+        GLASS.id,
+        DEFAULT_GLASS_REPORT_RUN_ID,
+      );
+      const activationPath = join(
+        runDirectory,
+        'reports',
+        'activation.json',
+      );
+      const activationBefore = Buffer.from('{"status":"not-activated"}\n');
+      await writeFile(activationPath, activationBefore);
+      const snapshotId = `post-tamper-${tamperTarget.replaceAll(' ', '-')}`;
+      const candidateDirectory = join(
+        marketDirectory,
+        'snapshots',
+        snapshotId,
+      );
+
+      await expect(saveMarketSnapshot(
+        paths,
+        GLASS,
+        glassProtectedCandidate(glassV7Data(65)),
+        {
+          idFactory: () => snapshotId,
+          now: () => new Date('2026-10-23T00:00:00.000Z'),
+          bindBenchmarkReport: true,
+          onTiming: phase => {
+            if (phase !== 'activation') return;
+            if (tamperTarget === 'raw page') {
+              writeFileSync(
+                join(runDirectory, ...GLASS_RAW_PAGE_PATH.split('/')),
+                'tampered raw page\n',
+              );
+            } else if (tamperTarget === 'report file') {
+              writeFileSync(
+                join(runDirectory, 'reports', 'field-diff.json'),
+                '{"oneToOne":false}\n',
+              );
+            } else if (tamperTarget === 'metadata') {
+              writeFileSync(join(candidateDirectory, 'metadata.json'), '{}\n');
+            } else {
+              writeFileSync(join(candidateDirectory, 'activated.json'), '{}\n');
+            }
+          },
+        },
+      )).rejects.toThrow();
+
+      expect(await readFile(pointerPath)).toEqual(pointerBefore);
+      expect(await readFile(activationPath)).toEqual(activationBefore);
+      await expect(readFile(
+        join(candidateDirectory, 'metadata.json'),
+      )).rejects.toThrow();
+      expect((await loadEffectiveSnapshot(paths, GLASS)).directory)
+        .toBe(legacy.directory);
+    },
+  );
 
   it('writes consecutive v7 tails against the original full base and compacts to v7', async () => {
     const paths = await emptyGlassPaths();
@@ -1211,8 +1522,18 @@ describe('schema 7 protected benchmark snapshots', () => {
       {
         idFactory: () => 'saved-v7-base',
         now: () => new Date('2026-10-23T00:00:00.000Z'),
+        bindBenchmarkReport: true,
       },
     );
+    const activationPath = join(
+      paths.marketDataDirectory,
+      'repairs',
+      GLASS.id,
+      DEFAULT_GLASS_REPORT_RUN_ID,
+      'reports',
+      'activation.json',
+    );
+    const activationBytes = await readFile(activationPath);
     const first = await saveMarketSnapshot(
       paths,
       GLASS,
@@ -1287,6 +1608,15 @@ describe('schema 7 protected benchmark snapshots', () => {
       benchmarkProtection: glassBenchmarkProtection(),
     });
     expect(compacted.bars1).toHaveLength(80);
+    expect(await readFile(activationPath)).toEqual(activationBytes);
+    for (const snapshot of [first, second, compacted]) {
+      expect(snapshot.metadata?.schemaVersion).toBe(7);
+      expect(snapshot.metadata && 'benchmarkProtection' in snapshot.metadata
+        ? snapshot.metadata.benchmarkProtection
+        : undefined).toEqual(base.metadata && 'benchmarkProtection' in base.metadata
+        ? base.metadata.benchmarkProtection
+        : undefined);
+    }
   });
 
   it('keeps the previous protected snapshot across activation failures and duplicate ids', async () => {
@@ -1298,6 +1628,7 @@ describe('schema 7 protected benchmark snapshots', () => {
       {
         idFactory: () => 'stable-v7-base',
         now: () => new Date('2026-10-23T00:00:00.000Z'),
+        bindBenchmarkReport: true,
       },
     );
     const baseFingerprint = await snapshotFingerprint(base.directory);
@@ -1359,6 +1690,7 @@ describe('schema 7 protected benchmark snapshots', () => {
       glassProtectedCandidate(glassV7Data(65)),
       {
         idFactory: () => 'stable-v7-base',
+        bindBenchmarkReport: true,
       },
     )).rejects.toThrow('快照标识已存在');
     expect(await snapshotFingerprint(base.directory)).toEqual(baseFingerprint);
@@ -1387,6 +1719,7 @@ describe('schema 7 protected benchmark snapshots', () => {
       {
         idFactory: () => 'mutation-base',
         now: () => new Date('2026-10-23T00:00:00.000Z'),
+        bindBenchmarkReport: true,
       },
     );
     const changed = glassV7Data(70);
@@ -1507,13 +1840,18 @@ describe('schema 7 protected benchmark snapshots', () => {
     );
 
     const protectedData = glassV7Data(65);
+    const protectedProtection = glassBenchmarkProtection('protected-run');
+    const reportedProtection = glassBenchmarkProtection('reported-run');
     const protectedBase = await writeManualV7Snapshot(
       paths,
       'protected-v7-base',
       { kind: 'full' },
       protectedData,
       protectedData,
-      { activatedAt: '2026-10-23T00:10:00.000Z' },
+      {
+        activatedAt: '2026-10-23T00:10:00.000Z',
+        benchmarkProtection: protectedProtection,
+      },
     );
     const reported = await writeManualV7Snapshot(
       paths,
@@ -1521,9 +1859,11 @@ describe('schema 7 protected benchmark snapshots', () => {
       { kind: 'full' },
       protectedData,
       protectedData,
-      { activatedAt: '2026-10-23T00:12:00.000Z' },
+      {
+        activatedAt: '2026-10-23T00:12:00.000Z',
+        benchmarkProtection: reportedProtection,
+      },
     );
-    await writeGlassActivationReport(paths, reported);
     const merged = glassV7Data(70);
     const protectedTail = await writeManualV7Snapshot(
       paths,
@@ -1539,7 +1879,10 @@ describe('schema 7 protected benchmark snapshots', () => {
       },
       v7TailData(merged, '2026-10-09 10:05:00'),
       merged,
-      { activatedAt: '2026-10-23T00:15:00.000Z' },
+      {
+        activatedAt: '2026-10-23T00:15:00.000Z',
+        benchmarkProtection: protectedProtection,
+      },
     );
     const corruptLegacy = await cloneActivatedGlassSnapshot(
       paths,
@@ -1595,6 +1938,58 @@ describe('schema 7 protected benchmark snapshots', () => {
         base: { snapshotId: 'compat-v5-base' },
       },
     });
+  });
+
+  it('does not let an incomplete activation report protect an old v7 snapshot', async () => {
+    const paths = await emptyGlassPaths();
+    const data = glassV7Data(65);
+    const stale = await writeManualV7Snapshot(
+      paths,
+      'stale-unbound-v7',
+      { kind: 'full' },
+      data,
+      data,
+      {
+        activatedAt: '2026-10-23T00:00:00.000Z',
+        bindActivation: false,
+      },
+    );
+    await writeFile(
+      join(
+        paths.marketDataDirectory,
+        'repairs',
+        GLASS.id,
+        DEFAULT_GLASS_REPORT_RUN_ID,
+        'reports',
+        'activation.json',
+      ),
+      `${JSON.stringify({
+        snapshotId: stale.metadata.snapshotId,
+        metadataSha256: sha256Text(stale.metadataText),
+      }, null, 2)}\n`,
+    );
+    await saveMarketSnapshot(
+      paths,
+      GLASS,
+      glassV7Data(65, false),
+      {
+        idFactory: () => 'cleanup-v5-one',
+        now: () => new Date('2026-10-23T00:10:00.000Z'),
+      },
+    );
+    await saveMarketSnapshot(
+      paths,
+      GLASS,
+      glassV7Data(65, false),
+      {
+        idFactory: () => 'cleanup-v5-two',
+        now: () => new Date('2026-10-23T00:20:00.000Z'),
+      },
+    );
+
+    await expect(readFile(
+      join(stale.directory, 'metadata.json'),
+    )).rejects.toThrow();
   });
 
   it('restores an activation-report protected v7 snapshot over a newer legacy pointer', async () => {

@@ -172,20 +172,43 @@ try {
       'strategy-summary-ready',
     ],
   );
-  assert.ok(rendererDiagnostics.fullSetDataCalls.some(
-    call => call.requestId === switchRequest.requestId && call.period === 5,
-  ));
-  assert.ok(rendererDiagnostics.fullSetDataCalls.some(
-    call => call.requestId === switchRequest.requestId && call.period === 60,
-  ));
+  assert.deepEqual(
+    rendererDiagnostics.fullSetDataCalls
+      .filter(call => call.requestId === switchRequest.requestId)
+      .map(call => call.period)
+      .sort((left, right) => left - right),
+    [5, 60],
+  );
   assert.deepEqual(
     rendererDiagnostics.strategyDerivations
       .filter(call => call.requestId === switchRequest.requestId)
       .map(call => call.source),
-    ['chart', 'profit-loss'],
+    ['shared'],
   );
+  assert.equal(rendererDiagnostics.profitLossDetailGenerationCount, 0);
+  assert.equal(await page.locator('#review-content').innerText(), '');
+  const summaryFinalCapital = await page.getByTestId('settings-final-capital').innerText();
+  const summaryCompletedTrades = await page.getByTestId('settings-completed-trades').innerText();
+  await page.getByTestId('profit-loss-review').click();
+  assert.equal(await page.locator('#review-dialog').evaluate(element => element.open), true);
+  const openedReviewDiagnostics = await page.evaluate(
+    () => window.moneyComingTest?.rendererPerformanceDiagnostics(),
+  );
+  assert.equal(openedReviewDiagnostics?.profitLossDetailGenerationCount, 1);
+  assert.equal(
+    await page.getByTestId('review-final-capital').locator('strong').innerText(),
+    summaryFinalCapital,
+  );
+  assert.equal(
+    `${await page.getByTestId('review-trade').count()} 笔`,
+    summaryCompletedTrades,
+  );
+  await page.getByTestId('review-done').click();
   report.rendererDiagnostics = rendererDiagnostics;
-  report.scenarios.push('renderer-switch-diagnostic-order');
+  report.scenarios.push(
+    'renderer-switch-diagnostic-order',
+    'profit-loss-details-deferred-until-open',
+  );
 
   const initialSummary = {
     name: await page.locator('#instrument-name').innerText(),
@@ -195,10 +218,50 @@ try {
     counts: await page.locator('#counts').innerText(),
     close: numberText(await page.locator('#last-close').innerText()),
   };
+  await page.evaluate(() => window.moneyComingTest?.resetRendererPerformanceDiagnostics());
   await requestInstrument(page, 'rapeseed_meal_main');
-  await requestInstrument(page, 'rebar_main');
+  await page.locator('#loading:not([hidden])').waitFor();
+  const instrumentSelector = page.getByTestId('instrument');
+  assert.equal(await instrumentSelector.isDisabled(), false);
+  assert.equal(await instrumentSelector.evaluate(selector => {
+    const rect = selector.getBoundingClientRect();
+    const target = document.elementFromPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
+    return target === selector || selector.contains(target);
+  }), true);
+  await instrumentSelector.click();
+  await instrumentSelector.selectOption('rebar_main');
   await waitForInstrument(page, 'rebar_main');
   await page.waitForTimeout(450);
+  const rapidSwitchDiagnostics = await page.evaluate(
+    () => window.moneyComingTest?.rendererPerformanceDiagnostics(),
+  );
+  assert.ok(rapidSwitchDiagnostics);
+  const rapidSwitchRequests = rapidSwitchDiagnostics.events.filter(
+    event => event.type === 'switch-requested',
+  );
+  const slowRequest = rapidSwitchRequests.find(
+    event => event.instrument === 'rapeseed_meal_main',
+  );
+  const finalRequest = rapidSwitchRequests.find(
+    event => event.instrument === 'rebar_main',
+  );
+  assert.ok(slowRequest);
+  assert.ok(finalRequest);
+  assert.equal(
+    rapidSwitchDiagnostics.events.some(
+      event => event.requestId === slowRequest.requestId && event.type === 'chart-commit',
+    ),
+    false,
+  );
+  assert.deepEqual(
+    rapidSwitchDiagnostics.events
+      .filter(event => event.type === 'chart-commit')
+      .map(event => event.requestId),
+    [finalRequest.requestId],
+  );
   const rebar = fixture.expected.rebar_main;
   assert.equal(await page.locator('html').getAttribute('data-instrument'), 'rebar_main');
   assert.equal(await page.locator('#instrument-name').innerText(), rebar.name);
@@ -334,25 +397,118 @@ try {
   await page.getByTestId('review-done').click();
   report.scenarios.push('review-follows-instrument-parameters');
 
+  await jump(page, '2026-10-08');
+  await page.getByTestId('mode-60').click();
+  await page.getByTestId('profit-loss-review').click();
   const preserved = {
     instrument: await page.locator('html').getAttribute('data-instrument'),
     name: await page.locator('#instrument-name').innerText(),
     symbol: await page.locator('#instrument-symbol').innerText(),
     counts: await page.locator('#counts').innerText(),
     close: await page.locator('#last-close').innerText(),
+    selectedStart: await page.locator('html').getAttribute('data-selected-start'),
+    mode: await page.locator('html').getAttribute('data-mode'),
+    reviewOpen: await page.locator('#review-dialog').evaluate(element => element.open),
   };
-  await requestInstrument(page, 'pvc_main');
-  await page.locator('#error:not([hidden])').waitFor();
+  assert.ok(preserved.selectedStart);
+  assert.equal(preserved.mode, '60');
+  assert.equal(preserved.reviewOpen, true);
+  await page.evaluate(() => window.moneyComingTest?.resetRendererPerformanceDiagnostics());
+  await page.evaluate(async ({ intermediate, failing }) => {
+    const selector = document.querySelector('#instrument');
+    if (!(selector instanceof HTMLSelectElement)) {
+      throw new Error('找不到品种选择器');
+    }
+    selector.value = intermediate;
+    selector.dispatchEvent(new Event('change', { bubbles: true }));
+    for (;;) {
+      const diagnostics = window.moneyComingTest?.rendererPerformanceDiagnostics();
+      const request = diagnostics?.events.find(event => (
+        event.type === 'switch-requested'
+        && event.instrument === intermediate
+      ));
+      if (
+        request
+        && diagnostics?.events.some(event => (
+          event.requestId === request.requestId
+          && event.type === 'dataset-ready'
+        ))
+      ) {
+        break;
+      }
+      await new Promise(resolveFrame => requestAnimationFrame(resolveFrame));
+    }
+    selector.value = failing;
+    selector.dispatchEvent(new Event('change', { bubbles: true }));
+  }, {
+    intermediate: 'rapeseed_meal_main',
+    failing: 'pvc_main',
+  });
+  await page.waitForFunction(expectedInstrument => (
+    document.documentElement.dataset.instrument === expectedInstrument
+    && !document.querySelector('#error')?.hasAttribute('hidden')
+  ), preserved.instrument);
   assert.equal(await page.getByTestId('instrument').inputValue(), preserved.instrument);
   assert.equal(await page.locator('html').getAttribute('data-instrument'), preserved.instrument);
   assert.equal(await page.locator('#instrument-name').innerText(), preserved.name);
   assert.equal(await page.locator('#instrument-symbol').innerText(), preserved.symbol);
   assert.equal(await page.locator('#counts').innerText(), preserved.counts);
   assert.equal(await page.locator('#last-close').innerText(), preserved.close);
+  assert.equal(
+    await page.locator('html').getAttribute('data-selected-start'),
+    preserved.selectedStart,
+  );
+  assert.equal(await page.locator('html').getAttribute('data-mode'), preserved.mode);
+  assert.equal(
+    await page.locator('#review-dialog').evaluate(element => element.open),
+    preserved.reviewOpen,
+  );
   assert.match(await page.locator('#error-text').innerText(), /PVC主连加载失败/);
   assert.match(await page.locator('#error-text').innerText(), /当前仍显示玻璃主连/);
   assert.equal(await page.getByTestId('retry').isVisible(), true);
-  report.scenarios.push('load-failure-preserves-current-dataset');
+  const failedSwitchDiagnostics = await page.evaluate(
+    () => window.moneyComingTest?.rendererPerformanceDiagnostics(),
+  );
+  assert.ok(failedSwitchDiagnostics);
+  const intermediateRequest = failedSwitchDiagnostics.events.find(event => (
+    event.type === 'switch-requested'
+    && event.instrument === 'rapeseed_meal_main'
+  ));
+  const failedRequest = failedSwitchDiagnostics.events.find(event => (
+    event.type === 'switch-requested'
+    && event.instrument === 'pvc_main'
+  ));
+  assert.ok(intermediateRequest);
+  assert.ok(failedRequest);
+  assert.deepEqual(
+    failedSwitchDiagnostics.events.filter(event => (
+      event.requestId === intermediateRequest.requestId
+      && event.timestampMs > failedRequest.timestampMs
+      && (
+        event.type === 'chart-commit'
+        || event.type === 'strategy-summary-ready'
+      )
+    )),
+    [],
+  );
+  assert.equal(
+    failedSwitchDiagnostics.events.some(event => (
+      event.requestId === failedRequest.requestId
+      && event.type === 'chart-commit'
+    )),
+    false,
+  );
+  assert.equal(
+    failedSwitchDiagnostics.fullSetDataCalls.some(call => (
+      call.requestId === failedRequest.requestId
+    )),
+    false,
+  );
+  await page.getByTestId('review-done').click();
+  report.scenarios.push(
+    'load-failure-preserves-current-dataset',
+    'released-chart-fallback-restores-complete-view',
+  );
 
   assert.deepEqual(pageErrors, []);
   await page.screenshot({ path: join(output, 'multi-instrument-smoke.png') });

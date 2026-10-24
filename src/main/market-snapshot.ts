@@ -11,7 +11,14 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  resolve,
+  sep,
+} from 'node:path';
 import {
   detectContractRollovers,
   parseContractRollovers,
@@ -69,8 +76,18 @@ const METADATA_FILE = 'metadata.json';
 const ACTIVATED_FILE = 'activated.json';
 const POINTER_FILE = 'current.json';
 const SNAPSHOT_ID = /^[A-Za-z0-9._-]{1,100}$/;
+const REPORT_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const TRADING_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const REPORT_MANIFEST_FILE = join('reports', 'report-manifest.json');
+const REPORT_ACTIVATION_FILE = join('reports', 'activation.json');
+const REQUIRED_BENCHMARK_REPORT_FILES = [
+  'request.json',
+  'normalized/ths_fg9999_5m.csv',
+  'reports/field-diff.json',
+  'reports/minute-reconciliation.json',
+  'reports/contract-matching.json',
+] as const;
 const BENCHMARK_PROTECTED_FIELDS = [
   'open',
   'high',
@@ -160,6 +177,7 @@ export interface SaveSnapshotOptions {
   intent?: MarketUpdateIntent;
   current?: LoadedMarketSnapshot;
   tailCompactionThreshold?: number;
+  bindBenchmarkReport?: boolean;
 }
 
 export type SaveSnapshotTimingPhase =
@@ -226,6 +244,29 @@ interface CachedBaseSnapshot {
   snapshot: LoadedMarketSnapshot;
 }
 
+interface ReportManifestFile {
+  path: string;
+  sha256: string;
+  bytes: number;
+}
+
+interface V7ActivationRecord {
+  schemaVersion: 1;
+  mode: 'activate';
+  status: 'activated';
+  activationAllowed: true;
+  reportRunId: string;
+  reportSha256: string;
+  snapshotId: string;
+  metadataSha256: string;
+  activatedAt: string;
+}
+
+interface V7EvidenceOptions {
+  skipActivation?: boolean;
+  skipLocalMarker?: boolean;
+}
+
 const verifiedBaseCache = new Map<string, CachedBaseSnapshot>();
 
 function sha256(value: string | Buffer): string {
@@ -235,6 +276,15 @@ function sha256(value: string | Buffer): string {
 function assertSnapshotId(value: unknown): asserts value is string {
   if (typeof value !== 'string' || !SNAPSHOT_ID.test(value)) {
     throw new Error('快照标识无效');
+  }
+}
+
+function assertReportRunId(value: unknown): asserts value is string {
+  if (typeof value !== 'string'
+    || !REPORT_RUN_ID.test(value)
+    || value === '.'
+    || value === '..') {
+    throw new Error('基准修复运行标识无效');
   }
 }
 
@@ -484,6 +534,7 @@ function assertBenchmarkProtection(
   const protection = objectValue(value, '基准保护元数据');
   assertExactKeys(protection, [
     'provider',
+    'reportRunId',
     'sourceSegmentId',
     'bars5',
     'bars60',
@@ -496,6 +547,7 @@ function assertBenchmarkProtection(
   if (protection.provider !== 'THS') {
     throw new Error('基准保护提供方无效');
   }
+  assertReportRunId(protection.reportRunId);
   const sourceSegmentId = nonEmptyString(
     protection.sourceSegmentId,
     '基准保护来源分段标识',
@@ -730,6 +782,246 @@ function parseMetadata(
     throw new Error('快照生成时间无效');
   }
   return value as unknown as MarketSnapshotMetadata;
+}
+
+function repairRunDirectory(
+  snapshotDirectory: string,
+  definition: InstrumentDefinition,
+  reportRunId: string,
+): string {
+  assertReportRunId(reportRunId);
+  const instrumentDirectory = dirname(snapshotDirectoryRoot(snapshotDirectory));
+  if (basename(instrumentDirectory) !== definition.id) {
+    throw new Error('schema v7 快照目录与品种不匹配');
+  }
+  return join(
+    dirname(dirname(instrumentDirectory)),
+    'repairs',
+    definition.id,
+    reportRunId,
+  );
+}
+
+function reportFilePath(runDirectory: string, relativePath: unknown): string {
+  if (typeof relativePath !== 'string'
+    || !relativePath
+    || relativePath.includes('\\')
+    || isAbsolute(relativePath)
+    || /^[A-Za-z]:/.test(relativePath)) {
+    throw new Error('基准报告清单路径无效');
+  }
+  const segments = relativePath.split('/');
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) {
+    throw new Error('基准报告清单路径无效');
+  }
+  const runRoot = resolve(runDirectory);
+  const absolutePath = resolve(runRoot, ...segments);
+  if (!absolutePath.startsWith(`${runRoot}${sep}`)) {
+    throw new Error('基准报告清单路径越界');
+  }
+  return absolutePath;
+}
+
+async function verifyBenchmarkReportChain(
+  snapshotDirectory: string,
+  definition: InstrumentDefinition,
+  metadata: MarketSnapshotMetadataV7,
+): Promise<string> {
+  const protection = metadata.benchmarkProtection;
+  const runDirectory = repairRunDirectory(
+    snapshotDirectory,
+    definition,
+    protection.reportRunId,
+  );
+  const manifestPath = join(runDirectory, REPORT_MANIFEST_FILE);
+  const manifestBytes = await readFile(manifestPath);
+  if (sha256(manifestBytes) !== protection.reportSha256) {
+    throw new Error('基准报告清单哈希不一致');
+  }
+  const manifest = parseObject(
+    manifestBytes.toString('utf8'),
+    'report-manifest.json',
+  );
+  assertExactKeys(
+    manifest,
+    ['schemaVersion', 'hashAlgorithm', 'files'],
+    '基准报告清单',
+  );
+  if (manifest.schemaVersion !== 1
+    || manifest.hashAlgorithm !== 'sha256'
+    || !Array.isArray(manifest.files)) {
+    throw new Error('基准报告清单结构无效');
+  }
+
+  const files = new Map<string, ReportManifestFile>();
+  for (const value of manifest.files) {
+    const file = objectValue(value, '基准报告清单文件项');
+    assertExactKeys(
+      file,
+      ['path', 'sha256', 'bytes'],
+      '基准报告清单文件项',
+    );
+    const path = nonEmptyString(file.path, '基准报告清单文件路径');
+    reportFilePath(runDirectory, path);
+    if (files.has(path)) throw new Error('基准报告清单路径重复');
+    assertSha256(file.sha256, '基准报告清单文件哈希');
+    if (!Number.isSafeInteger(file.bytes) || (file.bytes as number) < 0) {
+      throw new Error('基准报告清单文件字节数无效');
+    }
+    files.set(path, {
+      path,
+      sha256: file.sha256,
+      bytes: file.bytes as number,
+    });
+  }
+  for (const required of REQUIRED_BENCHMARK_REPORT_FILES) {
+    if (!files.has(required)) {
+      throw new Error(`基准报告清单缺少必要文件：${required}`);
+    }
+  }
+  for (const file of files.values()) {
+    const content = await readFile(reportFilePath(runDirectory, file.path));
+    if (content.byteLength !== file.bytes) {
+      throw new Error(`基准报告文件字节数不一致：${file.path}`);
+    }
+    if (sha256(content) !== file.sha256) {
+      throw new Error(`基准报告文件哈希不一致：${file.path}`);
+    }
+  }
+
+  const benchmarkSegment = metadata.sourceSegments.find(
+    segment => segment.sourceId === protection.sourceSegmentId
+      && segment.kind === 'benchmark-main',
+  );
+  if (!benchmarkSegment) throw new Error('基准报告缺少匹配的来源分段');
+  for (const rawFile of benchmarkSegment.rawFiles) {
+    const manifestFile = files.get(rawFile.name);
+    if (!manifestFile || manifestFile.sha256 !== rawFile.sha256) {
+      throw new Error(`基准原始文件未被报告清单绑定：${rawFile.name}`);
+    }
+  }
+  return runDirectory;
+}
+
+function parseV7ActivationRecord(
+  text: string,
+  expectedReportRunId?: string,
+): V7ActivationRecord {
+  const value = parseObject(text, 'activation.json');
+  assertExactKeys(value, [
+    'schemaVersion',
+    'mode',
+    'status',
+    'activationAllowed',
+    'reportRunId',
+    'reportSha256',
+    'snapshotId',
+    'metadataSha256',
+    'activatedAt',
+  ], 'schema v7 激活报告');
+  if (value.schemaVersion !== 1
+    || value.mode !== 'activate'
+    || value.status !== 'activated'
+    || value.activationAllowed !== true) {
+    throw new Error('schema v7 激活报告状态无效');
+  }
+  assertReportRunId(value.reportRunId);
+  if (expectedReportRunId !== undefined
+    && value.reportRunId !== expectedReportRunId) {
+    throw new Error('schema v7 激活报告运行标识不一致');
+  }
+  assertSha256(value.reportSha256, 'schema v7 激活报告清单哈希');
+  assertSnapshotId(value.snapshotId);
+  assertSha256(value.metadataSha256, 'schema v7 激活报告元数据哈希');
+  if (typeof value.activatedAt !== 'string'
+    || Number.isNaN(Date.parse(value.activatedAt))) {
+    throw new Error('schema v7 激活报告时间无效');
+  }
+  return value as unknown as V7ActivationRecord;
+}
+
+async function verifyV7LocalMarker(
+  directory: string,
+  metadataText: string,
+  metadata: MarketSnapshotMetadataV7,
+): Promise<void> {
+  const marker = parseObject(
+    await readFile(join(directory, ACTIVATED_FILE), 'utf8'),
+    ACTIVATED_FILE,
+  );
+  assertExactKeys(
+    marker,
+    ['snapshotId', 'metadataSha256', 'activatedAt'],
+    'schema v7 本地激活标记',
+  );
+  if (marker.snapshotId !== metadata.snapshotId) {
+    throw new Error('schema v7 本地激活标记快照标识不一致');
+  }
+  assertSha256(marker.metadataSha256, 'schema v7 本地激活标记元数据哈希');
+  if (marker.metadataSha256 !== sha256(metadataText)) {
+    throw new Error('schema v7 本地激活标记元数据哈希不一致');
+  }
+  if (marker.activatedAt !== metadata.generatedAt) {
+    throw new Error('schema v7 本地激活标记时间不一致');
+  }
+}
+
+async function verifyV7BenchmarkEvidence(
+  directory: string,
+  metadataText: string,
+  metadata: MarketSnapshotMetadataV7,
+  definition: InstrumentDefinition,
+  options: V7EvidenceOptions = {},
+): Promise<void> {
+  const runDirectory = await verifyBenchmarkReportChain(
+    directory,
+    definition,
+    metadata,
+  );
+  if (!options.skipActivation) {
+    const activation = parseV7ActivationRecord(
+      await readFile(join(runDirectory, REPORT_ACTIVATION_FILE), 'utf8'),
+      metadata.benchmarkProtection.reportRunId,
+    );
+    if (activation.reportSha256 !== metadata.benchmarkProtection.reportSha256) {
+      throw new Error('schema v7 激活报告清单哈希不一致');
+    }
+    if (isV7Tail(metadata)
+      && metadata.storage.base.snapshotId !== activation.snapshotId) {
+      throw new Error('schema v7 尾部基座与激活报告根快照不一致');
+    }
+    const rootDirectory = isV7Full(metadata)
+      && activation.snapshotId === metadata.snapshotId
+      ? directory
+      : join(snapshotDirectoryRoot(directory), activation.snapshotId);
+    const rootMetadataText = await readFile(
+      join(rootDirectory, METADATA_FILE),
+      'utf8',
+    );
+    if (sha256(rootMetadataText) !== activation.metadataSha256) {
+      throw new Error('schema v7 根快照元数据哈希不一致');
+    }
+    const rootMetadata = parseMetadata(
+      rootMetadataText,
+      activation.snapshotId,
+      definition,
+    );
+    if (!isV7Full(rootMetadata)) {
+      throw new Error('schema v7 激活报告未指向完整根快照');
+    }
+    if (!isDeepStrictEqual(
+      rootMetadata.benchmarkProtection,
+      metadata.benchmarkProtection,
+    )) {
+      throw new Error('schema v7 根快照保护元数据不一致');
+    }
+    if (activation.activatedAt !== rootMetadata.generatedAt) {
+      throw new Error('schema v7 激活报告时间与根快照不一致');
+    }
+  }
+  if (!options.skipLocalMarker) {
+    await verifyV7LocalMarker(directory, metadataText, metadata);
+  }
 }
 
 function instrumentBuiltinDirectory(
@@ -1123,6 +1415,15 @@ async function loadVerifiedBaseSnapshot(
     }
     verifiedBaseMetadata = baseMetadata;
   }
+  if (metadata.schemaVersion === 7) {
+    return loadStandaloneMetadataSnapshotDirectory(
+      baseDirectory,
+      baseReference.snapshotId,
+      definition,
+      verifiedBaseMetadata,
+      'user',
+    );
+  }
   const signatures = await fileSignatures(baseDirectory, verifiedBaseMetadata);
   const cacheKey = `${baseDirectory}\0${baseReference.metadataSha256}`;
   const cached = verifiedBaseCache.get(cacheKey);
@@ -1420,14 +1721,25 @@ async function loadMetadataSnapshotDirectory(
   definition: InstrumentDefinition,
   source: SnapshotSource,
   fallback?: LoadedMarketSnapshot,
+  v7EvidenceOptions: V7EvidenceOptions = {},
 ): Promise<LoadedMarketSnapshot> {
+  const metadataText = await readFile(join(directory, METADATA_FILE), 'utf8');
   const metadata = parseMetadata(
-    await readFile(join(directory, METADATA_FILE), 'utf8'),
+    metadataText,
     expectedId,
     definition,
   );
   if (source === 'builtin' && metadata.schemaVersion === 7) {
     throw new Error('内置快照不支持 schema v7 基准保护数据');
+  }
+  if (metadata.schemaVersion === 7) {
+    await verifyV7BenchmarkEvidence(
+      directory,
+      metadataText,
+      metadata,
+      definition,
+      v7EvidenceOptions,
+    );
   }
   if (metadata.schemaVersion === 6) {
     return loadTailLayerSnapshotDirectory(
@@ -1549,7 +1861,10 @@ async function readCurrentPointer(directory: string): Promise<CurrentPointer> {
   return value as unknown as CurrentPointer;
 }
 
-async function activatedSnapshots(directory: string): Promise<ActivatedSnapshot[]> {
+async function activatedSnapshots(
+  directory: string,
+  definition: InstrumentDefinition,
+): Promise<ActivatedSnapshot[]> {
   const snapshots = join(directory, 'snapshots');
   let entries;
   try {
@@ -1561,10 +1876,29 @@ async function activatedSnapshots(directory: string): Promise<ActivatedSnapshot[
   for (const entry of entries) {
     if (!entry.isDirectory() || !SNAPSHOT_ID.test(entry.name)) continue;
     try {
+      const snapshotDirectory = join(snapshots, entry.name);
+      const metadataText = await readFile(
+        join(snapshotDirectory, METADATA_FILE),
+        'utf8',
+      );
+      const metadata = parseMetadata(metadataText, entry.name, definition);
+      if (metadata.schemaVersion === 7) {
+        await verifyV7LocalMarker(
+          snapshotDirectory,
+          metadataText,
+          metadata,
+        );
+        activated.push({
+          id: entry.name,
+          time: Date.parse(metadata.generatedAt),
+        });
+        continue;
+      }
       const marker = parseObject(
-        await readFile(join(snapshots, entry.name, ACTIVATED_FILE), 'utf8'),
+        await readFile(join(snapshotDirectory, ACTIVATED_FILE), 'utf8'),
         ACTIVATED_FILE,
       );
+      assertExactKeys(marker, ['activatedAt'], '旧版本地激活标记');
       const activatedAt = typeof marker.activatedAt === 'string'
         ? Date.parse(marker.activatedAt)
         : Number.NaN;
@@ -1611,6 +1945,11 @@ async function activationReportSnapshotIds(
   const referenced = new Map<string, number>();
   for (const run of runs) {
     if (!run.isDirectory()) continue;
+    try {
+      assertReportRunId(run.name);
+    } catch {
+      continue;
+    }
     const reportPath = join(
       repairsDirectory,
       run.name,
@@ -1618,12 +1957,10 @@ async function activationReportSnapshotIds(
       'activation.json',
     );
     try {
-      const report = parseObject(
+      const report = parseV7ActivationRecord(
         await readFile(reportPath, 'utf8'),
-        'activation.json',
+        run.name,
       );
-      assertSnapshotId(report.snapshotId);
-      assertSha256(report.metadataSha256, '激活报告元数据哈希');
       const { metadata, metadataText } = await readSnapshotMetadata(
         directory,
         report.snapshotId,
@@ -1633,6 +1970,12 @@ async function activationReportSnapshotIds(
         || sha256(metadataText) !== report.metadataSha256) {
         continue;
       }
+      await verifyV7BenchmarkEvidence(
+        join(directory, 'snapshots', report.snapshotId),
+        metadataText,
+        metadata,
+        definition,
+      );
       const reportInfo = await stat(reportPath);
       referenced.set(
         report.snapshotId,
@@ -1660,7 +2003,7 @@ async function snapshotCandidates(
   const pointerId = await readCurrentPointer(directory)
     .then(pointer => pointer.snapshotId)
     .catch(() => undefined);
-  const activated = await activatedSnapshots(directory);
+  const activated = await activatedSnapshots(directory, definition);
   const schemaVersions = new Map<string, number | undefined>();
   const schemaVersion = async (snapshotId: string | undefined) => {
     if (!snapshotId) return undefined;
@@ -1675,14 +2018,14 @@ async function snapshotCandidates(
     return schemaVersions.get(snapshotId);
   };
   if (await schemaVersion(pointerId) === 7) add(pointerId);
+  for (const snapshot of activated) {
+    if (await schemaVersion(snapshot.id) === 7) add(snapshot.id);
+  }
   for (const snapshotId of await activationReportSnapshotIds(
     directory,
     definition,
   )) {
     add(snapshotId);
-  }
-  for (const snapshot of activated) {
-    if (await schemaVersion(snapshot.id) === 7) add(snapshot.id);
   }
   const pointerVersion = await schemaVersion(pointerId);
   if (pointerVersion !== undefined && pointerVersion <= 6) add(pointerId);
@@ -2983,19 +3326,28 @@ export async function saveMarketSnapshot(
             generatedAt,
             prepared.serialized,
           );
+  const firstProtectedRoot = isV7Full(metadata)
+    && options.current?.metadata?.schemaVersion !== 7;
+  if (firstProtectedRoot && options.bindBenchmarkReport !== true) {
+    throw new Error('首次 schema v7 基准快照必须绑定修复报告');
+  }
   await mkdir(snapshotsDirectory, { recursive: true });
   if (await pathExists(finalDirectory)) {
     throw new Error(`快照标识已存在：${snapshotId}`);
   }
   await rm(stagingDirectory, { recursive: true, force: true });
-  let previousPointer: CurrentPointer | undefined;
+  const pointerPath = join(marketDataDirectory, POINTER_FILE);
+  let previousPointerBytes: Buffer | undefined;
   try {
-    previousPointer = await readCurrentPointer(marketDataDirectory);
+    previousPointerBytes = await readFile(pointerPath);
   } catch {
     // A first user snapshot has no pointer to restore.
   }
   let finalRenamed = false;
   let pointerSwitched = false;
+  let activationPath: string | undefined;
+  let previousActivationBytes: Buffer | undefined;
+  let restoreActivation = false;
   try {
     await mkdir(stagingDirectory);
     const writeStarted = performance.now();
@@ -3011,15 +3363,84 @@ export async function saveMarketSnapshot(
       snapshotId,
       definition,
       'user',
+      undefined,
+      metadata.schemaVersion === 7
+        ? {
+            skipActivation: firstProtectedRoot,
+            skipLocalMarker: true,
+          }
+        : undefined,
+    );
+    if (firstProtectedRoot) {
+      const runDirectory = repairRunDirectory(
+        stagingDirectory,
+        definition,
+        metadata.benchmarkProtection.reportRunId,
+      );
+      activationPath = join(runDirectory, REPORT_ACTIVATION_FILE);
+      try {
+        previousActivationBytes = await readFile(activationPath);
+      } catch {
+        // A repair run may not have written an activation record yet.
+      }
+      restoreActivation = true;
+      const activation: V7ActivationRecord = {
+        schemaVersion: 1,
+        mode: 'activate',
+        status: 'activated',
+        activationAllowed: true,
+        reportRunId: metadata.benchmarkProtection.reportRunId,
+        reportSha256: metadata.benchmarkProtection.reportSha256,
+        snapshotId,
+        metadataSha256: sha256(`${JSON.stringify(metadata, null, 2)}\n`),
+        activatedAt: generatedAt,
+      };
+      await writeFile(
+        activationPath,
+        `${JSON.stringify(activation, null, 2)}\n`,
+        'utf8',
+      );
+    }
+    await options.beforePointerSwitch?.();
+    await loadMetadataSnapshotDirectory(
+      stagingDirectory,
+      snapshotId,
+      definition,
+      'user',
+      undefined,
+      metadata.schemaVersion === 7
+        ? { skipLocalMarker: true }
+        : undefined,
     );
     options.onTiming?.(
       'validation',
       performance.now() - validationStarted,
     );
     const activationStarted = performance.now();
-    await options.beforePointerSwitch?.();
     await rename(stagingDirectory, finalDirectory);
     finalRenamed = true;
+    const metadataText = await readFile(
+      join(finalDirectory, METADATA_FILE),
+      'utf8',
+    );
+    const marker = metadata.schemaVersion === 7
+      ? {
+          snapshotId,
+          metadataSha256: sha256(metadataText),
+          activatedAt: generatedAt,
+        }
+      : { activatedAt: generatedAt };
+    await writeFile(
+      join(finalDirectory, ACTIVATED_FILE),
+      `${JSON.stringify(marker)}\n`,
+      'utf8',
+    );
+    await loadMetadataSnapshotDirectory(
+      finalDirectory,
+      snapshotId,
+      definition,
+      'user',
+    );
     const pointer: CurrentPointer = {
       schemaVersion: metadata.schemaVersion,
       snapshotId,
@@ -3027,12 +3448,6 @@ export async function saveMarketSnapshot(
     };
     await writeCurrentPointer(marketDataDirectory, pointer);
     pointerSwitched = true;
-    await writeFile(
-      join(finalDirectory, ACTIVATED_FILE),
-      `${JSON.stringify({ activatedAt: generatedAt })}\n`,
-      'utf8',
-    );
-    await cleanupSnapshots(paths, definition, snapshotId);
     options.onTiming?.(
       'activation',
       performance.now() - activationStarted,
@@ -3045,24 +3460,30 @@ export async function saveMarketSnapshot(
       'user',
     );
     options.onTiming?.('reload', performance.now() - reloadStarted);
+    await cleanupSnapshots(paths, definition, snapshotId);
+    restoreActivation = false;
     return loaded;
   } catch (error) {
     await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined);
-    if (finalRenamed && !pointerSwitched) {
+    if (pointerSwitched) {
+      if (previousPointerBytes) {
+        await writeFile(pointerPath, previousPointerBytes).catch(() => undefined);
+      } else {
+        await rm(pointerPath, { force: true }).catch(() => undefined);
+      }
+    }
+    if (finalRenamed) {
       await rm(finalDirectory, { recursive: true, force: true }).catch(() => undefined);
-    } else if (pointerSwitched) {
-      if (previousPointer) {
-        await writeCurrentPointer(
-          marketDataDirectory,
-          previousPointer,
+    }
+    if (restoreActivation && activationPath) {
+      if (previousActivationBytes) {
+        await writeFile(
+          activationPath,
+          previousActivationBytes,
         ).catch(() => undefined);
       } else {
-        await rm(
-          join(marketDataDirectory, POINTER_FILE),
-          { force: true },
-        ).catch(() => undefined);
+        await rm(activationPath, { force: true }).catch(() => undefined);
       }
-      await rm(finalDirectory, { recursive: true, force: true }).catch(() => undefined);
     }
     throw error;
   }
@@ -3162,7 +3583,7 @@ export async function cleanupSnapshots(
     ?? await readCurrentPointer(marketDataDirectory)
       .then(pointer => pointer.snapshotId)
       .catch(() => undefined);
-  const activated = await activatedSnapshots(marketDataDirectory);
+  const activated = await activatedSnapshots(marketDataDirectory, definition);
   const keep = new Set<string>();
   if (pointerId) keep.add(pointerId);
   for (const snapshot of activated) {

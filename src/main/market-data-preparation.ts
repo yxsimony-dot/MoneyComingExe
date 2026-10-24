@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { Worker } from 'node:worker_threads';
 import {
   primeTimeIndexForRecords,
+  timeIndexForRecords,
   timeIndexMetadataForRecords,
 } from '../domain/time-index';
 import { parseAudit } from '../domain/data';
@@ -68,7 +69,9 @@ MarketDataPreparationBackend {
   return {
     async loadSnapshotDirectory(request) {
       const snapshot = await prepareSnapshotDirectory(request);
-      snapshotTimeIndexes(snapshot);
+      timeIndexForRecords(snapshot.bars1);
+      timeIndexForRecords(snapshot.bars5);
+      timeIndexForRecords(snapshot.bars60);
       return snapshot;
     },
     async loadAudit(paths) {

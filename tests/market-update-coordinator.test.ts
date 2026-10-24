@@ -147,6 +147,7 @@ function minuteRange(start: string, count: number): string[] {
 function glassProtection(): MarketSnapshotBenchmarkProtection {
   return {
     provider: 'THS',
+    reportRunId: 'market-update-coordinator-test',
     sourceSegmentId: 'ths-fg9999',
     bars5: {
       firstStart: '2026-10-09 21:00:00',

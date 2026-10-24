@@ -14,6 +14,7 @@ import {
   type InstrumentDefinition,
 } from '../src/shared/instruments';
 import type { Bar } from '../src/shared/types';
+import { auditBenchmarkReleaseIsolation } from '../src/main/benchmark-release-audit';
 // @ts-expect-error Release scripts are executable ESM JavaScript modules.
 import { prepareRelease } from '../scripts/prepare-release.mjs';
 // @ts-expect-error Release scripts are executable ESM JavaScript modules.
@@ -298,6 +299,104 @@ describe('release validation scripts', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it('rejects local benchmark repair artifacts from every distribution boundary', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'moneycoming-release-isolation-'));
+    try {
+      for (const name of ['data', 'build', 'dist', 'release-staging']) {
+        const directory = join(workspace, name);
+        const metadataDirectory = join(directory, 'instruments', 'glass_main');
+        await mkdir(metadataDirectory, { recursive: true });
+        await writeFile(join(metadataDirectory, 'metadata.json'), JSON.stringify({
+          sourceSegments: [{
+            kind: 'benchmark-main',
+            sourceName: '同花顺玻璃主连',
+            license: {
+              redistributionAllowed: false,
+            },
+          }],
+        }));
+        await expect(auditBenchmarkReleaseIsolation([{
+          directory,
+          label: name,
+        }])).rejects.toThrow(/benchmark-main/);
+
+        await rm(directory, { recursive: true, force: true });
+        await mkdir(metadataDirectory, { recursive: true });
+        await writeFile(join(metadataDirectory, 'metadata.json'), JSON.stringify({
+          sourceSegments: [{
+            kind: 'benchmark-main',
+            sourceName: '已授权测试基准',
+            license: {
+              redistributionAllowed: true,
+            },
+          }],
+          benchmarkProtection: {
+            provider: 'THS',
+          },
+        }));
+        await expect(auditBenchmarkReleaseIsolation([{
+          directory,
+          label: name,
+        }])).rejects.toThrow(/THS 基准保护 metadata/);
+
+        await rm(directory, { recursive: true, force: true });
+        const rawDirectory = join(directory, 'copied', 'raw', 'pages');
+        await mkdir(rawDirectory, { recursive: true });
+        await writeFile(join(rawDirectory, 'page-0001.json'), '{}');
+        await expect(auditBenchmarkReleaseIsolation([{
+          directory,
+          label: name,
+        }])).rejects.toThrow(/同花顺原始/);
+
+        await rm(directory, { recursive: true, force: true });
+        const reportDirectory = join(directory, 'copied', 'reports');
+        await mkdir(reportDirectory, { recursive: true });
+        await writeFile(join(reportDirectory, 'field-diff.json'), '{}');
+        await expect(auditBenchmarkReleaseIsolation([{
+          directory,
+          label: name,
+        }])).rejects.toThrow(/修复报告/);
+
+        await rm(directory, { recursive: true, force: true });
+        const normalizedDirectory = join(directory, 'copied', 'normalized');
+        await mkdir(normalizedDirectory, { recursive: true });
+        await writeFile(join(normalizedDirectory, 'ths_fg9999_5m.csv'), 'bar_start,open\n');
+        await expect(auditBenchmarkReleaseIsolation([{
+          directory,
+          label: name,
+        }])).rejects.toThrow(/规范化/);
+      }
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it('runs benchmark isolation before release packaging', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'moneycoming-release-project-'));
+    try {
+      const reportDirectory = join(projectRoot, 'build', 'copied', 'reports');
+      const directory = join(projectRoot, 'release');
+      await mkdir(reportDirectory, { recursive: true });
+      await mkdir(directory, { recursive: true });
+      await writeFile(join(reportDirectory, 'report-manifest.json'), '{}');
+
+      await expect(prepareRelease(directory, { projectRoot })).rejects.toThrow(
+        /同花顺.*修复报告/,
+      );
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts the current redistributable baseline in the release isolation audit', async () => {
+    await expect(auditBenchmarkReleaseIsolation([{
+      directory: 'data',
+      label: 'data',
+    }])).resolves.toMatchObject({
+      directories: 1,
+    });
   });
 
   it('accepts the current schema 5 data tree with optional one-minute files', async () => {

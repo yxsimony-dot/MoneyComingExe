@@ -1,6 +1,7 @@
 import { readdir, rm } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { auditBenchmarkReleaseIsolation } from '../src/main/benchmark-release-audit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const releaseDirectory = resolve(root, 'release');
@@ -21,8 +22,9 @@ function checkedChild(directory, name) {
   return target;
 }
 
-export async function prepareRelease(directory = releaseDirectory) {
+export async function prepareRelease(directory = releaseDirectory, options = {}) {
   const targetDirectory = resolve(directory);
+  const projectRoot = resolve(options.projectRoot ?? root);
   let entries = [];
   try {
     entries = await readdir(targetDirectory, { withFileTypes: true });
@@ -49,6 +51,13 @@ export async function prepareRelease(directory = releaseDirectory) {
       }
     }
   }
+
+  await auditBenchmarkReleaseIsolation([
+    { directory: join(projectRoot, 'data'), label: 'data' },
+    { directory: join(projectRoot, 'build'), label: 'build' },
+    { directory: join(projectRoot, 'dist'), label: 'dist' },
+    { directory: targetDirectory, label: '发布暂存目录' },
+  ]);
 
   console.log(`Prepared release directory: removed ${oldArtifacts.length} old artifact(s).`);
   return oldArtifacts.map(entry => entry.name);

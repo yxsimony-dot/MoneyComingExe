@@ -156,6 +156,111 @@ describe('online market coordinator', () => {
     expect(fixture.clock.timerCount()).toBe(1);
   });
 
+  it('keeps protected glass in catch-up until validation and activation complete', async () => {
+    const activation = deferred<MarketUpdateState>();
+    const update = vi.fn(() => activation.promise);
+    const fixture = setup(update);
+
+    fixture.coordinator.declareCurrentInstrument('glass_main');
+    fixture.coordinator.setEnabled(true);
+    await flush();
+
+    expect(update).toHaveBeenCalledWith('glass_main', 'full');
+    expect(fixture.coordinator.getState()).toMatchObject({
+      instrument: 'glass_main',
+      phase: 'catching-up',
+      nextCheckAt: undefined,
+    });
+    expect(fixture.clock.timerCount()).toBe(0);
+
+    activation.resolve(successfulState('glass_main', 'full', {
+      phase: 'succeeded',
+      snapshotUpdatedAt: '2026-10-20T02:05:02.000Z',
+    }));
+    await flush();
+
+    expect(fixture.coordinator.getState()).toMatchObject({
+      instrument: 'glass_main',
+      phase: 'waiting',
+      snapshotUpdatedAt: '2026-10-20T02:05:02.000Z',
+      nextCheckAt: '2026-10-20 10:05:05',
+    });
+    expect(fixture.clock.timerCount()).toBe(1);
+  });
+
+  it('degrades protected glass when the full catch-up protection gate fails', async () => {
+    const update = vi.fn(async (
+      instrument: Instrument,
+      intent: MarketUpdateIntent,
+    ): Promise<MarketUpdateState> => ({
+      instrument,
+      intent,
+      phase: 'failed',
+      error: {
+        code: 'validation',
+        message: 'EDB 行情校验失败，当前数据未受影响',
+      },
+    }));
+    const fixture = setup(update);
+
+    fixture.coordinator.declareCurrentInstrument('glass_main');
+    fixture.coordinator.setEnabled(true);
+    await flush();
+
+    expect(fixture.coordinator.getState()).toMatchObject({
+      instrument: 'glass_main',
+      phase: 'degraded',
+      error: { code: 'validation' },
+      nextCheckAt: '2026-10-20 10:05:05',
+    });
+    expect(fixture.clock.timerCount()).toBe(1);
+
+    fixture.clock.advanceTo('2026-10-20 10:05:05');
+    await flush();
+    expect(update.mock.calls.map(call => call[1])).toEqual(['full', 'full']);
+  });
+
+  it('continues protected glass after source delay at the next closed minute', async () => {
+    const update = vi.fn(async (
+      instrument: Instrument,
+      intent: MarketUpdateIntent,
+    ) => intent === 'full'
+      ? successfulState(instrument, intent, {
+          localMinuteLatestAt: '2026-10-20 10:03:00',
+          sourceLatestAt: '2026-10-20 10:03:00',
+          requestEndAt: '2026-10-20 10:05:00',
+        })
+      : successfulState(instrument, intent, {
+          phase: 'succeeded',
+          localMinuteLatestAt: '2026-10-20 10:05:00',
+          sourceLatestAt: '2026-10-20 10:05:00',
+          requestEndAt: '2026-10-20 10:05:00',
+          snapshotUpdatedAt: '2026-10-20T02:05:06.000Z',
+        }));
+    const fixture = setup(update);
+
+    fixture.coordinator.declareCurrentInstrument('glass_main');
+    fixture.coordinator.setEnabled(true);
+    await flush();
+    expect(fixture.coordinator.getState()).toMatchObject({
+      phase: 'source-delayed',
+      sourceLatestAt: '2026-10-20 10:03:00',
+      nextCheckAt: '2026-10-20 10:05:05',
+    });
+
+    fixture.clock.advanceTo('2026-10-20 10:05:05');
+    await flush();
+
+    expect(update).toHaveBeenLastCalledWith('glass_main', 'tail');
+    expect(fixture.coordinator.getState()).toMatchObject({
+      phase: 'waiting',
+      localMinuteLatestAt: '2026-10-20 10:05:00',
+      sourceLatestAt: '2026-10-20 10:05:00',
+      snapshotUpdatedAt: '2026-10-20T02:05:06.000Z',
+      nextCheckAt: '2026-10-20 10:06:05',
+    });
+  });
+
   it('does not let a late local snapshot overwrite a completed full catch-up', async () => {
     const snapshot = deferred<{
       localMinuteLatestAt: string;

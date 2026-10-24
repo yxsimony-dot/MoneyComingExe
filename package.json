@@ -31,6 +31,7 @@
     "data:probe:sina-minute": "node scripts/probe-sina-futures-minute.mjs",
     "data:probe:tdx": "node scripts/run-tdx-tq-history-probe.mjs",
     "data:probe:tushare": "node scripts/probe-tushare-futures-minute.mjs",
+    "data:repair:glass-main": "node scripts/repair-glass-main-from-ths.mjs",
     "data:validate": "node scripts/validate-market-baselines.mjs",
     "package": "npm run build && node scripts/prepare-release.mjs && electron-builder --win nsis --publish never",
     "resolve:release-version": "node scripts/resolve-automatic-release-version.mjs",

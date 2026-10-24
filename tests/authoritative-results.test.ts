@@ -15,7 +15,12 @@ const BASELINE_PATH = resolve(
   'fixtures',
   'instrument-switch-authoritative-baseline.json',
 );
+const ACCEPTANCE_REPORT_PATH = resolve(
+  'artifacts',
+  'instrument-switch-authoritative-acceptance.json',
+);
 const UPDATE_BASELINE = process.env.UPDATE_AUTHORITATIVE_BASELINE === '1';
+const VERIFY_CURRENT = process.env.VERIFY_AUTHORITATIVE_RESULTS === '1';
 
 async function readBaseline(): Promise<AuthoritativeResultsBaseline> {
   return JSON.parse(await readFile(BASELINE_PATH, 'utf8')) as AuthoritativeResultsBaseline;
@@ -136,5 +141,35 @@ if (UPDATE_BASELINE) {
         actual: changed.instruments.main_continuous.profitLoss.finalCapital,
       });
     });
+
+    (VERIFY_CURRENT ? it : it.skip)(
+      'matches all current real instruments against the pre-optimization baseline',
+      async () => {
+        const baseline = await readBaseline();
+        const current = await buildAuthoritativeResultsBaseline({
+          onInstrument(instrument, index, total) {
+            console.log(`[authoritative acceptance] ${index + 1}/${total} ${instrument}`);
+          },
+        });
+        const differences = compareAuthoritativeResults(baseline, current);
+        const report = {
+          schemaVersion: 1,
+          generatedAt: new Date().toISOString(),
+          passed: differences.length === 0,
+          baselinePath: BASELINE_PATH,
+          instrumentCount: Object.keys(current.instruments).length,
+          differences,
+        };
+        await mkdir(dirname(ACCEPTANCE_REPORT_PATH), { recursive: true });
+        await writeFile(
+          ACCEPTANCE_REPORT_PATH,
+          `${JSON.stringify(report, null, 2)}\n`,
+        );
+
+        expect(Object.keys(current.instruments)).toEqual([...INSTRUMENT_IDS]);
+        expect(differences).toEqual([]);
+      },
+      15 * 60_000,
+    );
   });
 }

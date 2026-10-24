@@ -14,7 +14,7 @@ export interface TimeSeriesIndexMetadata {
 }
 
 export class TimeSeriesIndex<T extends TimeIndexedRecord> {
-  readonly startTimes: readonly number[];
+  private cachedStartTimes?: readonly number[];
 
   constructor(
     readonly records: readonly T[],
@@ -23,20 +23,24 @@ export class TimeSeriesIndex<T extends TimeIndexedRecord> {
     if (metadata && metadata.startTimes.length !== records.length) {
       throw new Error('时间索引记录数与行情记录不一致');
     }
-    this.startTimes = metadata?.startTimes ?? records.map(record => record.startMs);
+  }
+
+  get startTimes(): readonly number[] {
+    this.cachedStartTimes ??= this.records.map(record => record.startMs);
+    return this.cachedStartTimes;
   }
 
   positionAt(startMs: number): number | undefined {
     const position = this.lowerBound(startMs);
-    return this.startTimes[position] === startMs ? position : undefined;
+    return this.records[position]?.startMs === startMs ? position : undefined;
   }
 
   lowerBound(startMs: number): number {
     let low = 0;
-    let high = this.startTimes.length;
+    let high = this.records.length;
     while (low < high) {
       const middle = low + Math.floor((high - low) / 2);
-      if (this.startTimes[middle] < startMs) low = middle + 1;
+      if (this.records[middle].startMs < startMs) low = middle + 1;
       else high = middle;
     }
     return low;
@@ -44,10 +48,10 @@ export class TimeSeriesIndex<T extends TimeIndexedRecord> {
 
   upperBound(startMs: number): number {
     let low = 0;
-    let high = this.startTimes.length;
+    let high = this.records.length;
     while (low < high) {
       const middle = low + Math.floor((high - low) / 2);
-      if (this.startTimes[middle] <= startMs) low = middle + 1;
+      if (this.records[middle].startMs <= startMs) low = middle + 1;
       else high = middle;
     }
     return low;

@@ -783,6 +783,7 @@ function lifecycleSessionBars(
   sessionExitMinutes: SessionExitMinutes,
 ): {
   bars: Bar[];
+  startIndex?: number;
   policy: EntrySessionPolicy;
   entryCutoff: number;
   sessionEnd: number;
@@ -795,8 +796,8 @@ function lifecycleSessionBars(
     return { bars: [], policy, entryCutoff, sessionEnd };
   }
 
-  const triggerIndex = bars5.findIndex(bar => bar.startMs === triggerBar.startMs);
-  if (triggerIndex < 0) return { bars: [], policy, entryCutoff, sessionEnd };
+  const triggerIndex = timeIndexForRecords(bars5).positionAt(triggerBar.startMs);
+  if (triggerIndex === undefined) return { bars: [], policy, entryCutoff, sessionEnd };
 
   const bars: Bar[] = [];
   for (let index = triggerIndex; index < bars5.length; index += 1) {
@@ -815,7 +816,7 @@ function lifecycleSessionBars(
     }
     bars.push(bar);
   }
-  return { bars, policy, entryCutoff, sessionEnd };
+  return { bars, startIndex: triggerIndex, policy, entryCutoff, sessionEnd };
 }
 
 function buildEntryLifecycleAttempt(
@@ -916,6 +917,7 @@ export function entryLifecycle(
   settings: EntryStrategySettings = DEFAULT_ENTRY_STRATEGY_SETTINGS,
 ): EntryLifecycle {
   validateEntryStrategySettings(settings);
+  const bars5Index = timeIndexForRecords(bars5);
   const session = lifecycleSessionBars(
     entry.triggerBar,
     bars5,
@@ -945,9 +947,9 @@ export function entryLifecycle(
   const naturalAnalysisBars = sessionEndBar
     ? candidateBars.slice(0, candidateBars.findIndex(bar => bar.startMs === sessionEndBar.startMs) + 1)
     : candidateBars;
-  const naturalStartIndex = bars5.findIndex(
-    bar => bar.startMs === naturalAnalysisBars[0]?.startMs,
-  );
+  const naturalStartIndex = session.startIndex
+    ?? bars5Index.positionAt(naturalAnalysisBars[0].startMs)
+    ?? -1;
   const naturalEndIndex = naturalStartIndex + naturalAnalysisBars.length;
   const attempts: EntryLifecycleAttempt[] = [];
   const abandonedSetups: EntryAbandonedSetup[] = [];
@@ -969,7 +971,9 @@ export function entryLifecycle(
 
     if (searchResult.kind === 'abandoned-opposite-momentum') {
       abandonedSetups.push(searchResult.setup);
-      const candidateIndex = bars5.indexOf(searchResult.setup.candidateBar);
+      const candidateIndex = bars5Index.positionAt(
+        searchResult.setup.candidateBar.startMs,
+      ) ?? -1;
       const restartSearchStart = candidateIndex + 1;
       const restartTrigger = findSecondAttemptTrigger(
         entry.direction,
@@ -977,7 +981,7 @@ export function entryLifecycle(
         bars5.slice(restartSearchStart, naturalEndIndex),
       );
       if (!restartTrigger) break;
-      const restartIndex = bars5.indexOf(restartTrigger);
+      const restartIndex = bars5Index.positionAt(restartTrigger.startMs) ?? -1;
       if (restartIndex <= candidateIndex) break;
       searchStartIndex = restartIndex;
       continue;
@@ -1001,7 +1005,7 @@ export function entryLifecycle(
 
     const exit = attempt.exitAnalysis?.exitSignal;
     if (exit) {
-      const exitIndex = bars5.indexOf(exit.bar);
+      const exitIndex = bars5Index.positionAt(exit.bar.startMs) ?? -1;
       analysisBars = exitIndex < naturalStartIndex
         ? naturalAnalysisBars
         : bars5.slice(naturalStartIndex, exitIndex + 1);
@@ -1010,7 +1014,7 @@ export function entryLifecycle(
     }
     if (!attempt.quarterSignal?.entryBar || !exit || formalAttemptNumber === 2) break;
 
-    const exitIndex = bars5.indexOf(exit.bar);
+    const exitIndex = bars5Index.positionAt(exit.bar.startMs) ?? -1;
     const restartSearchStart = exitIndex + 1;
     const restartTrigger = findSecondAttemptTrigger(
       entry.direction,
@@ -1025,7 +1029,7 @@ export function entryLifecycle(
       break;
     }
 
-    const restartIndex = bars5.indexOf(restartTrigger);
+    const restartIndex = bars5Index.positionAt(restartTrigger.startMs) ?? -1;
     if (restartIndex <= exitIndex) break;
     formalAttemptNumber = 2;
     searchStartIndex = restartIndex;
@@ -1074,8 +1078,14 @@ const weekStartFor = (ms: number) => {
 };
 const dateOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-/** Causal weekly pullback entries reconstructed from 5-minute event order. */
-export function analyzeWeeklyEntries(bars60: Bar[], bars5: Bar[], ema: EmaPoint[]): WeeklyEntryAnalysis {
+function createWeeklyEntryAnalyzer(
+  bars60: Bar[],
+  bars5: Bar[],
+  ema: EmaPoint[],
+): {
+  process: (barIndex: number) => void;
+  result: () => WeeklyEntryAnalysis;
+} {
   const entries: WeeklyEntry[] = [];
   const emaByStart = new Map(ema.map(point => [point.bar.startMs, point.value]));
   let currentWeek: number | undefined;
@@ -1087,66 +1097,101 @@ export function analyzeWeeklyEntries(bars60: Bar[], bars5: Bar[], ema: EmaPoint[
   let incompleteHours = 0;
   let childCursor = 0;
 
+  return {
+    process(barIndex: number): void {
+      const bar = bars60[barIndex];
+      const week = weekStartFor(bar.startMs);
+      if (week !== currentWeek) {
+        currentWeek = week;
+        active = beijingDay(bar.startMs) === week;
+        ordinal = 0; high = -Infinity; low = Infinity; waiting = undefined;
+      }
+      if (!active) return;
+      ordinal += 1;
+      if (ordinal <= 8) {
+        high = Math.max(high, bar.high); low = Math.min(low, bar.low);
+        return;
+      }
+
+      while (childCursor < bars5.length && bars5[childCursor].startMs < bar.startMs) childCursor += 1;
+      const children: Bar[] = [];
+      for (let index = childCursor; index < bars5.length && bars5[index].startMs < bar.endMs; index += 1) {
+        if (bars5[index].endMs <= bar.endMs) children.push(bars5[index]);
+      }
+      const childHigh = children.length ? Math.max(...children.map(child => child.high)) : -Infinity;
+      const childLow = children.length ? Math.min(...children.map(child => child.low)) : Infinity;
+      const complete = children.length === Math.round(bar.expectedMinutes / 5) && children.every(child => child.complete)
+        && childHigh === bar.high && childLow === bar.low;
+      const ema20 = emaByStart.get(bars60[barIndex - 1]?.startMs);
+      if (!complete || ema20 === undefined) {
+        incompleteHours += 1;
+        const up = bar.high > high;
+        const down = bar.low < low;
+        if (up && down) waiting = undefined;
+        else if (up) waiting = 'long';
+        else if (down) waiting = 'short';
+        high = Math.max(high, bar.high); low = Math.min(low, bar.low);
+        return;
+      }
+
+      for (const child of children) {
+        const up = child.high > high;
+        const down = child.low < low;
+        const beforeHigh = high;
+        const beforeLow = low;
+        if (up || down) {
+          high = Math.max(high, child.high); low = Math.min(low, child.low);
+          // A direction-changing or ambiguous breakout supersedes the old wait.
+          waiting = up && down ? undefined : up ? 'long' : 'short';
+          continue;
+        }
+        if (!waiting) continue;
+        const midpoint = (high + low) / 2;
+        const pullbackLine = waiting === 'long' ? Math.min(midpoint, ema20) : Math.max(midpoint, ema20);
+        const touched = child.low <= pullbackLine && pullbackLine <= child.high;
+        if (touched) {
+          entries.push({ bar, triggerBar: child, direction: waiting, boundaryHigh: high, boundaryLow: low,
+            midpoint, ema20, pullbackLine, weekStart: dateOf(currentWeek!) });
+          waiting = undefined;
+        }
+        // Keep these local names as an explicit reminder that comparison is to the
+        // boundary known before this 5-minute event; they also aid debugger inspection.
+        void beforeHigh; void beforeLow;
+      }
+    },
+    result: () => ({ entries, incompleteHours }),
+  };
+}
+
+/** Causal weekly pullback entries reconstructed from 5-minute event order. */
+export function analyzeWeeklyEntries(
+  bars60: Bar[],
+  bars5: Bar[],
+  ema: EmaPoint[],
+): WeeklyEntryAnalysis {
+  const analyzer = createWeeklyEntryAnalyzer(bars60, bars5, ema);
   for (let barIndex = 0; barIndex < bars60.length; barIndex += 1) {
-    const bar = bars60[barIndex];
-    const week = weekStartFor(bar.startMs);
-    if (week !== currentWeek) {
-      currentWeek = week;
-      active = beijingDay(bar.startMs) === week;
-      ordinal = 0; high = -Infinity; low = Infinity; waiting = undefined;
-    }
-    if (!active) continue;
-    ordinal += 1;
-    if (ordinal <= 8) {
-      high = Math.max(high, bar.high); low = Math.min(low, bar.low);
-      continue;
-    }
+    analyzer.process(barIndex);
+  }
+  return analyzer.result();
+}
 
-    while (childCursor < bars5.length && bars5[childCursor].startMs < bar.startMs) childCursor += 1;
-    const children: Bar[] = [];
-    for (let index = childCursor; index < bars5.length && bars5[index].startMs < bar.endMs; index += 1) {
-      if (bars5[index].endMs <= bar.endMs) children.push(bars5[index]);
-    }
-    const childHigh = children.length ? Math.max(...children.map(child => child.high)) : -Infinity;
-    const childLow = children.length ? Math.min(...children.map(child => child.low)) : Infinity;
-    const complete = children.length === Math.round(bar.expectedMinutes / 5) && children.every(child => child.complete)
-      && childHigh === bar.high && childLow === bar.low;
-    const ema20 = emaByStart.get(bars60[barIndex - 1]?.startMs);
-    if (!complete || ema20 === undefined) {
-      incompleteHours += 1;
-      const up = bar.high > high;
-      const down = bar.low < low;
-      if (up && down) waiting = undefined;
-      else if (up) waiting = 'long';
-      else if (down) waiting = 'short';
-      high = Math.max(high, bar.high); low = Math.min(low, bar.low);
-      continue;
-    }
-
-    for (const child of children) {
-      const up = child.high > high;
-      const down = child.low < low;
-      const beforeHigh = high;
-      const beforeLow = low;
-      if (up || down) {
-        high = Math.max(high, child.high); low = Math.min(low, child.low);
-        // A direction-changing or ambiguous breakout supersedes the old wait.
-        waiting = up && down ? undefined : up ? 'long' : 'short';
-        continue;
-      }
-      if (!waiting) continue;
-      const midpoint = (high + low) / 2;
-      const pullbackLine = waiting === 'long' ? Math.min(midpoint, ema20) : Math.max(midpoint, ema20);
-      const touched = child.low <= pullbackLine && pullbackLine <= child.high;
-      if (touched) {
-        entries.push({ bar, triggerBar: child, direction: waiting, boundaryHigh: high, boundaryLow: low,
-          midpoint, ema20, pullbackLine, weekStart: dateOf(currentWeek!) });
-        waiting = undefined;
-      }
-      // Keep these local names as an explicit reminder that comparison is to the
-      // boundary known before this 5-minute event; they also aid debugger inspection.
-      void beforeHigh; void beforeLow;
+export async function analyzeWeeklyEntriesCooperatively(
+  bars60: Bar[],
+  bars5: Bar[],
+  ema: EmaPoint[],
+  yieldControl: () => void | Promise<void>,
+  batchSize = 512,
+): Promise<WeeklyEntryAnalysis> {
+  const analyzer = createWeeklyEntryAnalyzer(bars60, bars5, ema);
+  for (let barIndex = 0; barIndex < bars60.length; barIndex += 1) {
+    analyzer.process(barIndex);
+    if (
+      barIndex + 1 < bars60.length
+      && (barIndex + 1) % batchSize === 0
+    ) {
+      await yieldControl();
     }
   }
-  return { entries, incompleteHours };
+  return analyzer.result();
 }

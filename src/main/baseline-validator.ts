@@ -24,6 +24,7 @@ import {
   loadEffectiveSnapshot,
   type MarketDataPaths,
 } from './market-snapshot';
+import { auditBenchmarkReleaseIsolation } from './benchmark-release-audit';
 
 export const BASELINE_VALIDATION_REPORT_FILE = 'baseline-validation-report.json';
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -152,6 +153,11 @@ function assertRedistributable(
 export async function validateMarketBaselines(
   options: BaselineValidatorOptions,
 ): Promise<BaselineValidationReport> {
+  await auditBenchmarkReleaseIsolation([{
+    directory: options.paths.builtinDataDirectory,
+    label: 'data',
+  }]);
+
   const report: BaselineValidationReport = {
     schemaVersion: 1,
     validatedAt: (options.now?.() ?? new Date()).toISOString(),

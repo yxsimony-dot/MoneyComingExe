@@ -434,7 +434,7 @@ describe('THS glass main-contract matching gate', () => {
     expect(report.activation.allowed).toBe(false);
   });
 
-  it('allows a unique exact report and exposes only the three approved methods', () => {
+  it('allows a unique exact report and exposes only the four approved methods', () => {
     const benchmark = benchmarkBar('2023-08-09');
     const exact = candidateRecord(
       benchmark,
@@ -456,6 +456,7 @@ describe('THS glass main-contract matching gate', () => {
     expect(report.allowedMethods).toEqual(
       THS_GLASS_MAIN_ALLOWED_MATCH_METHODS,
     );
+    expect(report.allowedMethods).toContain('daily-relative-candidate-evidence');
     expect(report.matching.days.map(day => day.method)).toEqual([
       'exact-minute-sequence',
     ]);
@@ -468,9 +469,21 @@ describe('THS glass main-contract matching gate', () => {
 
   it('rebuilds the August 2023 mapping and rolls only after FG2309 owns 2023-08-09', () => {
     const benchmark = regressionBenchmarkBars();
+    const candidates = regressionCandidateSeries(benchmark).map(series => ({
+      ...series,
+      records: series.records.map(record => (
+        series.normalizedContract === 'FG2309'
+          && record.tradingDate === '2023-08-09'
+          ? {
+              ...record,
+              amount: record.amount === null ? null : record.amount * 0.9,
+            }
+          : record
+      )),
+    }));
     const report = matchThsGlassMainContracts(
       benchmark,
-      regressionCandidateSeries(benchmark),
+      candidates,
       REGRESSION_FIXTURE.tradingDates,
     );
 
@@ -480,6 +493,18 @@ describe('THS glass main-contract matching gate', () => {
       { tradingDate: '2023-08-09', contract: 'FG2309' },
       { tradingDate: '2023-08-10', contract: 'FG2401' },
     ]);
+    expect(report.matching.days[1]).toMatchObject({
+      tradingDate: '2023-08-09',
+      method: 'daily-relative-candidate-evidence',
+      selectedContract: 'FG2309',
+      dailyRelativeEvidence: {
+        status: 'selected',
+        bestContract: 'FG2309',
+        runnerUpContract: 'FG2401',
+      },
+    });
+    expect(report.matching.summary.dailyRelativeEvidenceMatches).toBe(1);
+    expect(report.matching.summary.heuristicFallbackMatches).toBe(0);
 
     const rebuilt = rebuildThsGlassMainContractArtifacts(
       report,

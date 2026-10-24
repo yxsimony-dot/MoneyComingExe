@@ -27,6 +27,15 @@ const memorySampleIntervalMs = 50;
 const switchTimeoutMs = fixtureMode ? 30_000 : 180_000;
 const coldRunCount = 3;
 const cachedRunCount = 3;
+const longTaskThresholdMs = 50;
+const thresholds = {
+  coldMedianMs: 4_500,
+  cachedMedianMs: 800,
+  loadingVisibleMs: 100,
+  peakWorkingSetBytes: 1.5 * 1024 ** 3,
+  longTaskCount: 0,
+  maximumCacheSize: 3,
+};
 const pageErrors = [];
 let app;
 let fixture;
@@ -136,12 +145,14 @@ const report = {
     coldRunCount,
     cachedRunCount,
     memorySampleIntervalMs,
-    longTaskThresholdMs: 50,
+    longTaskThresholdMs,
+    thresholds,
   },
   startup: {},
   samples: {
     cold: [],
     cached: [],
+    traversal: [],
   },
   memorySamples: [],
   summary: {},
@@ -327,7 +338,7 @@ async function switchInstrument(page, kind, target, sequence) {
       1,
       `${sampleId} 冷切换必须触发一次逻辑数据准备`,
     );
-  } else {
+  } else if (kind === 'cached') {
     assert.equal(
       serviceDelta.cacheHits,
       1,
@@ -338,6 +349,17 @@ async function switchInstrument(page, kind, target, sequence) {
       0,
       `${sampleId} 缓存切换不得重新准备数据`,
     );
+  } else {
+    assert.equal(
+      serviceDelta.preparationStarted + serviceDelta.cacheHits,
+      1,
+      `${sampleId} 顺序访问必须恰好准备或命中一次目标 Dataset`,
+    );
+    assert.equal(
+      serviceDelta.preparationFailed,
+      0,
+      `${sampleId} 顺序访问不得出现数据准备失败`,
+    );
   }
 
   const memory = report.memorySamples.slice(memoryStartIndex, memoryEndIndex);
@@ -347,6 +369,28 @@ async function switchInstrument(page, kind, target, sequence) {
   const strategyDerivations = rendererDiagnostics.strategyDerivations.filter(
     call => call.requestId === request.requestId,
   );
+  assert.deepEqual(
+    fullSetDataCalls
+      .map(call => call.period)
+      .sort((left, right) => left - right),
+    [5, 60],
+    `${sampleId} 每个可见周期必须且只能完整提交一次 K 线`,
+  );
+  assert.ok(
+    eventTimes['loading-visible'] - eventTimes['switch-requested']
+      <= thresholds.loadingVisibleMs,
+    `${sampleId} 加载状态显示超过 ${thresholds.loadingVisibleMs}ms`,
+  );
+  for (const diagnostics of [diagnosticsBefore, diagnosticsAfter]) {
+    assert.ok(
+      diagnostics.cacheSize <= thresholds.maximumCacheSize,
+      `${sampleId} Dataset 缓存超过 ${thresholds.maximumCacheSize} 项`,
+    );
+    assert.ok(
+      diagnostics.lruOrder.length <= thresholds.maximumCacheSize,
+      `${sampleId} LRU 顺序超过 ${thresholds.maximumCacheSize} 项`,
+    );
+  }
   return {
     id: sampleId,
     kind,
@@ -477,21 +521,52 @@ try {
     );
   }
 
+  const currentInstrument = cachedTargets.at(-1).instrumentId;
+  const currentIndex = selectorOptions.findIndex(
+    option => option.instrumentId === currentInstrument,
+  );
+  assert.notEqual(currentIndex, -1);
+  const traversalTargets = [
+    ...selectorOptions.slice(currentIndex + 1),
+    ...selectorOptions.slice(0, currentIndex + 1),
+  ];
+  assert.equal(traversalTargets.length, 15);
+  for (const [index, target] of traversalTargets.entries()) {
+    report.samples.traversal.push(
+      await switchInstrument(page, 'traversal', target, index + 1),
+    );
+  }
+  assert.deepEqual(
+    report.samples.traversal.map(sample => sample.instrumentId).sort(),
+    selectorOptions.map(option => option.instrumentId).sort(),
+    '顺序访问阶段必须覆盖全部 15 个品种',
+  );
+
   activeMemoryPhase = 'completed';
   await sampleMemory('completed');
-  const allLongTasks = [
+  const observedLongTasks = [
     ...report.samples.cold,
     ...report.samples.cached,
+    ...report.samples.traversal,
   ].flatMap(sample => sample.longTasks.entries.map(entry => ({
     sampleId: sample.id,
     ...entry,
   })));
+  const allLongTasks = observedLongTasks.filter(
+    entry => entry.duration > longTaskThresholdMs,
+  );
   const coldDurations = report.samples.cold.map(sample => sample.durationMs);
   const cachedDurations = report.samples.cached.map(sample => sample.durationMs);
   report.summary = {
     cold: summarize(coldDurations),
     cached: summarize(cachedDurations),
     longTasks: {
+      thresholdMs: longTaskThresholdMs,
+      observedCount: observedLongTasks.length,
+      maximumObservedDurationMs: Math.max(
+        0,
+        ...observedLongTasks.map(entry => entry.duration),
+      ),
       count: allLongTasks.length,
       maxDurationMs: Math.max(0, ...allLongTasks.map(entry => entry.duration)),
       entries: allLongTasks,
@@ -504,7 +579,101 @@ try {
       source: 'electron.app.getAppMetrics',
     },
   };
+  const allSamples = [
+    ...report.samples.cold,
+    ...report.samples.cached,
+    ...report.samples.traversal,
+  ];
+  report.acceptance = {
+    coldMedian: {
+      actualMs: report.summary.cold.medianMs,
+      maximumMs: thresholds.coldMedianMs,
+      passed: report.summary.cold.medianMs <= thresholds.coldMedianMs,
+    },
+    cachedMedian: {
+      actualMs: report.summary.cached.medianMs,
+      maximumMs: thresholds.cachedMedianMs,
+      passed: report.summary.cached.medianMs <= thresholds.cachedMedianMs,
+    },
+    loadingVisible: {
+      maximumActualMs: Math.max(
+        ...allSamples.map(sample => sample.renderer.timingsMs.loadingVisible),
+      ),
+      maximumMs: thresholds.loadingVisibleMs,
+      passed: allSamples.every(sample => (
+        sample.renderer.timingsMs.loadingVisible <= thresholds.loadingVisibleMs
+      )),
+    },
+    peakWorkingSet: {
+      actualBytes: report.summary.memory.peakWorkingSetBytes,
+      maximumBytes: thresholds.peakWorkingSetBytes,
+      passed: report.summary.memory.peakWorkingSetBytes
+        <= thresholds.peakWorkingSetBytes,
+    },
+    longTasks: {
+      actualCount: report.summary.longTasks.count,
+      maximumCount: thresholds.longTaskCount,
+      passed: report.summary.longTasks.count <= thresholds.longTaskCount,
+    },
+    cache: {
+      maximumActualSize: Math.max(
+        ...allSamples.flatMap(sample => [
+          sample.dataService.before.cacheSize,
+          sample.dataService.after.cacheSize,
+        ]),
+      ),
+      maximumSize: thresholds.maximumCacheSize,
+      passed: allSamples.every(sample => (
+        sample.dataService.before.cacheSize <= thresholds.maximumCacheSize
+        && sample.dataService.after.cacheSize <= thresholds.maximumCacheSize
+      )),
+    },
+    fullSetDataCalls: {
+      passed: allSamples.every(sample => (
+        sample.renderer.fullSetDataCalls.length === 2
+        && sample.renderer.fullSetDataCalls.some(call => call.period === 5)
+        && sample.renderer.fullSetDataCalls.some(call => call.period === 60)
+      )),
+    },
+    traversal: {
+      actualCount: report.samples.traversal.length,
+      expectedCount: 15,
+      passed: report.samples.traversal.length === 15,
+    },
+  };
   assert.deepEqual(pageErrors, []);
+  assert.ok(
+    report.acceptance.coldMedian.passed,
+    `冷切换中位数 ${report.summary.cold.medianMs.toFixed(2)}ms 超过 `
+      + `${thresholds.coldMedianMs}ms`,
+  );
+  assert.ok(
+    report.acceptance.cachedMedian.passed,
+    `缓存切换中位数 ${report.summary.cached.medianMs.toFixed(2)}ms 超过 `
+      + `${thresholds.cachedMedianMs}ms`,
+  );
+  assert.ok(
+    report.acceptance.loadingVisible.passed,
+    `加载状态最慢显示耗时 `
+      + `${report.acceptance.loadingVisible.maximumActualMs.toFixed(2)}ms 超过 `
+      + `${thresholds.loadingVisibleMs}ms`,
+  );
+  assert.ok(
+    report.acceptance.peakWorkingSet.passed,
+    `峰值工作集 ${report.summary.memory.peakWorkingSetBytes} bytes 超过 `
+      + `${thresholds.peakWorkingSetBytes} bytes`,
+  );
+  assert.ok(
+    report.acceptance.longTasks.passed,
+    `检测到 ${report.summary.longTasks.count} 个超过 `
+      + `${longTaskThresholdMs}ms 的渲染长任务`,
+  );
+  assert.ok(report.acceptance.cache.passed, 'Dataset 缓存超过三项');
+  assert.ok(
+    report.acceptance.fullSetDataCalls.passed,
+    '存在未满足每周期单次完整 K 线提交的切换',
+  );
+  assert.ok(report.acceptance.traversal.passed, '未顺序访问全部 15 个品种');
   report.offscreen.beforeClose = await assertElectronWindowOffscreen(
     app,
     'instrument-switch-performance-before-close',
@@ -512,6 +681,9 @@ try {
   report.passed = true;
 } catch (error) {
   failure = error;
+  report.failure = error instanceof Error
+    ? { name: error.name, message: error.message, stack: error.stack }
+    : { message: String(error) };
 } finally {
   monitorRunning = false;
   await memoryMonitor;
@@ -525,6 +697,7 @@ try {
   assert.equal(parsed.schemaVersion, 1);
   assert.equal(Array.isArray(parsed.samples?.cold), true);
   assert.equal(Array.isArray(parsed.samples?.cached), true);
+  assert.equal(Array.isArray(parsed.samples?.traversal), true);
   assert.equal(Array.isArray(parsed.memorySamples), true);
   await rm(sandbox, { recursive: true, force: true });
 }

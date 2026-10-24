@@ -110,6 +110,19 @@ describe('TimeSeriesIndex', () => {
       );
     }
   });
+
+  it('uses records for lookup while treating transferred metadata as validation only', () => {
+    const index = new TimeSeriesIndex(records, {
+      startTimes: [1, 2, 3, 4],
+    });
+
+    expect(index.positionAt(20)).toBe(1);
+    expect(index.lowerBound(25)).toBe(2);
+    expect(index.startTimes).toEqual([10, 20, 30, 40]);
+    expect(() => new TimeSeriesIndex(records, {
+      startTimes: [10],
+    })).toThrow('时间索引记录数与行情记录不一致');
+  });
 });
 
 describe('Dataset time index ownership', () => {

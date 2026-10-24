@@ -5,7 +5,6 @@ import {
   instrumentDefinition,
   isInstrument,
 } from '../shared/instruments';
-import { timeIndexForDataset } from '../domain/time-index';
 import {
   createLocalMarketDataPreparation,
   type MarketDataPreparationBackend,
@@ -181,7 +180,6 @@ function createService(paths: MarketDataPaths, options: DataServiceOptions) {
       sourceLatestAt: snapshot.sourceLatestAt,
       snapshotUpdatedAt: snapshot.snapshotUpdatedAt,
     };
-    timeIndexForDataset(data);
     return {
       snapshot,
       data,

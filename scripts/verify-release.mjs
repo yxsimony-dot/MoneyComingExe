@@ -8,6 +8,7 @@ import {
   INSTRUMENT_LIST,
   isConcreteContractCode,
 } from '../src/shared/instruments.ts';
+import { auditBenchmarkReleaseIsolation } from '../src/main/benchmark-release-audit.ts';
 import {
   assetName,
   listFiles,
@@ -789,7 +790,7 @@ function validateSourceSegments(metadata, definition, bars5) {
       assert(typeof segment[field] === 'string' && segment[field].trim(), `${label} 来源 ${field} 无效`);
     }
     assert(
-      ['desktop-main', 'public-history', 'gap-fill', 'edb-tail', 'legacy-migration', 'test-fixture'].includes(segment.kind),
+      ['desktop-main', 'public-history', 'gap-fill', 'edb-tail', 'legacy-migration', 'test-fixture', 'benchmark-main'].includes(segment.kind),
       `${label} 来源类型无效`,
     );
     if (segment.sourceVersion !== undefined) {
@@ -1032,6 +1033,11 @@ function assertReportProvenance(report, metadata, definition, label) {
 }
 
 export async function validatePackagedDataDirectory(dataDirectory, options = {}) {
+  await auditBenchmarkReleaseIsolation([{
+    directory: dataDirectory,
+    label: '安装包 data',
+  }]);
+
   const expectedIds = INSTRUMENT_LIST.map(definition => definition.id).sort();
   const instrumentsDirectory = join(dataDirectory, 'instruments');
   assert(await pathExists(instrumentsDirectory), '安装包数据缺少 instruments 目录');
@@ -1300,6 +1306,10 @@ export async function verifyRelease(directory = releaseDirectory()) {
   const manifest = await readPackageManifest();
   const files = await listFiles(directory);
   assert(files.length > 0, `发布目录不存在或为空：${directory}`);
+  await auditBenchmarkReleaseIsolation([{
+    directory,
+    label: '发布暂存目录',
+  }]);
 
   const zipFiles = files.filter(path => path.toLowerCase().endsWith('.zip'));
   assert(zipFiles.length === 0, `NSIS 发布目录不得包含 ZIP：${zipFiles.map(path => relative(directory, path)).join(', ')}`);

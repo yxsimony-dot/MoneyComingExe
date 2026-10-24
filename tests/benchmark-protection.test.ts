@@ -63,6 +63,7 @@ function benchmarkBars(minutes: EdbMinuteRecord[]): Bar[] {
 function protection(): MarketSnapshotBenchmarkProtection {
   return {
     provider: 'THS',
+    reportRunId: 'benchmark-protection-test',
     sourceSegmentId: 'ths-fg9999',
     bars5: {
       firstStart: '2026-10-09 21:00:00',
@@ -202,6 +203,71 @@ describe('benchmark-protected market data merge', () => {
       current,
       changed,
     )).toThrow('受保护 5 分钟字段');
+  });
+
+  it('completes a boundary 60-minute bucket from protected prefix and EDB tail', () => {
+    const bars1 = minuteSequence('2026-10-09 21:00:00', 90);
+    const bars5 = benchmarkBars(bars1);
+    const bars60 = aggregateFiveMinuteBars(
+      bars5,
+      GLASS.tradingSessions,
+    ).filter(bar => bar.complete);
+    const mainContractMappings = [
+      { tradingDate: '2026-10-09', contract: 'FG2609' },
+      { tradingDate: '2026-10-10', contract: 'FG2701' },
+    ];
+    const current = {
+      bars1,
+      bars5,
+      bars60,
+      mainContractMappings,
+      rollovers: detectContractRollovers(
+        mainContractMappings,
+        bars5,
+        GLASS,
+      ),
+    };
+    const metadata = {
+      ...protection(),
+      bars5: {
+        ...protection().bars5,
+        lastEnd: '2026-10-09 22:30:00',
+      },
+    };
+    const tailMinutes = minuteSequence('2026-10-09 22:30:00', 30);
+
+    const result = mergeBenchmarkProtectedMarketData({
+      definition: GLASS,
+      current,
+      incomingMinutes: tailMinutes,
+      remoteMappings: [],
+      protection: metadata,
+      rebuildStartMs: parseBeijing('2026-10-09 21:00:00'),
+      coverageEndMs: parseBeijing('2026-10-09 23:00:00'),
+    });
+
+    expect(current.bars60).toHaveLength(1);
+    expect(result.bars60).toHaveLength(2);
+    expect(result.bars60[0]).toEqual(current.bars60[0]);
+    expect(result.bars5.filter(bar => (
+      bar.startMs >= parseBeijing('2026-10-09 22:00:00')
+      && bar.endMs <= parseBeijing('2026-10-09 22:30:00')
+    ))).toEqual(current.bars5.slice(-6));
+    expect(result.bars60[1]).toEqual(
+      aggregateFiveMinuteBars(
+        result.bars5,
+        GLASS.tradingSessions,
+      ).filter(bar => bar.complete)[1],
+    );
+    expect(result.bars60[1]).toMatchObject({
+      start: '2026-10-09 22:00:00',
+      end: '2026-10-09 23:00:00',
+      observedMinutes: 60,
+      expectedMinutes: 60,
+      complete: true,
+    });
+    expect(result.protectionFingerprint?.before)
+      .toBe(result.protectionFingerprint?.after);
   });
 
   it('keeps the existing unprotected merge behavior available to other instruments', () => {
